@@ -1,0 +1,16 @@
+apiVersion: skaffold/v2beta26
+kind: Config
+build:
+  local: {}
+  tagPolicy:
+    dateTime: { }
+  artifacts:
+    - image: coreweave/nccl-tests
+      context: ./
+      docker:
+        dockerfile: Dockerfile
+
+deploy:
+  kubectl:
+    manifests:
+      - nccl-test-distributed-mpijob.yaml
