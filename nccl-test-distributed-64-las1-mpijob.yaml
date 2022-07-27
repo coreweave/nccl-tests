@@ -41,7 +41,7 @@ spec:
                 requiredDuringSchedulingIgnoredDuringExecution:
                   nodeSelectorTerms:
                     - matchExpressions:
-                      - key: failure-domain.beta.kubernetes.io/region
+                      - key: topology.kubernetes.io/region
                         operator: In
                         values:
                         - LAS1

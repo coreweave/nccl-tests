@@ -75,7 +75,7 @@ spec:
                     operator: In
                     values:
                     - A40
-                  - key: failure-domain.beta.kubernetes.io/region
+                  - key: topology.kubernetes.io/region
                     operator: In
                     values:
                     - LAS1
@@ -84,11 +84,5 @@ spec:
             - emptyDir:
                 medium: Memory
               name: dshm
-
-          tolerations:
-          - effect: NoSchedule
-            key: node.coreweave.cloud/reserved-for
-            operator: Equal
-            value: tenant-eleutherai
           enableServiceLinks: false
           automountServiceAccountToken: false

@@ -93,10 +93,5 @@ spec:
             - name: gdrdrv
               hostPath:
                 path: /dev/gdrdrv
-          tolerations:
-          - effect: NoSchedule
-            key: node.coreweave.cloud/reserved-for
-            operator: Equal
-            value: tenant-eleutherai
           enableServiceLinks: false
           automountServiceAccountToken: false
