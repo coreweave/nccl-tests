@@ -19,11 +19,11 @@ RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/m
         openssh-server \
     && rm -rf /var/lib/apt/lists/*
 
-# HPC-X (2.11)
-ENV HPCX_VERSION=2.11
+# HPC-X (2.12)
+ENV HPCX_VERSION=2.12
 RUN cd /tmp && \
-    wget -q -O - http://blobstore.s3.ord1.coreweave.com/drivers/hpcx-v${HPCX_VERSION}-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl2.11-x86_64.tbz | tar xjf - && \
-    mv hpcx-v${HPCX_VERSION}-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl2.11-x86_64 /hpcx
+    wget -q -O - http://blobstore.s3.ord1.coreweave.com/drivers/hpcx-v${HPCX_VERSION}-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl${HPCX_VERSION}-x86_64.tbz | tar xjf - && \
+    mv hpcx-v${HPCX_VERSION}-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl${HPCX_VERSION}-x86_64 /hpcx
 
 # GDRCopy userspace components (2.3)
 RUN cd /tmp && \
