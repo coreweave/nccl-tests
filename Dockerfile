@@ -7,7 +7,7 @@ RUN apt-get -qq update \
         ca-certificates \
         wget \
         iputils-ping net-tools \
-        libnuma1 libpmi0-dev libpmi2-0-dev libsubunit0
+        libnuma1 libpmi0-dev libpmi2-0-dev libsubunit0 libpci-dev
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
@@ -15,9 +15,23 @@ RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/m
 
  RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
-        mlnx-ofed-hpc-user-only perftest ibverbs-utils libibverbs-dev libibumad3 rdmacm-utils infiniband-diags \
+        mlnx-ofed-hpc-user-only perftest ibverbs-utils libibverbs-dev libibumad3 rdmacm-utils infiniband-diags ibverbs-utils \
         openssh-server \
     && rm -rf /var/lib/apt/lists/*
+
+# IB perftest with GDR
+ENV PERFTEST_VERSION=4.5-0.17
+ENV PERFTEST_VERSION_HASH=g6f25f23
+
+RUN mkdir /tmp/build && \
+    cd /tmp/build && \
+    wget https://github.com/linux-rdma/perftest/releases/download/v${PERFTEST_VERSION}/perftest-${PERFTEST_VERSION}.${PERFTEST_VERSION_HASH}.tar.gz && \
+    tar xvf perftest-${PERFTEST_VERSION}.${PERFTEST_VERSION_HASH}.tar.gz && \
+    cd perftest-4.5 && \
+    ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
+    make install && \
+    cd /tmp && \
+    rm -r /tmp/build
 
 # HPC-X (2.11)
 ENV HPCX_VERSION=2.11
