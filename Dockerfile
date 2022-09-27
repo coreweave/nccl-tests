@@ -87,7 +87,7 @@ ENV PKG_CONFIG_PATH=/hpcx/hcoll/lib/pkgconfig:/hpcx/sharp/lib/pkgconfig:/hpcx/uc
 # End of auto-generated paths
 
 # NCCL Tests
-ENV NCCL_TESTS_COMMITISH=8274cb4
+ENV NCCL_TESTS_COMMITISH=d313d20
 WORKDIR /opt/nccl_tests
 RUN  wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - \
    && make MPI=1
