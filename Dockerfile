@@ -1,3 +1,4 @@
+FROM salanki/rdma-perftest:11.4 AS perftest
 FROM nvidia/cuda:11.6.2-devel-ubuntu20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -85,6 +86,16 @@ ENV OLD_CPATH=
 ENV CPATH=/hpcx/ompi/include:/hpcx/ucc/include:/hpcx/ucx/include:/hpcx/sharp/include:/hpcx/hcoll/include:
 ENV PKG_CONFIG_PATH=/hpcx/hcoll/lib/pkgconfig:/hpcx/sharp/lib/pkgconfig:/hpcx/ucx/lib/pkgconfig:/hpcx/ompi/lib/pkgconfig:
 # End of auto-generated paths
+
+# Copy in perftest with GPU support
+COPY --from=perftest /usr/bin/ib_atomic_bw /usr/bin/ib_atomic_bw
+COPY --from=perftest /usr/bin/ib_atomic_lat /usr/bin/ib_atomic_lat
+COPY --from=perftest /usr/bin/ib_read_bw /usr/bin/ib_read_bw
+COPY --from=perftest /usr/bin/ib_read_lat /usr/bin/ib_read_lat
+COPY --from=perftest /usr/bin/ib_send_bw /usr/bin/ib_send_bw
+COPY --from=perftest /usr/bin/ib_send_lat /usr/bin/ib_send_lat
+COPY --from=perftest /usr/bin/ib_write_bw /usr/bin/ib_write_bw
+COPY --from=perftest /usr/bin/ib_write_lat /usr/bin/ib_write_lat
 
 # NCCL Tests
 ENV NCCL_TESTS_COMMITISH=8274cb4
