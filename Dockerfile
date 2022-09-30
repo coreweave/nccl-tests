@@ -1,3 +1,4 @@
+FROM salanki/rdma-perftest:11.4 AS perftest
 FROM nvidia/cuda:11.6.2-devel-ubuntu20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -34,11 +35,11 @@ RUN mkdir /tmp/build && \
     cd /tmp && \
     rm -r /tmp/build
 
-# HPC-X (2.11)
-ENV HPCX_VERSION=2.11
+# HPC-X (2.12)
+ENV HPCX_VERSION=2.12
 RUN cd /tmp && \
-    wget -q -O - http://blobstore.s3.ord1.coreweave.com/drivers/hpcx-v${HPCX_VERSION}-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl2.11-x86_64.tbz | tar xjf - && \
-    mv hpcx-v${HPCX_VERSION}-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl2.11-x86_64 /hpcx
+    wget -q -O - http://blobstore.s3.ord1.coreweave.com/drivers/hpcx-v${HPCX_VERSION}-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl${HPCX_VERSION}-x86_64.tbz | tar xjf - && \
+    mv hpcx-v${HPCX_VERSION}-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl${HPCX_VERSION}-x86_64 /hpcx
 
 # GDRCopy userspace components (2.3)
 RUN cd /tmp && \
@@ -101,8 +102,18 @@ ENV CPATH=/hpcx/ompi/include:/hpcx/ucc/include:/hpcx/ucx/include:/hpcx/sharp/inc
 ENV PKG_CONFIG_PATH=/hpcx/hcoll/lib/pkgconfig:/hpcx/sharp/lib/pkgconfig:/hpcx/ucx/lib/pkgconfig:/hpcx/ompi/lib/pkgconfig:
 # End of auto-generated paths
 
+# Copy in perftest with GPU support
+COPY --from=perftest /usr/bin/ib_atomic_bw /usr/bin/ib_atomic_bw
+COPY --from=perftest /usr/bin/ib_atomic_lat /usr/bin/ib_atomic_lat
+COPY --from=perftest /usr/bin/ib_read_bw /usr/bin/ib_read_bw
+COPY --from=perftest /usr/bin/ib_read_lat /usr/bin/ib_read_lat
+COPY --from=perftest /usr/bin/ib_send_bw /usr/bin/ib_send_bw
+COPY --from=perftest /usr/bin/ib_send_lat /usr/bin/ib_send_lat
+COPY --from=perftest /usr/bin/ib_write_bw /usr/bin/ib_write_bw
+COPY --from=perftest /usr/bin/ib_write_lat /usr/bin/ib_write_lat
+
 # NCCL Tests
-ENV NCCL_TESTS_COMMITISH=8274cb4
+ENV NCCL_TESTS_COMMITISH=d313d20
 WORKDIR /opt/nccl_tests
 RUN  wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - \
    && make MPI=1
