@@ -7,7 +7,8 @@ RUN apt-get -qq update \
         ca-certificates \
         wget \
         iputils-ping net-tools \
-        libnuma1 libpmi0-dev libpmi2-0-dev libsubunit0 libpci-dev
+        libnuma1 libpmi0-dev libpmi2-0-dev libsubunit0 libpci-dev \
+        datacenter-gpu-manager
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
