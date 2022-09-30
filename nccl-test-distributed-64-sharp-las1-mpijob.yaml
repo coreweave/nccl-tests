@@ -1,0 +1,90 @@
+apiVersion: kubeflow.org/v2beta1
+kind: MPIJob
+metadata:
+  name: nccl-test-64-sharp
+spec:
+  slotsPerWorker: 8
+  runPolicy:
+    cleanPodPolicy: Running
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+          spec:
+            containers:
+            - image: coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT
+              name: nccl
+              env:
+              - name: OMPI_ALLOW_RUN_AS_ROOT
+                value: "1"
+              - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
+                value: "1"
+              # Uncomment to be able to exec in to launcher pod for interactive testing
+              # command: ['sleep', '86400']
+              command: ["/bin/bash", "-c"]
+              args: ["mpirun \
+                    -np 64 \
+                    -x LD_LIBRARY_PATH \
+                    -x NCCL_COLLNET_ENABLE=1 \
+                    -x NCCL_SOCKET_IFNAME=ens81f0np0 \
+                    -x NCCL_IB_HCA=ibp \
+                    /opt/nccl_tests/build/all_reduce_perf -b 4 -e 8G -f 2 -g 1 -w 1 -n 10
+                    "]
+
+              resources:
+                requests:
+                  cpu: 2
+                  memory: 128Mi
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: topology.kubernetes.io/region
+                        operator: In
+                        values:
+                        - LAS1
+
+            schedulerName: prioritize-image-locality
+            enableServiceLinks: false
+            automountServiceAccountToken: false
+    Worker:
+      replicas: 8
+      template:
+        spec:
+          containers:
+          - image: coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT
+            name: nccl
+            resources:
+              requests:
+                cpu: 90
+                memory: 400Gi
+                nvidia.com/gpu: 8
+                rdma/ib: 1
+              limits:
+                nvidia.com/gpu: 8
+                rdma/ib: 1
+            volumeMounts:
+              - mountPath: /dev/shm
+                name: dshm
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: gpu.nvidia.com/model
+                    operator: In
+                    values:
+                    - A100_NVLINK_80GB
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values:
+                    - LAS1
+
+          volumes:
+            - emptyDir:
+                medium: Memory
+              name: dshm
+
+          enableServiceLinks: false
+          automountServiceAccountToken: false
