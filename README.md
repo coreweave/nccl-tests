@@ -13,7 +13,7 @@ This repository includes Dockerfiles that can be used directly or as a template 
 - NVIDIA [NCCL Tests](https://github.com/NVIDIA/nccl-tests) for verification purposes
 - OpenSSH server and related settings to enable images to easily be used as MPI Runners
 
-CoreWeave also [publishes images](https://hub.docker.com/r/coreweave/nccl-tests/tags) built from these Dockerfiles that can be used as base for your own images. The newest image at time of writing is `coreweave/nccl-tests:2022-07-05_09-54-20.051_EDT` built in CUDA 11.6.2 with HPC-X 2.11.
+CoreWeave also [publishes images](https://hub.docker.com/r/coreweave/nccl-tests/tags) built from these Dockerfiles that can be used as base for your own images. The newest image at time of writing is `coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT` built in CUDA 11.6.2 with HPC-X 2.12 and `coreweave/nccl-tests:2022-09-30_18-12-18.853_EDT` built in CUDA 11.7.1 with HPC-X 2.12
 
 ## Running NCCL Tests
 CoreWeave provides a managed instance of the [MPI Operator](https://github.com/kubeflow/mpi-operator) to allow running MPI Jobs in a container native fashion. No installation is required by the user, simply execute a MPIJob manifest in your namespace.

@@ -1,5 +1,5 @@
 FROM salanki/rdma-perftest:11.4 AS perftest
-FROM nvidia/cuda:11.6.2-devel-ubuntu20.04
+FROM nvidia/cuda:11.7.1-devel-ubuntu20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update \
@@ -54,7 +54,7 @@ RUN cd /tmp && \
     unzip master.zip && \
     cd nccl-rdma-sharp-plugins-master && \
     ./autogen.sh && \
-    ./configure --with-cuda=/usr/local/cuda-11.6 --prefix=/usr && \
+    ./configure --with-cuda=/usr/local/cuda-11.7 --prefix=/usr && \
     make && \
     make install && \
     rm /hpcx/nccl_rdma_sharp_plugin/lib/*
