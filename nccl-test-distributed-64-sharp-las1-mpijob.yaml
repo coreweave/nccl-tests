@@ -12,7 +12,7 @@ spec:
       template:
           spec:
             containers:
-            - image: coreweave/nccl-tests:2022-09-30_18-12-18.853_EDT
+            - image: coreweave/nccl-tests:2022-10-10_18-23-10.389_EDT
               name: nccl
               env:
               - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -24,9 +24,10 @@ spec:
               command: ["/bin/bash", "-c"]
               args: ["mpirun \
                     -np 64 \
+                    -bind-to none \
                     -x LD_LIBRARY_PATH \
                     -x NCCL_COLLNET_ENABLE=1 \
-                    -x NCCL_SOCKET_IFNAME=ens81f0np0 \
+                    -x NCCL_SOCKET_IFNAME=eth0 \
                     -x NCCL_IB_HCA=ibp \
                     /opt/nccl_tests/build/all_reduce_perf -b 4 -e 8G -f 2 -g 1 -w 1 -n 10
                     "]
@@ -51,9 +52,13 @@ spec:
     Worker:
       replicas: 8
       template:
+        metadata:
+          annotations:
+            # The requirement for this annotation will soon disappear and be automated
+            k8s.v1.cni.cncf.io/networks: ib-network-0,ib-network-1,ib-network-2,ib-network-3
         spec:
           containers:
-          - image: coreweave/nccl-tests:2022-09-30_18-12-18.853_EDT
+          - image: coreweave/nccl-tests:2022-10-10_18-23-10.389_EDT
             name: nccl
             resources:
               requests:
@@ -80,6 +85,10 @@ spec:
                     operator: In
                     values:
                     - LAS1
+                  - key: ethernet.coreweave.cloud/speed
+                    operator: In
+                    values:
+                    - 100G
 
           volumes:
             - emptyDir:
