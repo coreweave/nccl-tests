@@ -67,9 +67,10 @@ RUN cd /tmp && \
     cd nccl-rdma-sharp-plugins-master && \
     ./autogen.sh && \
     ./configure --with-cuda=/usr/local/cuda-11.7 --prefix=/usr && \
-    make && \
+    make -j9 && \
     make install && \
-    rm /hpcx/nccl_rdma_sharp_plugin/lib/*
+    rm /hpcx/nccl_rdma_sharp_plugin/lib/* && \
+    rm -r /tmp/*
 
 # HPC-X Environment variables
 #
@@ -85,7 +86,7 @@ RUN cd /tmp && \
 #   /tmp/printpaths.sh && \
 #   rm /tmp/printpaths.sh'
 
-# Being auto-generated paths
+# Begin auto-generated paths
 ENV HPCX_DIR=/hpcx
 ENV HPCX_UCX_DIR=/hpcx/ucx
 ENV HPCX_UCC_DIR=/hpcx/ucc
@@ -128,9 +129,10 @@ RUN cd /hpcx/sources/ && rm -r /hpcx/ompi && tar -zxvf openmpi-gitclone.tar.gz &
 
 # NCCL Tests
 ENV NCCL_TESTS_COMMITISH=d313d20
-WORKDIR /opt/nccl_tests
+WORKDIR /opt/nccl-tests
 RUN  wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - \
-   && make MPI=1
+   && make MPI=1 \
+   && ln -s /opt/nccl-tests /opt/nccl_tests
 
 RUN ldconfig
 
