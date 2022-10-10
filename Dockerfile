@@ -1,25 +1,26 @@
-FROM salanki/rdma-perftest:11.4 AS perftest
-FROM nvidia/cuda:11.7.1-devel-ubuntu20.04
+FROM nvidia/cuda:11.7.1-devel-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get -qq update \
-    && apt-get -qq install -y --no-install-recommends \
+RUN apt-get -qq update && \
+        apt-get -qq install -y --no-install-recommends \
         build-essential libtool autoconf automake autotools-dev unzip \
         ca-certificates \
-        wget \
+        wget curl \
         iputils-ping net-tools \
-        libnuma1 libpmi0-dev libpmi2-0-dev libsubunit0 libpci-dev \
+        libnuma1 libsubunit0 libpci-dev \
+        libpmix-dev \
         datacenter-gpu-manager
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
 RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu18.04/mellanox_mlnx_ofed.list
 
- RUN apt-get -qq update \
+RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
-        mlnx-ofed-hpc-user-only perftest ibverbs-utils libibverbs-dev libibumad3 rdmacm-utils infiniband-diags ibverbs-utils \
-        openssh-server \
+    ibverbs-utils libibverbs-dev libibumad3 libibumad-dev librdmacm-dev rdmacm-utils infiniband-diags ibverbs-utils \
+    openssh-server \
     && rm -rf /var/lib/apt/lists/*
+#         mlnx-ofed-hpc-user-only
 
 # IB perftest with GDR
 ENV PERFTEST_VERSION=4.5-0.17
@@ -102,15 +103,17 @@ ENV CPATH=/hpcx/ompi/include:/hpcx/ucc/include:/hpcx/ucx/include:/hpcx/sharp/inc
 ENV PKG_CONFIG_PATH=/hpcx/hcoll/lib/pkgconfig:/hpcx/sharp/lib/pkgconfig:/hpcx/ucx/lib/pkgconfig:/hpcx/ompi/lib/pkgconfig:
 # End of auto-generated paths
 
-# Copy in perftest with GPU support
-COPY --from=perftest /usr/bin/ib_atomic_bw /usr/bin/ib_atomic_bw
-COPY --from=perftest /usr/bin/ib_atomic_lat /usr/bin/ib_atomic_lat
-COPY --from=perftest /usr/bin/ib_read_bw /usr/bin/ib_read_bw
-COPY --from=perftest /usr/bin/ib_read_lat /usr/bin/ib_read_lat
-COPY --from=perftest /usr/bin/ib_send_bw /usr/bin/ib_send_bw
-COPY --from=perftest /usr/bin/ib_send_lat /usr/bin/ib_send_lat
-COPY --from=perftest /usr/bin/ib_write_bw /usr/bin/ib_write_bw
-COPY --from=perftest /usr/bin/ib_write_lat /usr/bin/ib_write_lat
+# Rebuild OpenMPI to support SLURM
+RUN cd /hpcx/sources/ && rm -r /hpcx/ompi && tar -zxvf openmpi-gitclone.tar.gz && cd openmpi-gitclone && \
+    ./configure --prefix=/hpcx/ompi \
+           --with-hcoll=/hpcx/hcoll --with-ucx=/hpcx/ucx \
+           --with-platform=contrib/platform/mellanox/optimized \
+           --with-slurm --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2 --with-hwloc --with-libevent \
+           --without-xpmem --with-cuda --with-ucc=/hpcx/ucc && \
+           make -j14 && \
+           make -j14 install && \
+           cd .. && \
+           rm -r openmpi-gitclone
 
 # NCCL Tests
 ENV NCCL_TESTS_COMMITISH=d313d20
