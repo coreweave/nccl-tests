@@ -8,12 +8,23 @@ NCCL is supported across all CoreWeave NVIDIA GPUs over Ethernet. In addition, t
 This repository includes Dockerfiles that can be used directly or as a template for your distributed training appictions. The Dockerfiles include the following components:
 - NVIDIA [Mellanox OFED Driver](https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/) userspace components. The kernel side is installed on our bare-metal nodes and do not need to be installed by users. The OFED drivers are necessary for optimized InfiniBand communication.
 - NVIDIA [HPC-X](https://developer.nvidia.com/networking/hpc-x) which is a packaging of OpenMPI and UCX
+- NVIDIA HPC-X OpenMPI compiled with external PMIx to enable [SLURM](https://slurm.schedmd.com/) integration
 - NVIDIA [GDRCopy](https://developer.nvidia.com/gdrcopy) libraries leverages GPUDirect RDMA for improved GPU to host memory copy performance in certain applications. The kernel support for GDRCopy exists on CoreWeaves bare-metal nodes. GDRCopy is only supported on A100 training clusters.
 - NVIDIA [NCCL SHARP Plugin](https://github.com/Mellanox/nccl-rdma-sharp-plugins) for SHARP support in NCCL
-- NVIDIA [NCCL Tests](https://github.com/NVIDIA/nccl-tests) for verification purposes
+- NVIDIA [NCCL Tests](https://github.com/NVIDIA/nccl-tests) for verification and benchmarking purposes
+- NVIDIA [DCGM](https://developer.nvidia.com/dcgm) for GPU tests and health checks
+- NVIDIA [bandwidthTest](https://docs.nvidia.com/cuda/demo-suite/index.html#bandwidthTest) utility
+- [RDMA Perftest](https://github.com/linux-rdma/perftest/) with GPUDirect
 - OpenSSH server and related settings to enable images to easily be used as MPI Runners
 
-CoreWeave also [publishes images](https://hub.docker.com/r/coreweave/nccl-tests/tags) built from these Dockerfiles that can be used as base for your own images. The newest image at time of writing is `coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT` built in CUDA 11.6.2 with HPC-X 2.12 and `coreweave/nccl-tests:2022-09-30_18-12-18.853_EDT` built in CUDA 11.7.1 with HPC-X 2.12
+CoreWeave also [publishes images](https://hub.docker.com/r/coreweave/nccl-tests/tags) built from these Dockerfiles that can be used as base for your own images.
+
+| **Image Tag** | **CUDA** | **HPC-X** |
+|---------------|----------|-----------|
+| coreweave/nccl-tests:2022-10-10_18-23-10.389_EDT            | 11.7.1   | 2.12      |
+| coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT            | 11.6.2   | 2.12      |
+
+The newest image at time of writing is `` built in CUDA 11.6.2 with HPC-X 2.12 and `coreweave/nccl-tests:2022-09-30_18-12-18.853_EDT` built in CUDA 11.7.1 with HPC-X 2.12
 
 ## Running NCCL Tests
 CoreWeave provides a managed instance of the [MPI Operator](https://github.com/kubeflow/mpi-operator) to allow running MPI Jobs in a container native fashion. No installation is required by the user, simply execute a MPIJob manifest in your namespace.
