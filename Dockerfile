@@ -28,11 +28,22 @@ ENV PERFTEST_VERSION_HASH=g6f25f23
 
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
-    wget https://github.com/linux-rdma/perftest/releases/download/v${PERFTEST_VERSION}/perftest-${PERFTEST_VERSION}.${PERFTEST_VERSION_HASH}.tar.gz && \
+    wget -q https://github.com/linux-rdma/perftest/releases/download/v${PERFTEST_VERSION}/perftest-${PERFTEST_VERSION}.${PERFTEST_VERSION_HASH}.tar.gz && \
     tar xvf perftest-${PERFTEST_VERSION}.${PERFTEST_VERSION_HASH}.tar.gz && \
     cd perftest-4.5 && \
     ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
     make install && \
+    cd /tmp && \
+    rm -r /tmp/build
+
+# Build GPU Bandwidthtest from samples
+RUN mkdir /tmp/build && \
+    cd /tmp/build && \
+    wget -q https://github.com/NVIDIA/cuda-samples/archive/refs/heads/master.zip && \
+    unzip master.zip && \
+    cd cuda-samples-master/Samples/1_Utilities/bandwidthTest && \
+    make && \
+    install bandwidthTest /usr/bin/ && \
     cd /tmp && \
     rm -r /tmp/build
 
