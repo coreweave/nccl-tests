@@ -12,7 +12,7 @@ spec:
       template:
           spec:
             containers:
-            - image: coreweave/nccl-tests:2022-10-10_18-23-10.389_EDT
+            - image: coreweave/nccl-tests:2022-10-10_20-26-39.868_EDT
               name: nccl
               env:
               - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -58,7 +58,7 @@ spec:
             k8s.v1.cni.cncf.io/networks: ib-network-0,ib-network-1,ib-network-2,ib-network-3
         spec:
           containers:
-          - image: coreweave/nccl-tests:2022-10-10_18-23-10.389_EDT
+          - image: coreweave/nccl-tests:2022-10-10_20-26-39.868_EDT
             name: nccl
             resources:
               requests:

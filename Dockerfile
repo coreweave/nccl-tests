@@ -60,18 +60,6 @@ RUN cd /tmp && \
     dpkg -i *.deb && \
     rm *.deb
 
-# NCCL SHARP PLugin (master)
-RUN cd /tmp && \
-    wget -q https://github.com/Mellanox/nccl-rdma-sharp-plugins/archive/refs/heads/master.zip && \
-    unzip master.zip && \
-    cd nccl-rdma-sharp-plugins-master && \
-    ./autogen.sh && \
-    ./configure --with-cuda=/usr/local/cuda-11.7 --prefix=/usr && \
-    make -j9 && \
-    make install && \
-    rm /hpcx/nccl_rdma_sharp_plugin/lib/* && \
-    rm -r /tmp/*
-
 # HPC-X Environment variables
 #
 # The following envs are from the output of the printpaths script. Uncomment the rows below to
@@ -126,6 +114,18 @@ RUN cd /hpcx/sources/ && rm -r /hpcx/ompi && tar -zxvf openmpi-gitclone.tar.gz &
            make -j14 install && \
            cd .. && \
            rm -r openmpi-gitclone
+
+# NCCL SHARP PLugin (master)
+RUN cd /tmp && \
+    wget -q https://github.com/Mellanox/nccl-rdma-sharp-plugins/archive/refs/heads/master.zip && \
+    unzip master.zip && \
+    cd nccl-rdma-sharp-plugins-master && \
+    ./autogen.sh && \
+    ./configure --with-cuda=/usr/local/cuda-11.7 --prefix=/usr && \
+    make && \
+    make install && \
+    rm /hpcx/nccl_rdma_sharp_plugin/lib/* && \
+    rm -r /tmp/*
 
 # NCCL Tests
 ENV NCCL_TESTS_COMMITISH=d313d20
