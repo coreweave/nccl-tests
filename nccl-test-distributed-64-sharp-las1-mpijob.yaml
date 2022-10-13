@@ -29,7 +29,7 @@ spec:
                     -x NCCL_COLLNET_ENABLE=1 \
                     -x NCCL_SOCKET_IFNAME=eth0 \
                     -x NCCL_IB_HCA=ibp \
-                    /opt/nccl_tests/build/all_reduce_perf -b 4 -e 8G -f 2 -g 1 -w 1 -n 10
+                    /opt/nccl_tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 1 -w 1 -n 10
                     "]
 
               resources:
@@ -52,10 +52,8 @@ spec:
     Worker:
       replicas: 8
       template:
-        metadata:
-          annotations:
-            # The requirement for this annotation will soon disappear and be automated
-            k8s.v1.cni.cncf.io/networks: ib-network-0,ib-network-1,ib-network-2,ib-network-3
+        labels:
+          metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
           - image: coreweave/nccl-tests:2022-10-10_20-26-39.868_EDT
@@ -85,10 +83,10 @@ spec:
                     operator: In
                     values:
                     - LAS1
-                  - key: ethernet.coreweave.cloud/speed
+                  - key: ib.coreweave.cloud/speed
                     operator: In
                     values:
-                    - 100G
+                    - 800G
 
           volumes:
             - emptyDir:
