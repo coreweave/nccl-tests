@@ -45,6 +45,11 @@ spec:
                         operator: In
                         values:
                         - LAS1
+                      - key: node.coreweave.cloud/version
+                        operator: NotIn
+                        values:
+                        - 1.18.0
+                        - 1.19.0
 
             schedulerName: prioritize-image-locality
             enableServiceLinks: false
