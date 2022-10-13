@@ -64,12 +64,9 @@ spec:
           - image: coreweave/nccl-tests:2022-10-10_20-26-39.868_EDT
             name: nccl
             resources:
-              requests:
-                cpu: 90
-                memory: 400Gi
-                nvidia.com/gpu: 8
-                rdma/ib: 1
               limits:
+                cpu: 112
+                memory: 1000Gi
                 nvidia.com/gpu: 8
                 rdma/ib: 1
             volumeMounts:
