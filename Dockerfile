@@ -5,7 +5,7 @@ RUN apt-get -qq update && \
         apt-get -qq install -y --no-install-recommends \
         build-essential libtool autoconf automake autotools-dev unzip \
         ca-certificates \
-        wget curl \
+        wget curl openssh-server vim \
         iputils-ping net-tools \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
@@ -18,7 +18,6 @@ RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/m
 RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
     ibverbs-utils libibverbs-dev libibumad3 libibumad-dev librdmacm-dev rdmacm-utils infiniband-diags ibverbs-utils \
-    openssh-server \
     && rm -rf /var/lib/apt/lists/*
 #         mlnx-ofed-hpc-user-only
 
