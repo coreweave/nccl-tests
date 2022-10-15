@@ -12,7 +12,7 @@ spec:
       template:
           spec:
             containers:
-            - image: coreweave/nccl-tests:2022-10-10_20-26-39.868_EDT
+            - image: coreweave/nccl-tests:2022-10-15_01-04-47.791_EDT
               name: nccl
               env:
               - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -61,7 +61,7 @@ spec:
           metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
-          - image: coreweave/nccl-tests:2022-10-10_20-26-39.868_EDT
+          - image: coreweave/nccl-tests:2022-10-15_01-04-47.791_EDT
             name: nccl
             resources:
               limits:

@@ -1,4 +1,7 @@
-FROM nvidia/cuda:11.7.1-devel-ubuntu22.04
+ARG CUDA_VERSION=11.8.0
+ARG NCCL_VERSION=2.15.1-1
+
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
@@ -9,7 +12,8 @@ RUN apt-get -qq update && \
         iputils-ping net-tools \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
-        datacenter-gpu-manager
+        datacenter-gpu-manager \
+        libnccl2=${NCCL_VERSION}+{CUDA_VERSION} libnccl-dev=${NCCL_VERSION}+{CUDA_VERSION}
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
@@ -120,7 +124,7 @@ RUN cd /tmp && \
     unzip master.zip && \
     cd nccl-rdma-sharp-plugins-master && \
     ./autogen.sh && \
-    ./configure --with-cuda=/usr/local/cuda-11.7 --prefix=/usr && \
+    ./configure --with-cuda=/usr/local/cuda-${CUDA_VERSION} --prefix=/usr && \
     make && \
     make install && \
     rm /hpcx/nccl_rdma_sharp_plugin/lib/* && \
