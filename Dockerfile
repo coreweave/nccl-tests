@@ -1,11 +1,12 @@
-ARG CUDA_VERSION=11.8.0
-ARG NCCL_VERSION=2.15.1-1
+ARG CUDA_VERSION_MINOR=11.7.1
+FROM nvidia/cuda:${CUDA_VERSION_MINOR}-devel-ubuntu22.04
 
-FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
+ARG CUDA_VERSION_MAJOR=11.7
+ARG TARGET_NCCL_VERSION=2.14.3-1
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
-        apt-get -qq install -y --no-install-recommends \
+        apt-get -qq install -y --allow-change-held-packages --no-install-recommends \
         build-essential libtool autoconf automake autotools-dev unzip \
         ca-certificates \
         wget curl openssh-server vim \
@@ -13,7 +14,7 @@ RUN apt-get -qq update && \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
         datacenter-gpu-manager \
-        libnccl2=${NCCL_VERSION}+{CUDA_VERSION} libnccl-dev=${NCCL_VERSION}+{CUDA_VERSION}
+        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR}
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
@@ -40,11 +41,12 @@ RUN mkdir /tmp/build && \
     rm -r /tmp/build
 
 # Build GPU Bandwidthtest from samples
+ARG CUDA_SAMPLES_VERSION=11.6
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
-    wget -q https://github.com/NVIDIA/cuda-samples/archive/refs/heads/master.zip && \
+    curl -sLo master.zip https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.zip && \
     unzip master.zip && \
-    cd cuda-samples-master/Samples/1_Utilities/bandwidthTest && \
+    cd cuda-samples-${CUDA_SAMPLES_VERSION}/Samples/1_Utilities/bandwidthTest && \
     make && \
     install bandwidthTest /usr/bin/ && \
     cd /tmp && \
@@ -124,7 +126,7 @@ RUN cd /tmp && \
     unzip master.zip && \
     cd nccl-rdma-sharp-plugins-master && \
     ./autogen.sh && \
-    ./configure --with-cuda=/usr/local/cuda-${CUDA_VERSION} --prefix=/usr && \
+    ./configure --with-cuda=/usr/local/cuda-${CUDA_VERSION_MAJOR} --prefix=/usr && \
     make && \
     make install && \
     rm /hpcx/nccl_rdma_sharp_plugin/lib/* && \
