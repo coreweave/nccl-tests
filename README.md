@@ -22,7 +22,7 @@ CoreWeave also [publishes images](https://hub.docker.com/r/coreweave/nccl-tests/
 | **Image Tag** | **CUDA** | **NCCL** | **HPC-X** |
 |---------------|----------|----------|-----------|
 | coreweave/nccl-tests:2022-10-15_01-04-47.791_EDT            | 11.8.0   | 2.15.1   | 2.12      |
-| coreweave/nccl-tests:2022-10-10_20-26-39.868_EDT            | 11.7.1   | 2.13.4   | 2.12      |
+| coreweave/nccl-tests:2022-10-16_00-04-11.692_EDT            | 11.7.1   | 2.14.3   | 2.12      |
 | coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT            | 11.6.2   | 2.12.0   | 2.12      |
 
 The newest image at time of writing is `` built in CUDA 11.6.2 with HPC-X 2.12 and `coreweave/nccl-tests:2022-09-30_18-12-18.853_EDT` built in CUDA 11.7.1 with HPC-X 2.12
