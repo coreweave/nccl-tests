@@ -25,8 +25,6 @@ CoreWeave also [publishes images](https://hub.docker.com/r/coreweave/nccl-tests/
 | coreweave/nccl-tests:2022-10-16_00-04-11.692_EDT            | 11.7.1   | 2.14.3   | 2.12      |
 | coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT            | 11.6.2   | 2.12.0   | 2.12      |
 
-The newest image at time of writing is `` built in CUDA 11.6.2 with HPC-X 2.12 and `coreweave/nccl-tests:2022-09-30_18-12-18.853_EDT` built in CUDA 11.7.1 with HPC-X 2.12
-
 ## Running NCCL Tests
 CoreWeave provides a managed instance of the [MPI Operator](https://github.com/kubeflow/mpi-operator) to allow running MPI Jobs in a container native fashion. No installation is required by the user, simply execute an MPIJob manifest in your namespace.
 
