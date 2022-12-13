@@ -1,0 +1,88 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      folder:
+        required: true
+        type: string
+      dockerfile:
+        required: true
+        type: string
+      base-image:
+        required: true
+        type: string
+      base-tag:
+        required: true
+        type: string
+      cuda-version-minor:
+        required: true
+        type: string
+      cuda-version-major:
+        required: true
+        type: string
+      nccl-version:
+        required: true
+        type: string
+      cuda-samples-version:
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Building ${{ inputs.dockerfile }}
+    runs-on: [self-hosted, Linux]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2.2.1
+      - name: Login to container registry
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get base registry
+        run: |
+          echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+      - name: Set tag prefix
+        run: |
+          echo "TAG_PREFIX=${{ inputs.base-tag }}-nccl${{ inputs.nccl-version}}-" >> $GITHUB_ENV
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4.1.1
+        with:
+          images: ${{ env.REGISTRY }}
+          tags: |
+            type=sha,prefix=${{ env.TAG_PREFIX }},format=short
+      - name: Build and push Docker image
+        id: docker-build
+        uses: docker/build-push-action@v3.2.0
+        with:
+          context: ${{ inputs.folder }}
+          file: ${{ inputs.folder }}/${{ inputs.dockerfile }}
+          build-args: |-
+            BASE_IMAGE=${{ inputs.base-image }}:${{ inputs.base-tag }}
+            CUDA_VERSION_MINOR=${{ inputs.cuda-version-minor }}
+            CUDA_VERSION_MAJOR=${{ inputs.cuda-version-major }}
+            NCCL_VERSION=${{ inputs.nccl-version }}
+            CUDA_SAMPLES_VERSION=${{ inputs.cuda-samples-version }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}:buildcache,mode=max
+      - uses: 8BitJonny/gh-get-current-pr@2.1.3
+        id: PR
+        with:
+          filterOutClosed: true
+      - name: Comment
+        if: steps.PR.outputs.number
+        uses: peter-evans/create-or-update-comment@v2.1.0
+        with:
+          issue-number: ${{ steps.PR.outputs.number }}
+          body: >
+            @${{ github.triggering_actor }} Build complete, ${{ steps.docker-build.outcome }}:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Image: `${{ fromJSON(steps.docker-build.outputs.metadata)['image.name'] }}`
