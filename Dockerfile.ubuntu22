@@ -27,8 +27,8 @@ RUN apt-get -qq update \
 #         mlnx-ofed-hpc-user-only
 
 # IB perftest with GDR
-ENV PERFTEST_VERSION=4.5-0.17
-ENV PERFTEST_VERSION_HASH=g6f25f23
+ENV PERFTEST_VERSION=4.5-0.18
+ENV PERFTEST_VERSION_HASH=gfcddfe0
 
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
