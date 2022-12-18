@@ -138,7 +138,7 @@ RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.
 #     rm -r /tmp/*
 
 # NCCL Tests
-ENV NCCL_TESTS_COMMITISH=d313d20
+ENV NCCL_TESTS_COMMITISH=0b4c4cb
 WORKDIR /opt/nccl-tests
 RUN  wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - \
    && make MPI=1 \
