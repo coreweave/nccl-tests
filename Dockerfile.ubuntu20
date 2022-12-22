@@ -152,4 +152,4 @@ RUN ldconfig
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
     echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
     sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config && \
-    mkdir /var/run/sshd
+    mkdir /var/run/sshd -p
