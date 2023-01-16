@@ -18,6 +18,7 @@ jobs:
       cuda-version-major: 11.7
       nccl-version: 2.14.3-1
       cuda-samples-version: 11.6
+
   cu118:
     uses: ./.github/workflows/build.yml
     with:
@@ -29,3 +30,15 @@ jobs:
       cuda-version-major: 11.8
       nccl-version: 2.15.5-1
       cuda-samples-version: 11.6
+
+  cu120:
+    uses: ./.github/workflows/build.yml
+    with:
+      folder: .
+      dockerfile: Dockerfile.ubuntu20
+      base-image: nvidia/cuda
+      base-tag: 12.0.0-devel-ubuntu20.04
+      cuda-version-minor: 12.0.0
+      cuda-version-major: 12.0
+      nccl-version: 2.16.2-1
+      cuda-samples-version: 12.0

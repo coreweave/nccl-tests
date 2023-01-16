@@ -1,20 +1,25 @@
-on:
-  workflow_dispatch:
-  push:
-    paths:
-      - Dockerfile.ubuntu22
-      - .github/workflows/ubuntu-22.yml
-      - .github/workflows/build.yml
+#
+# Ubuntu 22 builds are disabled for now
+#
 
-jobs:
-  build:
-    uses: ./.github/workflows/build.yml
-    with:
-      folder: .
-      dockerfile: Dockerfile.ubuntu22
-      base-image: nvidia/cuda
-      base-tag: 11.7.1-devel-ubuntu22.04
-      cuda-version-minor: 11.7.1
-      cuda-version-major: 11.7
-      nccl-version: 2.14.3-1
-      cuda-samples-version: 11.6
+
+# on:
+#   workflow_dispatch:
+#   push:
+#     paths:
+#       - Dockerfile.ubuntu22
+#       - .github/workflows/ubuntu-22.yml
+#       - .github/workflows/build.yml
+
+# jobs:
+#   build:
+#     uses: ./.github/workflows/build.yml
+#     with:
+#       folder: .
+#       dockerfile: Dockerfile.ubuntu22
+#       base-image: nvidia/cuda
+#       base-tag: 11.7.1-devel-ubuntu22.04
+#       cuda-version-minor: 11.7.1
+#       cuda-version-major: 11.7
+#       nccl-version: 2.14.3-1
+#       cuda-samples-version: 11.6
