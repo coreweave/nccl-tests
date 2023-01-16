@@ -65,7 +65,7 @@ jobs:
             BASE_IMAGE=${{ inputs.base-image }}:${{ inputs.base-tag }}
             CUDA_VERSION_MINOR=${{ inputs.cuda-version-minor }}
             CUDA_VERSION_MAJOR=${{ inputs.cuda-version-major }}
-            NCCL_VERSION=${{ inputs.nccl-version }}
+            TARGET_NCCL_VERSION=${{ inputs.nccl-version }}
             CUDA_SAMPLES_VERSION=${{ inputs.cuda-samples-version }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
