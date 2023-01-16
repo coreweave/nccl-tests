@@ -16,7 +16,7 @@ jobs:
       base-tag: 11.7.1-devel-ubuntu20.04
       cuda-version-minor: "11.7.1"
       cuda-version-major: "11.7"
-      nccl-version: 2.16.2-1
+      nccl-version: 2.14.3-1
       cuda-samples-version: "11.6"
 
   cu118:
