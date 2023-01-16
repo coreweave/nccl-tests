@@ -2,12 +2,12 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - Dockerfile
+      - Dockerfile.ubuntu20
       - .github/workflows/ubuntu-20.yml
       - .github/workflows/build.yml
 
 jobs:
-  build:
+  cu117:
     uses: ./.github/workflows/build.yml
     with:
       folder: .
@@ -17,4 +17,15 @@ jobs:
       cuda-version-minor: 11.7.1
       cuda-version-major: 11.7
       nccl-version: 2.14.3-1
+      cuda-samples-version: 11.6
+  cu118:
+    uses: ./.github/workflows/build.yml
+    with:
+      folder: .
+      dockerfile: Dockerfile.ubuntu20
+      base-image: nvidia/cuda
+      base-tag: 11.8.0-devel-ubuntu20.04
+      cuda-version-minor: 11.8.0
+      cuda-version-major: 11.8
+      nccl-version: 2.15.5-1
       cuda-samples-version: 11.6

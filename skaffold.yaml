@@ -8,7 +8,7 @@ build:
     - image: coreweave/nccl-tests
       context: ./
       docker:
-        dockerfile: Dockerfile
+        dockerfile: Dockerfile.ubuntu20
 
 deploy:
   kubectl:
