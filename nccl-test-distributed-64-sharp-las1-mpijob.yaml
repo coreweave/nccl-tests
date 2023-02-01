@@ -12,7 +12,7 @@ spec:
       template:
           spec:
             containers:
-            - image: coreweave/nccl-tests:2022-10-15_01-04-47.791_EDT
+            - image: ghcr.io/coreweave/nccl-tests:11.7.1-devel-ubuntu20.04-nccl2.14.3-1-45d6ec9
               name: nccl
               env:
               - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -29,6 +29,7 @@ spec:
                     -x NCCL_COLLNET_ENABLE=1 \
                     -x NCCL_SOCKET_IFNAME=eth0 \
                     -x NCCL_IB_HCA=ibp \
+                    -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1 \
                     /opt/nccl_tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 1 -w 1 -n 10
                     "]
 
@@ -45,11 +46,6 @@ spec:
                         operator: In
                         values:
                         - LAS1
-                      - key: node.coreweave.cloud/version
-                        operator: NotIn
-                        values:
-                        - 1.18.0
-                        - 1.19.0
 
             schedulerName: prioritize-image-locality
             enableServiceLinks: false
@@ -61,7 +57,7 @@ spec:
           metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
-          - image: coreweave/nccl-tests:2022-10-15_01-04-47.791_EDT
+          - image: ghcr.io/coreweave/nccl-tests:11.7.1-devel-ubuntu20.04-nccl2.14.3-1-45d6ec9
             name: nccl
             resources:
               requests:
