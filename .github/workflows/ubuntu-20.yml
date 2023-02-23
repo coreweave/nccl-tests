@@ -9,6 +9,7 @@ on:
 jobs:
   cu117:
     uses: ./.github/workflows/build.yml
+    secrets: inherit
     with:
       folder: .
       dockerfile: Dockerfile.ubuntu20
@@ -21,6 +22,7 @@ jobs:
 
   cu118:
     uses: ./.github/workflows/build.yml
+    secrets: inherit
     with:
       folder: .
       dockerfile: Dockerfile.ubuntu20
@@ -33,6 +35,7 @@ jobs:
 
   cu120:
     uses: ./.github/workflows/build.yml
+    secrets: inherit
     with:
       folder: .
       dockerfile: Dockerfile.ubuntu20
