@@ -27,8 +27,8 @@ RUN apt-get -qq update \
 #         mlnx-ofed-hpc-user-only
 
 # IB perftest with GDR
-ENV PERFTEST_VERSION=4.5-0.18
-ENV PERFTEST_VERSION_HASH=gfcddfe0
+ENV PERFTEST_VERSION=4.5-0.20
+ENV PERFTEST_VERSION_HASH=gac7cca5
 
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
@@ -41,7 +41,7 @@ RUN mkdir /tmp/build && \
     rm -r /tmp/build
 
 # Build GPU Bandwidthtest from samples
-ARG CUDA_SAMPLES_VERSION=11.6
+ARG CUDA_SAMPLES_VERSION
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
     curl -sLo master.zip https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.zip && \
@@ -142,7 +142,7 @@ RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.
 #     rm -r /tmp/*
 
 # NCCL Tests
-ENV NCCL_TESTS_COMMITISH=0b4c4cb
+ENV NCCL_TESTS_COMMITISH=2cbb968
 WORKDIR /opt/nccl-tests
 RUN  wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - \
    && make MPI=1 \
