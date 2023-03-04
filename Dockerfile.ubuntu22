@@ -110,7 +110,7 @@ ENV PKG_CONFIG_PATH=/opt/hpcx/hcoll/lib/pkgconfig:/opt/hpcx/sharp/lib/pkgconfig:
 # End of auto-generated paths
 
 # Disable UCX VFS to stop errors about fuse mount failure
-ENV export UCX_VFS_ENABLE=no
+ENV UCX_VFS_ENABLE=no
 
 # Rebuild OpenMPI to support SLURM
 RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.tar.gz && cd openmpi-gitclone && \
