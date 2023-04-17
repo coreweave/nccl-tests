@@ -31,7 +31,7 @@ jobs:
       nccl-version: 2.16.2-1
       cuda-samples-version: "11.6"
 
-  cu118-nccl2.18.0:
+  cu118-nccl2_18:
     uses: ./.github/workflows/build.yml
     with:
       folder: .
@@ -55,7 +55,7 @@ jobs:
       nccl-version: 2.17.1-1
       cuda-samples-version: "12.0"
 
-  cu120-nccl2.18.0:
+  cu120-nccl2_18:
     uses: ./.github/workflows/build.yml
     with:
       folder: .
