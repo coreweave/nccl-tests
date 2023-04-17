@@ -14,8 +14,7 @@ RUN apt-get -qq update && \
         iputils-ping net-tools \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
-        datacenter-gpu-manager \
-        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR}
+        datacenter-gpu-manager
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
@@ -26,6 +25,21 @@ RUN apt-get -qq update \
     ibverbs-utils libibverbs-dev libibumad3 libibumad-dev librdmacm-dev rdmacm-utils infiniband-diags ibverbs-utils \
     && rm -rf /var/lib/apt/lists/*
 #         mlnx-ofed-hpc-user-only
+
+# Install nccl, either through apt, or a build from CoreWeave for special versions.
+RUN mkdir /tmp/nccl-install && \
+    cd /tmp/nccl-install && \
+    { \
+        if [ "${TARGET_NCCL_VERSION}" = "2.18.0-1" ]; then \
+            wget -q -O - http://blobstore.s3.ord1.coreweave.com/drivers/nccl/nccl-v${TARGET_NCCL_VERSION}-cuda${CUDA_VERSION_MAJOR}-ubuntu20.04-x86_64.tbz | tar xjf -; \
+        else \
+            apt-get -qq update && apt-get -qq download \
+              libnccl2=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR} libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR}; \
+        fi; \
+    } && \
+    dpkg -i ./libnccl*.deb && \
+    cd /tmp && \
+    rm -r /tmp/nccl-install
 
 # IB perftest with GDR
 ENV PERFTEST_VERSION=4.5-0.20
