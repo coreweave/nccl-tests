@@ -20,6 +20,7 @@ jobs:
       cuda-samples-version: "11.6"
       hpcx-version: "2.14"
       hpcx-nccl-version: "2.16"
+      hpcx-cuda-version: "11"
 
   cu118:
     uses: ./.github/workflows/build.yml
@@ -34,6 +35,7 @@ jobs:
       cuda-samples-version: "11.6"
       hpcx-version: "2.14"
       hpcx-nccl-version: "2.16"
+      hpcx-cuda-version: "11"
 
   cu120:
     uses: ./.github/workflows/build.yml
@@ -48,6 +50,7 @@ jobs:
       cuda-samples-version: "12.0"
       hpcx-version: "2.15"
       hpcx-nccl-version: "2.17"
+      hpcx-cuda-version: "12"
 
   cu121:
     uses: ./.github/workflows/build.yml
@@ -62,3 +65,4 @@ jobs:
       cuda-samples-version: "12.1"
       hpcx-version: "2.15"
       hpcx-nccl-version: "2.17"
+      hpcx-cuda-version: "12"

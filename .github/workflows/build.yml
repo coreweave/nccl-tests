@@ -33,6 +33,9 @@ on:
       hpcx-nccl-version:
         required: true
         type: string
+      hpcx-cuda-version:
+        required: true
+        type: string
 
 jobs:
   build:
@@ -75,6 +78,7 @@ jobs:
             CUDA_SAMPLES_VERSION=${{ inputs.cuda-samples-version }}
             HPCX_VERSION=${{ inputs.hpcx-version }}
             HPCX_NCCL_VERSION=${{ inputs.hpcx-nccl-version }}
+            HPCX_CUDA_VERSION=${{ inputs.hpcx-cuda-version }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
