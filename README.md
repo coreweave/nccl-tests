@@ -19,13 +19,13 @@ This repository includes Dockerfiles that can be used directly or as a template 
 
 CoreWeave also [publishes images](https://hub.docker.com/r/coreweave/nccl-tests/tags) built from these Dockerfiles that can be used as base for your own images.
 
-| **Image Tag**                                                              | **CUDA** | **NCCL** | **HPC-X** |
-|----------------------------------------------------------------------------|----------|----------|-----------|
-| ghcr.io/coreweave/nccl-tests:12.1.1-devel-ubuntu20.04-nccl2.18.1-1-TODO    | 12.1.1   | 2.18.1   | 2.15.0    |
-| ghcr.io/coreweave/nccl-tests:12.0.1-devel-ubuntu20.04-nccl2.18.1-1-TODO    | 12.0.1   | 2.18.1   | 2.15.0    |
-| ghcr.io/coreweave/nccl-tests:11.8.0-devel-ubuntu20.04-nccl2.16.2-1-4a46534 | 11.8.0   | 2.16.2   | 2.14.0    |
-| ghcr.io/coreweave/nccl-tests:11.7.1-devel-ubuntu20.04-nccl2.14.3-1-4a46534 | 11.7.1   | 2.14.3   | 2.14.0    |
-| coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT                           | 11.6.2   | 2.12.0   | 2.12      |
+| **Image Tag**                                                                     | **CUDA** | **NCCL** | **HPC-X** |
+|-----------------------------------------------------------------------------------|----------|----------|-----------|
+| ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.1-1-29e3624 | 12.1.1   | 2.18.1   | 2.15.0    |
+| ghcr.io/coreweave/nccl-tests:12.0.1-cudnn8-devel-ubuntu20.04-nccl2.18.1-1-29e3624 | 12.0.1   | 2.18.1   | 2.15.0    |
+| ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.2-1-29e3624 | 11.8.0   | 2.16.2   | 2.14.0    |
+| ghcr.io/coreweave/nccl-tests:11.7.1-cudnn8-devel-ubuntu20.04-nccl2.14.3-1-29e3624 | 11.7.1   | 2.14.3   | 2.14.0    |
+| coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT                                  | 11.6.2   | 2.12.0   | 2.12      |
 
 ## Running NCCL Tests
 CoreWeave provides a managed instance of the [MPI Operator](https://github.com/kubeflow/mpi-operator) to allow running MPI Jobs in a container native fashion. No installation is required by the user, simply execute an MPIJob manifest in your namespace.
