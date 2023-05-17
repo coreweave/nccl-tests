@@ -69,18 +69,39 @@ RUN cd /tmp && \
     rm *.deb
 
 # HPC-X Environment variables
-#
-# The following envs are from the output of the printpaths script. Uncomment the rows below to
-# run the script as part of a Docker build. Copy-paste the updated output in here.
-# These ENVs need to be updated on new HPC-X install, different base image or any path related modifications before 
-# this stage in the Dockerfile.
-#
-#COPY ./printpaths.sh /tmp
-#RUN /bin/bash -c '\
-#   source /opt/hpcx/opt/hpcx-init.sh && \
-#   hpcx_load && \
-#   /tmp/printpaths.sh && \
-#   rm /tmp/printpaths.sh'
+COPY ./printpaths.sh /tmp
+SHELL ["/bin/bash", "-c"]
+RUN source /opt/hpcx/hpcx-init.sh && \
+    hpcx_load && \
+    # Uncomment to stop a run early with the ENV definitions for the below section
+    # /tmp/printpaths.sh ENV && false && \
+    # Preserve environment variables in new login shells \
+    alias install='install --owner=0 --group=0' && \
+    /tmp/printpaths.sh export \
+      | install --mode=644 /dev/stdin /etc/profile.d/hpcx-env.sh && \
+    # Preserve environment variables (except *PATH*) when sudoing
+    install -d --mode=0755 /etc/sudoers.d && \
+    /tmp/printpaths.sh \
+      | sed -E -e '{ \
+          # Convert NAME=value to just NAME \
+          s:^([^=]+)=.*$:\1:g ; \
+          # Filter out any variables with PATH in their names \
+          /PATH/d ; \
+          # Format them into /etc/sudoers env_keep directives \
+          s:^.*$:Defaults env_keep += "\0":g \
+        }' \
+      | install --mode=440 /dev/stdin /etc/sudoers.d/hpcx-env && \
+    # Register shared libraries with ld regardless of LD_LIBRARY_PATH
+    echo $LD_LIBRARY_PATH | tr ':' '\n' \
+      | install --mode=644 /dev/stdin /etc/ld.so.conf.d/hpcx.conf && \
+    rm /tmp/printpaths.sh
+SHELL ["/bin/sh", "-c"]
+
+# The following envs are from the output of the printpaths ENV script.
+# Uncomment "/tmp/printpaths.sh ENV" above to run the script
+# as part of a Docker build. Copy-paste the updated output in here.
+# These ENVs need to be updated on new HPC-X install, different base image
+# or any path related modifications before this stage in the Dockerfile.
 
 # Begin auto-generated paths
 ENV HPCX_DIR=/opt/hpcx
@@ -101,12 +122,12 @@ ENV MPI_HOME=/opt/hpcx/ompi
 ENV OSHMEM_HOME=/opt/hpcx/ompi
 ENV OPAL_PREFIX=/opt/hpcx/ompi
 ENV OLD_PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ENV PATH=/opt/hpcx/clusterkit/bin:/opt/hpcx/hcoll/bin:/opt/hpcx/ucc/bin:/opt/hpcx/ucx/bin:/opt/hpcx/ompi/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PATH=/opt/hpcx/sharp/bin:/opt/hpcx/clusterkit/bin:/opt/hpcx/hcoll/bin:/opt/hpcx/ucc/bin:/opt/hpcx/ucx/bin:/opt/hpcx/ompi/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV OLD_LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64
 ENV LD_LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ucc/lib/ucc:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib/ucx:/opt/hpcx/ucx/lib:/opt/hpcx/sharp/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
 ENV OLD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs
 ENV LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ompi/lib:/opt/hpcx/sharp/lib:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/cuda/lib64/stubs
-ENV OLD_CPATH=
+ENV OLD_CPATH=""
 ENV CPATH=/opt/hpcx/ompi/include:/opt/hpcx/ucc/include:/opt/hpcx/ucx/include:/opt/hpcx/sharp/include:/opt/hpcx/hcoll/include:
 ENV PKG_CONFIG_PATH=/opt/hpcx/hcoll/lib/pkgconfig:/opt/hpcx/sharp/lib/pkgconfig:/opt/hpcx/ucx/lib/pkgconfig:/opt/hpcx/ompi/lib/pkgconfig:
 # End of auto-generated paths
@@ -117,7 +138,7 @@ ENV UCX_VFS_ENABLE=no
 # Rebuild OpenMPI to support SLURM
 # For Ubuntu 22, we can replace PMI2 (--with-pmi) with PMIx
 # --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2
-RUN apt-get update; apt-get install -y libpmi2-0 libpmi2-0-dev 
+RUN apt-get -qq update && apt-get -qq install -y --no-install-recommends libpmi2-0 libpmi2-0-dev
 RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.tar.gz && cd openmpi-gitclone && \
     ./configure --prefix=/opt/hpcx/ompi \
            --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
@@ -146,9 +167,9 @@ RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.
 # NCCL Tests
 ENV NCCL_TESTS_COMMITISH=2cbb968
 WORKDIR /opt/nccl-tests
-RUN  wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - \
-   && make MPI=1 \
-   && ln -s /opt/nccl-tests /opt/nccl_tests
+RUN wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
+    make MPI=1 && \
+    ln -s /opt/nccl-tests /opt/nccl_tests
 
 RUN ldconfig
 
