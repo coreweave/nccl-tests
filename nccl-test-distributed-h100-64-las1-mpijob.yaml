@@ -32,7 +32,7 @@ spec:
                     -x NCCL_IB_PCI_RELAXED_ORDERING=1 \
                     -x SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1 \
                     -x NCCL_COLLNET_ENABLE=0 \
-                    -x NCCL_PROTO=^LL128 \
+                    -x NCCL_IB_PCI_RELAXED_ORDERING=0 \
                     /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1 #-n 200 #-w 2 -n 20
                     "]
 
