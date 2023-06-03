@@ -1,0 +1,98 @@
+apiVersion: kubeflow.org/v2beta1
+kind: MPIJob
+metadata:
+  name: nccl-test-64-sharp
+spec:
+  slotsPerWorker: 8
+  runPolicy:
+    cleanPodPolicy: Running
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+          spec:
+            containers:
+            - image: ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.2-1-29e3624
+              name: nccl
+              env:
+              - name: OMPI_ALLOW_RUN_AS_ROOT
+                value: "1"
+              - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
+                value: "1"
+              # Uncomment to be able to exec in to launcher pod for interactive testing
+              # command: ['sleep', '86400']
+              command: ["/bin/bash", "-c"]
+              args: ["mpirun \
+                    -np 64 \
+                    -bind-to none \
+                    -x LD_LIBRARY_PATH \
+                    -x NCCL_SOCKET_IFNAME=eth0 \
+                    -x NCCL_IB_HCA=ibp \
+                    -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1 \
+                    /opt/nccl_tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 1 -w 1 -n 10
+                    "]
+
+              resources:
+                requests:
+                  cpu: 2
+                  memory: 128Mi
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: topology.kubernetes.io/region
+                        operator: In
+                        values:
+                        - LAS1
+
+            schedulerName: prioritize-image-locality
+            enableServiceLinks: false
+            automountServiceAccountToken: false
+    Worker:
+      replicas: 8
+      template:
+        labels:
+          metadata.coreweave.cloud/job: nccl-test
+        spec:
+          containers:
+          - image: ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.2-1-29e3624
+            name: nccl
+            resources:
+              requests:
+                cpu: 112
+                memory: 1000Gi
+                nvidia.com/gpu: 8
+                rdma/ib: 1
+              limits:
+                memory: 1000Gi
+                nvidia.com/gpu: 8
+                rdma/ib: 1
+            volumeMounts:
+              - mountPath: /dev/shm
+                name: dshm
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: gpu.nvidia.com/model
+                    operator: In
+                    values:
+                    - A100_NVLINK_80GB
+                  - key: topology.kubernetes.io/region
+                    operator: In
+                    values:
+                    - LAS1
+                  - key: ib.coreweave.cloud/speed
+                    operator: In
+                    values:
+                    - 800G
+
+          volumes:
+            - emptyDir:
+                medium: Memory
+              name: dshm
+
+          enableServiceLinks: false
+          automountServiceAccountToken: false
