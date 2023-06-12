@@ -60,12 +60,34 @@ built from these Dockerfiles that can be used as base for your own images.
 
 ## Running NCCL Tests
 
+There are many sample jobs in this repo showing how to run distributed NCCL
+tests, using the following workload managers:
+ - [MPI Operator](https://github.com/kubeflow/mpi-operator)
+ - [Slurm](https://slurm.schedmd.com/)
+
+### MPI Operator
+
 CoreWeave provides a managed instance of the
 [MPI Operator](https://github.com/kubeflow/mpi-operator) to allow running
 MPI Jobs in a container native fashion. No installation is required by the
 user, simply execute an MPIJob manifest in your namespace.
 
-```
+Example manifests are provided in the `mpi-operator/` directory. There you'll
+find the following examples of 64 GPU (8 node) runs:
+ - [A40](./mpi-operator/nccl-test-distributed-a40-64-las1-mpijob.yaml)
+ - [A100](./mpi-operator/nccl-test-distributed-a100-64-las1-mpijob.yaml)
+ - [A100 with GDRCopy](./mpi-operator/nccl-test-distributed-a100-64-las1-gdrcopy-mpijob.yaml)
+ - [A100 without Infiniband](./mpi-operator/nccl-test-distributed-a100-64-las1-no-ib-mpijob.yaml)
+ - [A100 with SHARP](./mpi-operator/nccl-test-distributed-a100-64-las1-sharp-mpijob.yaml)
+ - [H100](./mpi-operator/nccl-test-distributed-h100-64-las1-mpijob.yaml)
+ - [H100 with SHARP](./mpi-operator/nccl-test-distributed-h100-64-las1-sharp-mpijob.yaml)
+
+#### Running Jobs
+
+To start the NCCL test, apply the sample manifest into your namespace with
+`kubectl`:
+
+```bash
 $ kubectl apply -f nccl-test-distributed-128-las1-mpijob.yaml
 $ kubectl get pods
 nccl-test-128-launcher-lnnrw   1/1     Running   0          14s
@@ -101,12 +123,61 @@ Before running a new instance of a test, delete the old with
 note that it is important to wait for all pods from an earlier job to finish
 terminating before starting a new job with the same name.
 
+### Slurm
+
+CoreWeave provides a way to deploy a slurm cluster on top of our managed
+kubernetes cluster using a tool called `sunk`.
+
+Example `SBATCH` scripts are provided in the `slurm/` directory. There you'll
+find the following examples of 64 GPU (8 node) runs:
+ - [A100 without enroot](./slurm/nccl-test-distributed-a100-64.slurm)
+ - [A100 with enroot](./slurm/nccl-test-distributed-a100-64-enroot.slurm)
+ - [H100 without enroot](./slurm/nccl-test-distributed-h100-64.slurm)
+ - [H100 with enroot](./slurm/nccl-test-distributed-h100-64-enroot.slurm)
+ - [H100 with enroot and SHARP](./slurm/nccl-test-distributed-h100-64-enroot-sharp.slurm)
+
+#### Running Jobs
+
+To submit the jobs on a slurm cluster, first copy the scripts onto the login
+node.
+
+Various parameters are set by the scripts, but make sure to specify the
+desired partition when submitting the job.
+
+To start the NCCL test, submit the job via `sbatch`:
+
+```bash
+export PARTITION=<enter partition>
+sbatch --partition="$PARTITION" nccl-test-distributed-a100-64.slurm
+```
+
+The logs will be written to `./nccl_test.out`.
+
+**Note:** The jobs that don't use enroot rely on `nccl-tests` being installed
+at `/opt/nccl-tests`, which will be true of every `sunk` cluster.
+
+#### Enroot
+
+[Enroot](https://github.com/nvidia/enroot) is a tool that enables running
+unprivileged containers. In combination with
+[pyxis](https://github.com/NVIDIA/pyxis), a slurm container plugin, you can
+run slurm jobs inside of docker images.
+
+There are additional parameters enabled by
+[pyxis](https://github.com/NVIDIA/pyxis), but in these example scripts it gets
+used via `srun`'s `--container-image` parameter. This prevents having to
+install the script and its requirements on all compute nodes.
+
+**Note:** You can specify the container image in an `sbatch`, but all the
+commands will be then run from inside the container. Therefore, we recommend
+only specifying the container image in any subsequent `srun` calls.
+
 ## Running DeepSpeed Training Jobs
 
-The MPI Operator can be used to run DeepSpeed based distributed training jobs
-similarly to how the NCCL test jobs are run. The MPI Operator creates the MPI
-hostsfile for you, and DeepSpeed can simply be run as a command like you would
-with a manual hostsfile setup.
+Both of the workload managers can be used to run DeepSpeed based distributed
+training jobs similarly to how the NCCL test jobs are run. They both will
+create the MPI hostsfile for you, and DeepSpeed can simply be run as a command
+like you would with a manual hostsfile setup.
 
 ## GDRCopy
 
