@@ -15,7 +15,8 @@ RUN apt-get -qq update && \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
         datacenter-gpu-manager \
-        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR}
+        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR} \
+        git
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
@@ -28,14 +29,14 @@ RUN apt-get -qq update \
 #         mlnx-ofed-hpc-user-only
 
 # IB perftest with GDR
-ENV PERFTEST_VERSION=4.5-0.20
-ENV PERFTEST_VERSION_HASH=gac7cca5
+# ENV PERFTEST_VERSION=4.5-0.20
+# ENV PERFTEST_VERSION_HASH=gac7cca5
 
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
-    wget -q https://github.com/linux-rdma/perftest/releases/download/v${PERFTEST_VERSION}/perftest-${PERFTEST_VERSION}.${PERFTEST_VERSION_HASH}.tar.gz && \
-    tar xvf perftest-${PERFTEST_VERSION}.${PERFTEST_VERSION_HASH}.tar.gz && \
-    cd perftest-4.5 && \
+    git clone https://github.com/coreweave/perftest && \
+    cd perftest && \
+    ./autogen.sh && \
     ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
     make install && \
     cd /tmp && \
