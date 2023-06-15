@@ -13,7 +13,7 @@ module load image-defaults
 
 export NCCL_SOCKET_IFNAME=eth0
 export NCCL_IB_HCA=ibp
-export UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1,ibp4:1,ibp5:1,ibp6:1,ibp7:1
+export UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1
 
 # log the assigned nodes
 echo "Using nodes: $SLURM_JOB_NODELIST"
