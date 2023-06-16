@@ -29,13 +29,13 @@ RUN apt-get -qq update \
 #         mlnx-ofed-hpc-user-only
 
 # IB perftest with GDR
-# ENV PERFTEST_VERSION=4.5-0.20
-# ENV PERFTEST_VERSION_HASH=gac7cca5
+ENV PERFTEST_VERSION_HASH=7f6f2f7
 
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
     git clone https://github.com/coreweave/perftest && \
     cd perftest && \
+    git checkout $PERFTEST_VERSION_HASH && \
     ./autogen.sh && \
     ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
     make install && \
