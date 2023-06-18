@@ -3,10 +3,9 @@
 #SBATCH --job-name=nccl_test
 #SBATCH --nodes=8
 #SBATCH --ntasks-per-node=8
-#SBATCH --gpus=a100:8
-#SBATCH --time=10:00
+#SBATCH --gpus-per-node=8
+#SBATCH --time=20:00
 #SBATCH --output="%x.out"
-#SBATCH --output="%x.out" #-%j
 #SBATCH --exclusive
 
 module load image-defaults
