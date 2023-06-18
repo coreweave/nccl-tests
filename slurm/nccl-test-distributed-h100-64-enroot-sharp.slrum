@@ -12,11 +12,19 @@ export NCCL_SOCKET_IFNAME=eth0
 export NCCL_IB_HCA=ibp
 export UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1,ibp4:1,ibp5:1,ibp6:1,ibp7:1
 export SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1
-export NCCL_ALGO=COLLNETCHAIN
+
+# Automatic selection of SHARP algorithm for NDR is fixed in NCCL 2.18.1
+# Earlier version needs it set manually.
+# export NCCL_ALGO=COLLNETCHAIN
+
+# Dynamic Connections can be forced as transport
+export UCX_TLS=dc,self
+
+# Enable network collections
 export NCCL_COLLNET_ENABLE=1
 
 # Relaxed oredering should normally be disabled, but due to a known issue with
-# H100 it is currently disabled
+# H100 it is currently disabled. Should re-enable once bug is fixed.
 # https://docs.nvidia.com/deeplearning/nccl/archives/nccl_2181/release-notes/rel_2-18-1.html
 export NCCL_IB_PCI_RELAXED_ORDERING=0
 

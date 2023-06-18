@@ -15,7 +15,7 @@ export SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1
 export NCCL_COLLNET_ENABLE=0
 
 # Relaxed oredering should normally be disabled, but due to a known issue with
-# H100 it is currently disabled
+# H100 it is currently disabled. Should re-enable once bug is fixed.
 # https://docs.nvidia.com/deeplearning/nccl/archives/nccl_2181/release-notes/rel_2-18-1.html
 export NCCL_IB_PCI_RELAXED_ORDERING=0
 
