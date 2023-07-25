@@ -1,6 +1,26 @@
 ARG CUDA_VERSION_MINOR=11.7.1
 ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION_MINOR}-cudnn8-devel-ubuntu20.04
-FROM ${BASE_IMAGE}
+
+# Patch in cuDNN manually by specfiying a version here
+# only if a base image with cuDNN is not available
+ARG CUDNN_VERSION=""
+
+# Effectively a ternary _CUDNN_IMAGE = CUDNN_VERSION ? "add-cudnn" : BASE_IMAGE
+ARG _CUDNN_IMAGE=${CUDNN_VERSION:+add-cudnn}
+ARG _CUDNN_IMAGE=${_CUDNN_IMAGE:-$BASE_IMAGE}
+
+FROM ${BASE_IMAGE} as add-cudnn
+ARG CUDNN_VERSION
+
+RUN apt-get -qq update && \
+    apt-get -qq install -y --allow-change-held-packages --no-install-recommends \
+        "libcudnn8=${CUDNN_VERSION}" \
+        "libcudnn8-dev=${CUDNN_VERSION}" && \
+    apt-mark hold libcudnn8 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+FROM ${_CUDNN_IMAGE}
 
 ARG CUDA_VERSION_MAJOR=11.7
 ARG TARGET_NCCL_VERSION=2.14.3-1

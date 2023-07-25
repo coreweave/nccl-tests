@@ -24,6 +24,9 @@ on:
       nccl-version:
         required: true
         type: string
+      cudnn-version:
+        required: false
+        type: string
       cuda-samples-version:
         required: true
         type: string
@@ -75,6 +78,7 @@ jobs:
             CUDA_VERSION_MINOR=${{ inputs.cuda-version-minor }}
             CUDA_VERSION_MAJOR=${{ inputs.cuda-version-major }}
             TARGET_NCCL_VERSION=${{ inputs.nccl-version }}
+            CUDNN_VERSION=${{ inputs.cudnn-version }}
             CUDA_SAMPLES_VERSION=${{ inputs.cuda-samples-version }}
             HPCX_VERSION=${{ inputs.hpcx-version }}
             HPCX_NCCL_VERSION=${{ inputs.hpcx-nccl-version }}

@@ -77,6 +77,7 @@ jobs:
       cuda-version-minor: "12.2.0"
       cuda-version-major: "12.2"
       nccl-version: 2.18.3-1
+      cudnn-version: "8.9.3.*-1+cuda12.?"
       cuda-samples-version: "12.2"
       hpcx-version: "2.15"
       hpcx-nccl-version: "2.17"
