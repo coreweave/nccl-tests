@@ -12,7 +12,7 @@ spec:
       template:
           spec:
             containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.1-1-29e3624
+            - image: ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.3-1-471f0db
               name: nccl
               env:
               - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -32,7 +32,6 @@ spec:
                     -x SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1 \
                     -x NCCL_ALGO=COLLNETCHAIN \
                     -x NCCL_COLLNET_ENABLE=1 \
-                    -x NCCL_IB_PCI_RELAXED_ORDERING=0 \
                     /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1 #-n 200 #-w 2 -n 20
                     "]
 
@@ -60,7 +59,7 @@ spec:
           metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
-          - image: ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.1-1-29e3624
+          - image: ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.3-1-471f0db
             name: nccl
             resources:
               requests:
