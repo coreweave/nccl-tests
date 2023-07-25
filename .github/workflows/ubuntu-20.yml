@@ -66,3 +66,18 @@ jobs:
       hpcx-version: "2.15"
       hpcx-nccl-version: "2.17"
       hpcx-cuda-version: "12"
+
+  cu122:
+    uses: ./.github/workflows/build.yml
+    with:
+      folder: .
+      dockerfile: Dockerfile.ubuntu20
+      base-image: nvidia/cuda
+      base-tag: 12.2.0-cudnn8-devel-ubuntu20.04
+      cuda-version-minor: "12.2.0"
+      cuda-version-major: "12.2"
+      nccl-version: 2.18.3-1
+      cuda-samples-version: "12.2"
+      hpcx-version: "2.15"
+      hpcx-nccl-version: "2.17"
+      hpcx-cuda-version: "12"
