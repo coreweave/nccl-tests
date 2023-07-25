@@ -46,7 +46,7 @@ jobs:
       base-tag: 12.0.1-cudnn8-devel-ubuntu20.04
       cuda-version-minor: "12.0.1"
       cuda-version-major: "12.0"
-      nccl-version: 2.18.1-1
+      nccl-version: 2.18.3-1
       cuda-samples-version: "12.0"
       hpcx-version: "2.15"
       hpcx-nccl-version: "2.17"
@@ -61,7 +61,7 @@ jobs:
       base-tag: 12.1.1-cudnn8-devel-ubuntu20.04
       cuda-version-minor: "12.1.1"
       cuda-version-major: "12.1"
-      nccl-version: 2.18.1-1
+      nccl-version: 2.18.3-1
       cuda-samples-version: "12.1"
       hpcx-version: "2.15"
       hpcx-nccl-version: "2.17"
