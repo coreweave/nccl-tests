@@ -36,6 +36,9 @@ on:
       hpcx-cuda-version:
         required: true
         type: string
+      hpcx-mlnx-ofed:
+        required: true
+        type: string
 
 jobs:
   build:
@@ -79,6 +82,7 @@ jobs:
             HPCX_VERSION=${{ inputs.hpcx-version }}
             HPCX_NCCL_VERSION=${{ inputs.hpcx-nccl-version }}
             HPCX_CUDA_VERSION=${{ inputs.hpcx-cuda-version }}
+            HPCX_MLNX_OFED=${{ inputs.hpcx-mlnx-ofed }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
