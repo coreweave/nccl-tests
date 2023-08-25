@@ -21,6 +21,7 @@ jobs:
       hpcx-version: "2.14"
       hpcx-nccl-version: "2.16"
       hpcx-cuda-version: "11"
+      hpcx-mlnx-ofed: "MLNX_OFED_LINUX-5"
 
   cu118:
     uses: ./.github/workflows/build.yml
@@ -36,6 +37,7 @@ jobs:
       hpcx-version: "2.14"
       hpcx-nccl-version: "2.16"
       hpcx-cuda-version: "11"
+      hpcx-mlnx-ofed: "MLNX_OFED_LINUX-5"
 
   cu120:
     uses: ./.github/workflows/build.yml
@@ -48,9 +50,10 @@ jobs:
       cuda-version-major: "12.0"
       nccl-version: 2.18.3-1
       cuda-samples-version: "12.0"
-      hpcx-version: "2.15"
-      hpcx-nccl-version: "2.17"
+      hpcx-version: "2.16"
+      hpcx-nccl-version: "2.18"
       hpcx-cuda-version: "12"
+      hpcx-mlnx-ofed: "mlnx_ofed"
 
   cu121:
     uses: ./.github/workflows/build.yml
@@ -63,9 +66,10 @@ jobs:
       cuda-version-major: "12.1"
       nccl-version: 2.18.3-1
       cuda-samples-version: "12.1"
-      hpcx-version: "2.15"
-      hpcx-nccl-version: "2.17"
+      hpcx-version: "2.16"
+      hpcx-nccl-version: "2.18"
       hpcx-cuda-version: "12"
+      hpcx-mlnx-ofed: "mlnx_ofed"
 
   cu122:
     uses: ./.github/workflows/build.yml
@@ -78,6 +82,7 @@ jobs:
       cuda-version-major: "12.2"
       nccl-version: 2.18.3-1
       cuda-samples-version: "12.2"
-      hpcx-version: "2.15"
-      hpcx-nccl-version: "2.17"
+      hpcx-version: "2.16"
+      hpcx-nccl-version: "2.18"
       hpcx-cuda-version: "12"
+      hpcx-mlnx-ofed: "mlnx_ofed"
