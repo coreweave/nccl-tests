@@ -15,12 +15,24 @@ RUN apt-get -qq update && \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
         datacenter-gpu-manager \
-        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR} \
+        devscripts debhelper fakeroot \
         git
+
+# Override NCCL version
+RUN mkdir /tmp/build && \
+    cd /tmp/build && \
+    git clone https://github.com/NVIDIA/nccl.git && \
+    cd nccl && \
+    make -j src.build && \
+    make pkg.debian.build && \
+    cd build/pkg/deb/ && \
+    dpkg -i *.deb && \
+    cd /tmp && \
+    rm -r /tmp/build
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
-RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu18.04/mellanox_mlnx_ofed.list
+RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu20.04/mellanox_mlnx_ofed.list
 
 RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
