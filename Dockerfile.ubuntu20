@@ -19,10 +19,12 @@ RUN apt-get -qq update && \
         git
 
 # Override NCCL version
+ENV NCCL_VERSION_HASH=559b70f
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
     git clone https://github.com/NVIDIA/nccl.git && \
     cd nccl && \
+    git checkout $NCCL_VERSION_HASH && \
     make -j src.build && \
     make pkg.debian.build && \
     cd build/pkg/deb/ && \
