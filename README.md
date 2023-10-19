@@ -53,7 +53,7 @@ built from these Dockerfiles that can be used as base for your own images.
 | **Image Tag**                                                                     | **CUDA** | **NCCL** | **HPC-X** |
 |-----------------------------------------------------------------------------------|----------|----------|-----------|
 | ghcr.io/coreweave/nccl-tests:12.2.2-cudnn8-devel-ubuntu20.04-nccl2.18.5-1-a6a61ab | 12.2.2   | 2.18.5   | 2.16.0    |
-| ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.5-1-a6a61ab | 12.1.1   | 2.18.5   | 2.16.0    |
+| ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.3-1-253a5b1 | 12.1.1   | 2.18.3   | 2.16.0    |
 | ghcr.io/coreweave/nccl-tests:12.0.1-cudnn8-devel-ubuntu20.04-nccl2.18.5-1-a6a61ab | 12.0.1   | 2.18.5   | 2.16.0    |
 | ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.2-1-a6a61ab | 11.8.0   | 2.16.2   | 2.14.0    |
 | ghcr.io/coreweave/nccl-tests:11.7.1-cudnn8-devel-ubuntu20.04-nccl2.14.3-1-a6a61ab | 11.7.1   | 2.14.3   | 2.14.0    |
