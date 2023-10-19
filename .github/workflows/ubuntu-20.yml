@@ -77,8 +77,8 @@ jobs:
       folder: .
       dockerfile: Dockerfile.ubuntu20
       base-image: nvidia/cuda
-      base-tag: 12.2.0-devel-ubuntu20.04
-      cuda-version-minor: "12.2.0"
+      base-tag: 12.2.2-cudnn8-devel-ubuntu20.04
+      cuda-version-minor: "12.2.2"
       cuda-version-major: "12.2"
       nccl-version: 2.18.3-1
       cuda-samples-version: "12.2"
