@@ -52,11 +52,11 @@ built from these Dockerfiles that can be used as base for your own images.
 
 | **Image Tag**                                                                     | **CUDA** | **NCCL** | **HPC-X** |
 |-----------------------------------------------------------------------------------|----------|----------|-----------|
-| ghcr.io/coreweave/nccl-tests:12.2.2-cudnn8-devel-ubuntu20.04-nccl2.18.6-1-e34a4d6 | 12.2.2   | 2.18.6   | 2.16.0    |
-| ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.6-1-e34a4d6 | 12.1.1   | 2.18.6   | 2.16.0    |
-| ghcr.io/coreweave/nccl-tests:12.0.1-cudnn8-devel-ubuntu20.04-nccl2.18.6-1-e34a4d6 | 12.0.1   | 2.18.6   | 2.16.0    |
-| ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.2-1-e34a4d6 | 11.8.0   | 2.16.2   | 2.14.0    |
-| ghcr.io/coreweave/nccl-tests:11.7.1-cudnn8-devel-ubuntu20.04-nccl2.14.3-1-e34a4d6 | 11.7.1   | 2.14.3   | 2.14.0    |
+| ghcr.io/coreweave/nccl-tests:12.2.2-cudnn8-devel-ubuntu20.04-nccl2.18.5-1-c50cbae | 12.2.2   | 2.18.5   | 2.16.0    |
+| ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.5-1-c50cbae | 12.1.1   | 2.18.5   | 2.16.0    |
+| ghcr.io/coreweave/nccl-tests:12.0.1-cudnn8-devel-ubuntu20.04-nccl2.18.5-1-c50cbae | 12.0.1   | 2.18.5   | 2.16.0    |
+| ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.2-1-c50cbae | 11.8.0   | 2.16.2   | 2.14.0    |
+| ghcr.io/coreweave/nccl-tests:11.7.1-cudnn8-devel-ubuntu20.04-nccl2.14.3-1-c50cbae | 11.7.1   | 2.14.3   | 2.14.0    |
 | coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT                                  | 11.6.2   | 2.12.0   | 2.12      |
 
 ## Running NCCL Tests
