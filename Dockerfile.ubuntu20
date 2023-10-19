@@ -20,7 +20,7 @@ RUN apt-get -qq update && \
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
-RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu18.04/mellanox_mlnx_ofed.list
+RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu20.04/mellanox_mlnx_ofed.list
 
 RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
