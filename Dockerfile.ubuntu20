@@ -67,7 +67,7 @@ ARG HPCX_MLNX_OFED="MLNX_OFED_LINUX-5"
 RUN cd /tmp && \
     export HPCX_DISTRIBUTION="hpcx-v${HPCX_VERSION}-gcc-${HPCX_MLNX_OFED}-ubuntu20.04-cuda${HPCX_CUDA_VERSION}-gdrcopy2-nccl${HPCX_NCCL_VERSION}-x86_64" \
            HPCX_DIR="/opt/hpcx" && \
-    wget -q -O - http://blobstore.s3.ord1.coreweave.com/drivers/${HPCX_DISTRIBUTION}.tbz | tar xjf - && \
+    wget -q -O - http://blobstore.object.ord1.coreweave.com/drivers/${HPCX_DISTRIBUTION}.tbz | tar xjf - && \
     grep -IrlF "/build-result/${HPCX_DISTRIBUTION}" ${HPCX_DISTRIBUTION} | xargs -rd'\n' sed -i -e "s:/build-result/${HPCX_DISTRIBUTION}:${HPCX_DIR}:g" && \
     mv ${HPCX_DISTRIBUTION} ${HPCX_DIR}
 
