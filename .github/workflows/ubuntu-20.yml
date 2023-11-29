@@ -71,18 +71,18 @@ jobs:
       hpcx-cuda-version: "12"
       hpcx-mlnx-ofed: "mlnx_ofed"
 
-  cu123:
-    uses: ./.github/workflows/build.yml
-    with:
-      folder: .
-      dockerfile: Dockerfile.ubuntu20
-      base-image: nvidia/cuda
-      base-tag: 12.3.0-cudnn8-devel-ubuntu20.04
-      cuda-version-minor: "12.3.0"
-      cuda-version-major: "12.3"
-      nccl-version: 2.19.3-1
-      cuda-samples-version: "12.3"
-      hpcx-version: "2.17"
-      hpcx-nccl-version: "2.19"
-      hpcx-cuda-version: "12"
-      hpcx-mlnx-ofed: "mlnx_ofed"
+#  cu123:
+#    uses: ./.github/workflows/build.yml
+#    with:
+#      folder: .
+#      dockerfile: Dockerfile.ubuntu20
+#      base-image: nvidia/cuda
+#      base-tag: 12.3.0-cudnn8-devel-ubuntu20.04
+#      cuda-version-minor: "12.3.0"
+#      cuda-version-major: "12.3"
+#      nccl-version: 2.19.3-1
+#      cuda-samples-version: "12.3"
+#      hpcx-version: "2.17"
+#      hpcx-nccl-version: "2.19"
+#      hpcx-cuda-version: "12"
+#      hpcx-mlnx-ofed: "mlnx_ofed"
