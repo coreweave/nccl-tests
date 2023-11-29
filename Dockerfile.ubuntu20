@@ -7,7 +7,10 @@ ARG TARGET_NCCL_VERSION=2.14.3-1
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
-        apt-get -qq install -y --allow-change-held-packages --no-install-recommends \
+        apt-get -qq install -y \
+        --allow-change-held-packages \
+        --no-install-recommends \
+        --allow-downgrades \
         build-essential libtool autoconf automake autotools-dev unzip \
         ca-certificates \
         wget curl openssh-server vim environment-modules \
@@ -15,7 +18,8 @@ RUN apt-get -qq update && \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
         datacenter-gpu-manager \
-        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR} \
+        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} \
+        libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR} \
         git
 
 # Mellanox OFED (latest)
