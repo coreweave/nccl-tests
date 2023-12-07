@@ -83,7 +83,7 @@ RUN mkdir /tmp/build /tmp/gdrcopy && \
     CUDA=/usr/local/cuda ./gdrcopy-2.3/packages/build-deb-packages.sh -k && \
     mv ./gdrcopy-tests_2.3*.deb ./libgdrapi_2.3*.deb /tmp/gdrcopy/ && \
     cd /tmp && \
-    rm -r /tmp/build \
+    rm -r /tmp/build
 
 FROM base
 COPY --from=gdrcopy /tmp/gdrcopy /tmp/gdrcopy/
