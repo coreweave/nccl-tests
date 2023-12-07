@@ -1,13 +1,16 @@
 ARG CUDA_VERSION_MINOR=11.7.1
 ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION_MINOR}-cudnn8-devel-ubuntu22.04
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} as base
 
 ARG CUDA_VERSION_MAJOR=11.7
 ARG TARGET_NCCL_VERSION=2.14.3-1
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
-        apt-get -qq install -y --allow-change-held-packages --no-install-recommends \
+        apt-get -qq install -y \
+        --allow-change-held-packages \
+        --no-install-recommends \
+        --allow-downgrades \
         build-essential libtool autoconf automake autotools-dev unzip \
         ca-certificates \
         wget curl openssh-server vim environment-modules \
@@ -15,11 +18,15 @@ RUN apt-get -qq update && \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
         datacenter-gpu-manager \
-        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR}
+        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} \
+        libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR} \
+        git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
-RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu18.04/mellanox_mlnx_ofed.list
+RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu22.04/mellanox_mlnx_ofed.list
 
 RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
@@ -28,62 +35,97 @@ RUN apt-get -qq update \
 #         mlnx-ofed-hpc-user-only
 
 # IB perftest with GDR
-ENV PERFTEST_VERSION=4.5-0.18
-ENV PERFTEST_VERSION_HASH=gfcddfe0
+ENV PERFTEST_VERSION_HASH=5b47ede
 
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
-    wget -q https://github.com/linux-rdma/perftest/releases/download/v${PERFTEST_VERSION}/perftest-${PERFTEST_VERSION}.${PERFTEST_VERSION_HASH}.tar.gz && \
-    tar xvf perftest-${PERFTEST_VERSION}.${PERFTEST_VERSION_HASH}.tar.gz && \
-    cd perftest-4.5 && \
+    git clone https://github.com/coreweave/perftest && \
+    cd perftest && \
+    git checkout $PERFTEST_VERSION_HASH && \
+    ./autogen.sh && \
     ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
-    make install && \
+    make -j20 install && \
     cd /tmp && \
     rm -r /tmp/build
 
 # Build GPU Bandwidthtest from samples
-ARG CUDA_SAMPLES_VERSION=11.6
+ARG CUDA_SAMPLES_VERSION
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
     curl -sLo master.zip https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.zip && \
     unzip master.zip && \
     cd cuda-samples-${CUDA_SAMPLES_VERSION}/Samples/1_Utilities/bandwidthTest && \
-    make && \
+    make -j20 && \
     install bandwidthTest /usr/bin/ && \
     cd /tmp && \
     rm -r /tmp/build
 
-# HPC-X (2.13.1)
+# HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ENV HPCX_VERSION=2.13.1
-ENV HPCX_NCCL_VERSION=2.12
+ARG HPCX_DISTRIBUTION="hpcx-v2.17-gcc-mlnx_ofed-ubuntu22.04-cuda12-x86_64.tbz"
 RUN cd /tmp && \
-    export HPCX_DISTRIBUTION="hpcx-v${HPCX_VERSION}-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl${HPCX_NCCL_VERSION}-x86_64" \
-           HPCX_DIR="/opt/hpcx" && \
-    wget -q -O - http://blobstore.s3.ord1.coreweave.com/drivers/${HPCX_DISTRIBUTION}.tbz | tar xjf - && \
+    export HPCX_DIR="/opt/hpcx" && \
+    wget -q -O - http://blobstore.object.ord1.coreweave.com/drivers/${HPCX_DISTRIBUTION}.tbz | tar xjf - && \
     grep -IrlF "/build-result/${HPCX_DISTRIBUTION}" ${HPCX_DISTRIBUTION} | xargs -rd'\n' sed -i -e "s:/build-result/${HPCX_DISTRIBUTION}:${HPCX_DIR}:g" && \
     mv ${HPCX_DISTRIBUTION} ${HPCX_DIR}
 
+FROM base as gdrcopy
+RUN apt-get -qq update && \
+    apt-get -qq install -y --no-install-recommends \
+      build-essential devscripts debhelper fakeroot pkg-config check &&\
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # GDRCopy userspace components (2.3)
-RUN cd /tmp && \
-    wget -q https://developer.download.nvidia.com/compute/redist/gdrcopy/CUDA%2011.4/x86/Ubuntu20.04/gdrcopy-tests_2.3-1_amd64.cuda11_4.Ubuntu20_04.deb && \
-    wget -q https://developer.download.nvidia.com/compute/redist/gdrcopy/CUDA%2011.4/x86/Ubuntu20.04/libgdrapi_2.3-1_amd64.Ubuntu20_04.deb && \
+RUN mkdir /tmp/build /tmp/gdrcopy && \
+    cd /tmp/build && \
+    wget -qO- 'https://github.com/NVIDIA/gdrcopy/archive/refs/tags/v2.3.tar.gz' | tar xzf - && \
+    CUDA=/usr/local/cuda ./gdrcopy-2.3/packages/build-deb-packages.sh -k && \
+    mv ./gdrcopy-tests_2.3*.deb ./libgdrapi_2.3*.deb /tmp/gdrcopy/ && \
+    cd /tmp && \
+    rm -r /tmp/build \
+
+FROM base
+COPY --from=gdrcopy /tmp/gdrcopy /tmp/gdrcopy/
+RUN cd /tmp/gdrcopy && \
     dpkg -i *.deb && \
-    rm *.deb
+    cd /tmp && \
+    rm -r /tmp/gdrcopy
 
 # HPC-X Environment variables
-#
-# The following envs are from the output of the printpaths script. Uncomment the rows below to
-# run the script as part of a Docker build. Copy-paste the updated output in here.
-# These ENVs need to be updated on new HPC-X install, different base image or any path related modifications before 
-# this stage in the Dockerfile.
-#
-#COPY ./printpaths.sh /tmp
-#RUN /bin/bash -c '\
-#   source /opt/hpcx/opt/hpcx-init.sh && \
-#   hpcx_load && \
-#   /tmp/printpaths.sh && \
-#   rm /tmp/printpaths.sh'
+COPY ./printpaths.sh /tmp
+SHELL ["/bin/bash", "-c"]
+RUN source /opt/hpcx/hpcx-init.sh && \
+    hpcx_load && \
+    # Uncomment to stop a run early with the ENV definitions for the below section
+    # /tmp/printpaths.sh ENV && false && \
+    # Preserve environment variables in new login shells \
+    alias install='install --owner=0 --group=0' && \
+    /tmp/printpaths.sh export \
+      | install --mode=644 /dev/stdin /etc/profile.d/hpcx-env.sh && \
+    # Preserve environment variables (except *PATH*) when sudoing
+    install -d --mode=0755 /etc/sudoers.d && \
+    /tmp/printpaths.sh \
+      | sed -E -e '{ \
+          # Convert NAME=value to just NAME \
+          s:^([^=]+)=.*$:\1:g ; \
+          # Filter out any variables with PATH in their names \
+          /PATH/d ; \
+          # Format them into /etc/sudoers env_keep directives \
+          s:^.*$:Defaults env_keep += "\0":g \
+        }' \
+      | install --mode=440 /dev/stdin /etc/sudoers.d/hpcx-env && \
+    # Register shared libraries with ld regardless of LD_LIBRARY_PATH
+    echo $LD_LIBRARY_PATH | tr ':' '\n' \
+      | install --mode=644 /dev/stdin /etc/ld.so.conf.d/hpcx.conf && \
+    rm /tmp/printpaths.sh
+SHELL ["/bin/sh", "-c"]
+
+# The following envs are from the output of the printpaths ENV script.
+# Uncomment "/tmp/printpaths.sh ENV" above to run the script
+# as part of a Docker build. Copy-paste the updated output in here.
+# These ENVs need to be updated on new HPC-X install, different base image
+# or any path related modifications before this stage in the Dockerfile.
 
 # Begin auto-generated paths
 ENV HPCX_DIR=/opt/hpcx
@@ -95,21 +137,21 @@ ENV HPCX_HCOLL_DIR=/opt/hpcx/hcoll
 ENV HPCX_MPI_DIR=/opt/hpcx/ompi
 ENV HPCX_OSHMEM_DIR=/opt/hpcx/ompi
 ENV HPCX_MPI_TESTS_DIR=/opt/hpcx/ompi/tests
-ENV HPCX_OSU_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-5.8
-ENV HPCX_OSU_CUDA_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-5.8-cuda
-ENV HPCX_IPM_DIR=/opt/hpcx/ompi/tests/ipm-2.0.6
+ENV HPCX_OSU_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-7.2
+ENV HPCX_OSU_CUDA_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-7.2-cuda
+ENV HPCX_IPM_DIR=""
 ENV HPCX_CLUSTERKIT_DIR=/opt/hpcx/clusterkit
 ENV OMPI_HOME=/opt/hpcx/ompi
 ENV MPI_HOME=/opt/hpcx/ompi
 ENV OSHMEM_HOME=/opt/hpcx/ompi
 ENV OPAL_PREFIX=/opt/hpcx/ompi
 ENV OLD_PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ENV PATH=/opt/hpcx/clusterkit/bin:/opt/hpcx/hcoll/bin:/opt/hpcx/ucc/bin:/opt/hpcx/ucx/bin:/opt/hpcx/ompi/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PATH=/opt/hpcx/sharp/bin:/opt/hpcx/clusterkit/bin:/opt/hpcx/hcoll/bin:/opt/hpcx/ucc/bin:/opt/hpcx/ucx/bin:/opt/hpcx/ompi/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV OLD_LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64
 ENV LD_LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ucc/lib/ucc:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib/ucx:/opt/hpcx/ucx/lib:/opt/hpcx/sharp/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
 ENV OLD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs
 ENV LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ompi/lib:/opt/hpcx/sharp/lib:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/cuda/lib64/stubs
-ENV OLD_CPATH=
+ENV OLD_CPATH=""
 ENV CPATH=/opt/hpcx/ompi/include:/opt/hpcx/ucc/include:/opt/hpcx/ucx/include:/opt/hpcx/sharp/include:/opt/hpcx/hcoll/include:
 ENV PKG_CONFIG_PATH=/opt/hpcx/hcoll/lib/pkgconfig:/opt/hpcx/sharp/lib/pkgconfig:/opt/hpcx/ucx/lib/pkgconfig:/opt/hpcx/ompi/lib/pkgconfig:
 # End of auto-generated paths
@@ -122,10 +164,11 @@ RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.
     ./configure --prefix=/opt/hpcx/ompi \
            --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
            --with-platform=contrib/platform/mellanox/optimized \
-           --with-slurm --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2 --with-hwloc --with-libevent \
+           --with-slurm --with-hwloc --with-libevent \
+           --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2 \
            --without-xpmem --with-cuda --with-ucc=/opt/hpcx/ucc && \
-           make -j14 && \
-           make -j14 install && \
+           make -j20 && \
+           make -j20 install && \
            cd .. && \
            rm -r openmpi-gitclone
 
@@ -143,11 +186,11 @@ RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.
 #     rm -r /tmp/*
 
 # NCCL Tests
-ENV NCCL_TESTS_COMMITISH=0b4c4cb
+ENV NCCL_TESTS_COMMITISH=2cbb968
 WORKDIR /opt/nccl-tests
-RUN  wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - \
-   && make MPI=1 \
-   && ln -s /opt/nccl-tests /opt/nccl_tests
+RUN wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
+    make -j20 MPI=1 && \
+    ln -s /opt/nccl-tests /opt/nccl_tests
 
 RUN ldconfig
 
@@ -155,4 +198,4 @@ RUN ldconfig
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
     echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
     sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config && \
-    mkdir /var/run/sshd
+    mkdir /var/run/sshd -p
