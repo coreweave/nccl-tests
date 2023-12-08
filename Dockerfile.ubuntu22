@@ -62,7 +62,7 @@ RUN mkdir /tmp/build && \
 
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.17-gcc-mlnx_ofed-ubuntu22.04-cuda12-x86_64.tbz"
+ARG HPCX_DISTRIBUTION="hpcx-v2.17-gcc-mlnx_ofed-ubuntu22.04-cuda12-x86_64"
 RUN cd /tmp && \
     export HPCX_DIR="/opt/hpcx" && \
     wget -q -O - http://blobstore.object.ord1.coreweave.com/drivers/${HPCX_DISTRIBUTION}.tbz | tar xjf - && \
@@ -76,12 +76,12 @@ RUN apt-get -qq update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# GDRCopy userspace components (2.3)
+# GDRCopy userspace components (2.4)
 RUN mkdir /tmp/build /tmp/gdrcopy && \
     cd /tmp/build && \
-    wget -qO- 'https://github.com/NVIDIA/gdrcopy/archive/refs/tags/v2.3.tar.gz' | tar xzf - && \
-    CUDA=/usr/local/cuda ./gdrcopy-2.3/packages/build-deb-packages.sh -k && \
-    mv ./gdrcopy-tests_2.3*.deb ./libgdrapi_2.3*.deb /tmp/gdrcopy/ && \
+    wget -qO- 'https://github.com/NVIDIA/gdrcopy/archive/refs/tags/v2.4.tar.gz' | tar xzf - && \
+    CUDA=/usr/local/cuda ./gdrcopy-2.4/packages/build-deb-packages.sh -k && \
+    mv ./gdrcopy-tests_2.4*.deb ./libgdrapi_2.4*.deb /tmp/gdrcopy/ && \
     cd /tmp && \
     rm -r /tmp/build
 
