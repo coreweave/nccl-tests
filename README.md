@@ -50,14 +50,18 @@ CoreWeave
 also [publishes images](https://hub.docker.com/r/coreweave/nccl-tests/tags)
 built from these Dockerfiles that can be used as base for your own images.
 
-| **Image Tag**                                                                     | **CUDA** | **NCCL** | **HPC-X** |
-|-----------------------------------------------------------------------------------|----------|----------|-----------|
-| ghcr.io/coreweave/nccl-tests:12.2.2-cudnn8-devel-ubuntu20.04-nccl2.18.5-1-a6a61ab | 12.2.2   | 2.18.5   | 2.16.0    |
-| ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.3-1-253a5b1 | 12.1.1   | 2.18.3   | 2.16.0    |
-| ghcr.io/coreweave/nccl-tests:12.0.1-cudnn8-devel-ubuntu20.04-nccl2.18.5-1-a6a61ab | 12.0.1   | 2.18.5   | 2.16.0    |
-| ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.2-1-a6a61ab | 11.8.0   | 2.16.2   | 2.14.0    |
-| ghcr.io/coreweave/nccl-tests:11.7.1-cudnn8-devel-ubuntu20.04-nccl2.14.3-1-a6a61ab | 11.7.1   | 2.14.3   | 2.14.0    |
-| coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT                                  | 11.6.2   | 2.12.0   | 2.12      |
+| **Image Tag**                                                                     | **Ubuntu** | **CUDA** | **NCCL** | **HPC-X** |
+|-----------------------------------------------------------------------------------|------------|----------|----------|-----------|
+| ghcr.io/coreweave/nccl-tests:12.2.2-cudnn8-devel-ubuntu20.04-nccl2.19.3-1-3e0fbc3 | 20.04      | 12.2.2   | 2.19.3   | 2.16.0    |
+| ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.3-1-3e0fbc3 | 20.04      | 12.1.1   | 2.18.3   | 2.16.0    |
+| ghcr.io/coreweave/nccl-tests:12.0.1-cudnn8-devel-ubuntu20.04-nccl2.19.3-1-3e0fbc3 | 20.04      | 12.0.1   | 2.19.3   | 2.16.0    |
+| ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.5-1-3e0fbc3 | 20.04      | 11.8.0   | 2.16.5   | 2.14.0    |
+| ghcr.io/coreweave/nccl-tests:11.7.1-cudnn8-devel-ubuntu20.04-nccl2.14.3-1-a6a61ab | 20.04      | 11.7.1   | 2.14.3   | 2.14.0    |
+| ghcr.io/coreweave/nccl-tests:12.3.1-devel-ubuntu22.04-nccl2.19.3-1-a72ab6c        | 22.04      | 12.3.1   | 2.19.3   | 2.17.0    |
+| ghcr.io/coreweave/nccl-tests:12.2.2-cudnn8-devel-ubuntu22.04-nccl2.19.3-1-a72ab6c | 22.04      | 12.2.2   | 2.19.3   | 2.17.0    |
+| ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu22.04-nccl2.18.3-1-a72ab6c | 22.04      | 12.1.1   | 2.18.3   | 2.17.0    |
+| ghcr.io/coreweave/nccl-tests:12.0.1-cudnn8-devel-ubuntu22.04-nccl2.18.5-1-a72ab6c | 22.04      | 12.0.1   | 2.18.5   | 2.17.0    |
+| coreweave/nccl-tests:2022-09-28_16-34-19.392_EDT                                  | 20.04      | 11.6.2   | 2.12.10  | 2.11      |
 
 ## Running NCCL Tests
 
