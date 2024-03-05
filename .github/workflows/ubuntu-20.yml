@@ -31,7 +31,7 @@ jobs:
       cuda-version-major: "12.0"
       nccl-version: 2.19.3-1
       cuda-samples-version: "12.0"
-      hpcx-distribution: "hpcx-v2.16-gcc-mlnx_ofed-ubuntu20.04-cuda12-gdrcopy2-nccl2.18-x86_64"
+      hpcx-distribution: "hpcx-v2.18-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
 
   cu121:
     uses: ./.github/workflows/build.yml
@@ -44,7 +44,7 @@ jobs:
       cuda-version-major: "12.1"
       nccl-version: 2.18.3-1
       cuda-samples-version: "12.1"
-      hpcx-distribution: "hpcx-v2.16-gcc-mlnx_ofed-ubuntu20.04-cuda12-gdrcopy2-nccl2.18-x86_64"
+      hpcx-distribution: "hpcx-v2.18-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
 
   cu122:
     uses: ./.github/workflows/build.yml
@@ -55,19 +55,19 @@ jobs:
       base-tag: 12.2.2-cudnn8-devel-ubuntu20.04
       cuda-version-minor: "12.2.2"
       cuda-version-major: "12.2"
-      nccl-version: 2.19.3-1
+      nccl-version: 2.20.3-1
       cuda-samples-version: "12.2"
-      hpcx-distribution: "hpcx-v2.16-gcc-mlnx_ofed-ubuntu20.04-cuda12-gdrcopy2-nccl2.18-x86_64"
+      hpcx-distribution: "hpcx-v2.18-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
 
-#  cu123:
-#    uses: ./.github/workflows/build.yml
-#    with:
-#      folder: .
-#      dockerfile: Dockerfile.ubuntu20
-#      base-image: nvidia/cuda
-#      base-tag: 12.3.0-cudnn8-devel-ubuntu20.04
-#      cuda-version-minor: "12.3.0"
-#      cuda-version-major: "12.3"
-#      nccl-version: 2.19.3-1
-#      cuda-samples-version: "12.3"
-#      hpcx-distribution: "hpcx-v2.17-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
+  cu123:
+    uses: ./.github/workflows/build.yml
+    with:
+      folder: .
+      dockerfile: Dockerfile.ubuntu20
+      base-image: nvidia/cuda
+      base-tag: 12.3.2-cudnn9-devel-ubuntu20.04
+      cuda-version-minor: "12.3.2"
+      cuda-version-major: "12.3"
+      nccl-version: 2.20.3-1
+      cuda-samples-version: "12.3"
+      hpcx-distribution: "hpcx-v2.18-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
