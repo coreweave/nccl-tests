@@ -67,12 +67,28 @@ RUN cd /tmp && \
     grep -IrlF "/build-result/${HPCX_DISTRIBUTION}" ${HPCX_DISTRIBUTION} | xargs -rd'\n' sed -i -e "s:/build-result/${HPCX_DISTRIBUTION}:${HPCX_DIR}:g" && \
     mv ${HPCX_DISTRIBUTION} ${HPCX_DIR}
 
-# GDRCopy userspace components (2.3)
-RUN cd /tmp && \
-    wget -q https://developer.download.nvidia.com/compute/redist/gdrcopy/CUDA%2011.4/x86/Ubuntu20.04/gdrcopy-tests_2.3-1_amd64.cuda11_4.Ubuntu20_04.deb && \
-    wget -q https://developer.download.nvidia.com/compute/redist/gdrcopy/CUDA%2011.4/x86/Ubuntu20.04/libgdrapi_2.3-1_amd64.Ubuntu20_04.deb && \
+FROM base as gdrcopy
+RUN apt-get -qq update && \
+    apt-get -qq install -y --no-install-recommends \
+      build-essential devscripts debhelper fakeroot pkg-config check &&\
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# GDRCopy userspace components (2.4)
+RUN mkdir /tmp/build /tmp/gdrcopy && \
+    cd /tmp/build && \
+    wget -qO- 'https://github.com/NVIDIA/gdrcopy/archive/refs/tags/v2.4.tar.gz' | tar xzf - && \
+    CUDA=/usr/local/cuda ./gdrcopy-2.4/packages/build-deb-packages.sh -k && \
+    mv ./gdrcopy-tests_2.4*.deb ./libgdrapi_2.4*.deb /tmp/gdrcopy/ && \
+    cd /tmp && \
+    rm -r /tmp/build
+
+FROM base
+COPY --from=gdrcopy /tmp/gdrcopy /tmp/gdrcopy/
+RUN cd /tmp/gdrcopy && \
     dpkg -i *.deb && \
-    rm *.deb
+    cd /tmp && \
+    rm -r /tmp/gdrcopy
 
 # HPC-X Environment variables
 COPY ./printpaths.sh /tmp
