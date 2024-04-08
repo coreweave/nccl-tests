@@ -16,7 +16,7 @@ jobs:
       base-tag: 11.8.0-cudnn8-devel-ubuntu20.04
       cuda-version-minor: "11.8.0"
       cuda-version-major: "11.8"
-      nccl-version: 2.16.5-1
+      nccl-version: 2.21.5-1
       cuda-samples-version: "11.6"
       hpcx-distribution: "hpcx-v2.14-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl2.16-x86_64"
 
@@ -29,7 +29,7 @@ jobs:
       base-tag: 12.0.1-cudnn8-devel-ubuntu20.04
       cuda-version-minor: "12.0.1"
       cuda-version-major: "12.0"
-      nccl-version: 2.19.3-1
+      nccl-version: 2.21.5-1
       cuda-samples-version: "12.0"
       hpcx-distribution: "hpcx-v2.18-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
 
@@ -42,7 +42,7 @@ jobs:
       base-tag: 12.1.1-cudnn8-devel-ubuntu20.04
       cuda-version-minor: "12.1.1"
       cuda-version-major: "12.1"
-      nccl-version: 2.18.3-1
+      nccl-version: 2.21.5-1
       cuda-samples-version: "12.1"
       hpcx-distribution: "hpcx-v2.18-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
 
@@ -68,7 +68,7 @@ jobs:
       base-tag: 12.3.2-cudnn9-devel-ubuntu20.04
       cuda-version-minor: "12.3.2"
       cuda-version-major: "12.3"
-      nccl-version: 2.20.3-1
+      nccl-version: 2.21.5-1
       cuda-samples-version: "12.3"
       hpcx-distribution: "hpcx-v2.18-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
 
