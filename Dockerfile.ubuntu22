@@ -12,14 +12,13 @@ RUN apt-get -qq update && \
         --no-install-recommends \
         --allow-downgrades \
         build-essential libtool autoconf automake autotools-dev unzip \
+        devscripts debhelper fakeroot \
         ca-certificates \
         wget curl openssh-server vim environment-modules \
         iputils-ping net-tools \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
         datacenter-gpu-manager \
-        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} \
-        libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR} \
         git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -33,6 +32,21 @@ RUN apt-get -qq update \
     ibverbs-utils libibverbs-dev libibumad3 libibumad-dev librdmacm-dev rdmacm-utils infiniband-diags ibverbs-utils \
     && rm -rf /var/lib/apt/lists/*
 #         mlnx-ofed-hpc-user-only
+
+ARG NCCL_ARCH_LIST='70 75 80 86 89 90'
+RUN mkdir /tmp/build && \
+    cd /tmp/build && \
+    NCCL_TAG="$(echo $TARGET_NCCL_VERSION | tr -dc '[:digit:].-')" && \
+    wget -qO - "https://github.com/NVIDIA/nccl/archive/refs/tags/v${NCCL_TAG}.tar.gz" \
+    | tar --strip-components=1 -xzf - && \
+    REAL_ARCH() { printf -- '-gencode=arch=compute_%s,code=sm_%s ' "$1" "$1"; } && \
+    VIRTUAL_ARCH() { printf -- '-gencode=arch=compute_%s,code=compute_%s' "$1" "$1"; } && \
+    LAST_ARCH="${NCCL_ARCH_LIST##* }" && \
+    make -j20 pkg.debian.build \
+      "NVCC_GENCODE=$(for I in $NCCL_ARCH_LIST; do REAL_ARCH "$I"; done && VIRTUAL_ARCH "$LAST_ARCH")" && \
+    dpkg -i ./build/pkg/deb/libnccl*.deb && \
+    cd /tmp && \
+    rm -r /tmp/build
 
 # IB perftest with GDR
 ENV PERFTEST_VERSION_HASH=5b47ede
