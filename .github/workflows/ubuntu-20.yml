@@ -81,6 +81,19 @@ jobs:
       base-tag: 12.4.1-cudnn-devel-ubuntu20.04
       cuda-version-minor: "12.4.1"
       cuda-version-major: "12.4"
-      nccl-version: 2.21.5-1
+      nccl-version: 2.22.3-1
       cuda-samples-version: "12.4"
+      hpcx-distribution: "hpcx-v2.19-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
+
+  cu125:
+    uses: ./.github/workflows/build.yml
+    with:
+      folder: .
+      dockerfile: Dockerfile.ubuntu20
+      base-image: nvidia/cuda
+      base-tag: 12.5.0-devel-ubuntu20.04
+      cuda-version-minor: "12.5.0"
+      cuda-version-major: "12.5"
+      nccl-version: 2.22.3-1
+      cuda-samples-version: "12.5"
       hpcx-distribution: "hpcx-v2.19-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"

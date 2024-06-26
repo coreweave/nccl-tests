@@ -52,14 +52,16 @@ built from these Dockerfiles that can be used as base for your own images.
 
 | **Image Tag**                                                                     | **Ubuntu** | **CUDA** | **NCCL** | **HPC-X** |
 |-----------------------------------------------------------------------------------|------------|----------|----------|-----------|
-| ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143  | 20.04      | 12.4.1   | 2.21.5   | 2.19.0    |
+| ghcr.io/coreweave/nccl-tests:12.5.0-devel-ubuntu20.04-nccl2.22.3-1-9cd9599        | 20.04      | 12.5.0   | 2.22.3   | 2.19.0    |
+| ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.22.3-1-9cd9599  | 20.04      | 12.4.1   | 2.22.3   | 2.19.0    |
 | ghcr.io/coreweave/nccl-tests:12.3.2-cudnn9-devel-ubuntu20.04-nccl2.20.3-1-85f9143 | 20.04      | 12.3.2   | 2.20.3   | 2.19.0    |
 | ghcr.io/coreweave/nccl-tests:12.2.2-cudnn8-devel-ubuntu20.04-nccl2.21.5-1-85f9143 | 20.04      | 12.2.2   | 2.21.5   | 2.19.0    |
 | ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.3-1-85f9143 | 20.04      | 12.1.1   | 2.18.3   | 2.19.0    |
 | ghcr.io/coreweave/nccl-tests:12.0.1-cudnn8-devel-ubuntu20.04-nccl2.19.3-1-85f9143 | 20.04      | 12.0.1   | 2.19.3   | 2.19.0    |
 | ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.5-1-868dc3d | 20.04      | 11.8.0   | 2.16.5   | 2.14.0    |
 | ghcr.io/coreweave/nccl-tests:11.7.1-cudnn8-devel-ubuntu20.04-nccl2.14.3-1-a6a61ab | 20.04      | 11.7.1   | 2.14.3   | 2.14.0    |
-| ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu22.04-nccl2.21.5-1-85f9143  | 22.04      | 12.4.1   | 2.21.5   | 2.19.0    |
+| ghcr.io/coreweave/nccl-tests:12.5.0-devel-ubuntu22.04-nccl2.22.3-1-9cd9599        | 22.04      | 12.5.0   | 2.22.3   | 2.19.0    |
+| ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu22.04-nccl2.22.3-1-9cd9599  | 22.04      | 12.4.1   | 2.22.3   | 2.19.0    |
 | ghcr.io/coreweave/nccl-tests:12.3.2-cudnn9-devel-ubuntu22.04-nccl2.20.3-1-85f9143 | 22.04      | 12.3.2   | 2.20.3   | 2.19.0    |
 | ghcr.io/coreweave/nccl-tests:12.2.2-cudnn8-devel-ubuntu22.04-nccl2.19.3-1-85f9143 | 22.04      | 12.2.2   | 2.19.3   | 2.19.0    |
 | ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu22.04-nccl2.18.3-1-85f9143 | 22.04      | 12.1.1   | 2.18.3   | 2.19.0    |
