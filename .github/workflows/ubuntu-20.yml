@@ -95,5 +95,5 @@ jobs:
       cuda-version-minor: "12.5.0"
       cuda-version-major: "12.5"
       nccl-version: 2.22.3-1
-      cuda-samples-version: "12.5"
+      cuda-samples-version: "12.4"
       hpcx-distribution: "hpcx-v2.19-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
