@@ -12,7 +12,7 @@ spec:
       template:
           spec:
             containers:
-            - image: ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.2-1-29e3624
+            - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
               name: nccl
               env:
               - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -29,7 +29,7 @@ spec:
                     -x NCCL_SOCKET_IFNAME=eth0 \
                     -x NCCL_IB_HCA=ibp \
                     -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1 \
-                    /opt/nccl_tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 1 -w 1 -n 10
+                    /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
                     "]
 
               resources:
@@ -56,7 +56,7 @@ spec:
           metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
-          - image: ghcr.io/coreweave/nccl-tests:11.8.0-cudnn8-devel-ubuntu20.04-nccl2.16.2-1-29e3624
+          - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
             name: nccl
             resources:
               requests:

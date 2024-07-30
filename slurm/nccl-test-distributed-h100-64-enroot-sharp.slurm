@@ -16,25 +16,15 @@ export NCCL_IB_HCA=ibp
 export UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1,ibp4:1,ibp5:1,ibp6:1,ibp7:1
 export SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1
 
-# Automatic selection of SHARP algorithm for NDR is fixed in NCCL 2.18.1
-# Earlier version needs it set manually.
-# export NCCL_ALGO=COLLNETCHAIN
-
 # Dynamic Connections can be forced as transport
 export UCX_TLS=dc,self
 
 # Enable network collections
 export NCCL_COLLNET_ENABLE=1
 
-# Relaxed ordering is fixed in NCCL 2.18.3+, but
-# in NCCL 2.18.1 and earlier it should be disabled
-# for H100s due to a bug. See:
-# https://docs.nvidia.com/deeplearning/nccl/archives/nccl_2181/release-notes/rel_2-18-1.html
-# export NCCL_IB_PCI_RELAXED_ORDERING=0
-
 # Log the assigned nodes
 echo "Using nodes: $SLURM_JOB_NODELIST"
 
-srun --container-image=ghcr.io#coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.3-1-471f0db \
+srun --container-image=ghcr.io#coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143 \
      --container-remap-root --no-container-mount-home \
      /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
