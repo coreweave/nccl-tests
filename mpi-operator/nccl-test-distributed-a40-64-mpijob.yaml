@@ -12,7 +12,7 @@ spec:
       template:
           spec:
             containers:
-            - image: ghcr.io/coreweave/nccl-tests:11.7.1-devel-ubuntu20.04-nccl2.14.3-1-45d6ec9
+            - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
               name: nccl
               env:
               - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -29,32 +29,19 @@ spec:
                     -x NCCL_IB_HCA=ibp \
                     -x NCCL_DEBUG=INFO \
                     -x NCCL_DEBUG_SUBSYS=INIT \
-                    /opt/nccl_tests/build/all_reduce_perf -b 4 -e 2G -f 2 -g 1 -w 50 -n 50
+                    /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
                     "]
 
               resources:
                 requests:
                   cpu: 2
                   memory: 128Mi
-            affinity:
-              nodeAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: failure-domain.beta.kubernetes.io/region
-                        operator: In
-                        values:
-                        - LAS1
-
-            schedulerName: prioritize-image-locality
-            enableServiceLinks: false
-            automountServiceAccountToken: false
     Worker:
       replicas: 8
       template:
         spec:
           containers:
-          - image: ghcr.io/coreweave/nccl-tests:11.7.1-devel-ubuntu20.04-nccl2.14.3-1-45d6ec9
+          - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
             name: nccl
             resources:
               requests:
@@ -75,14 +62,8 @@ spec:
                     operator: In
                     values:
                     - A40
-                  - key: topology.kubernetes.io/region
-                    operator: In
-                    values:
-                    - LAS1
 
           volumes:
             - emptyDir:
                 medium: Memory
               name: dshm
-          enableServiceLinks: false
-          automountServiceAccountToken: false

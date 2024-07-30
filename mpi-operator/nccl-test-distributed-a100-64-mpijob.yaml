@@ -1,7 +1,7 @@
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-64-h100
+  name: nccl-test-64-sharp
 spec:
   slotsPerWorker: 8
   runPolicy:
@@ -12,7 +12,7 @@ spec:
       template:
           spec:
             containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.3-1-471f0db
+            - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
               name: nccl
               env:
               - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -28,10 +28,8 @@ spec:
                     -x LD_LIBRARY_PATH \
                     -x NCCL_SOCKET_IFNAME=eth0 \
                     -x NCCL_IB_HCA=ibp \
-                    -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1,ibp4:1,ibp5:1,ibp6:1,ibp7:1 \
-                    -x SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1 \
-                    -x NCCL_COLLNET_ENABLE=0 \
-                    /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1 #-n 200 #-w 2 -n 20
+                    -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1 \
+                    /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
                     "]
 
               resources:
@@ -58,16 +56,16 @@ spec:
           metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
-          - image: ghcr.io/coreweave/nccl-tests:12.1.1-cudnn8-devel-ubuntu20.04-nccl2.18.3-1-471f0db
+          - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
             name: nccl
             resources:
               requests:
-                cpu: 110
-                memory: 960Gi
+                cpu: 112
+                memory: 1000Gi
                 nvidia.com/gpu: 8
                 rdma/ib: 1
               limits:
-                memory: 960Gi
+                memory: 1000Gi
                 nvidia.com/gpu: 8
                 rdma/ib: 1
             volumeMounts:
@@ -81,7 +79,7 @@ spec:
                   - key: gpu.nvidia.com/model
                     operator: In
                     values:
-                    - H100_NVLINK_80GB
+                    - A100_NVLINK_80GB
                   - key: topology.kubernetes.io/region
                     operator: In
                     values:
@@ -89,7 +87,7 @@ spec:
                   - key: ib.coreweave.cloud/speed
                     operator: In
                     values:
-                    - 3200G
+                    - 800G
 
           volumes:
             - emptyDir:
