@@ -165,7 +165,7 @@ RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.
            --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
            --with-platform=contrib/platform/mellanox/optimized \
            --with-slurm --with-hwloc --with-libevent \
-           --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2 \
+           --with-pmix="/usr/lib/$(gcc -print-multiarch)/pmix2" \
            --without-xpmem --with-cuda --with-ucc=/opt/hpcx/ucc && \
            make -j20 && \
            make -j20 install && \
