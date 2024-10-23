@@ -30,6 +30,15 @@ on:
       hpcx-distribution:
         required: true
         type: string
+    secrets:
+      ORG_BUILDKIT_CLIENT_TOKEN:
+        required: true
+      BUILDKIT_CONSUMER_DOPPLER_PROJECT:
+        required: true
+      BUILDKIT_CONSUMER_DOPPLER_CONFIG:
+        required: true
+      BUILDKIT_CONSUMER_ENDPOINT:
+        required: true
 
 jobs:
   build:
