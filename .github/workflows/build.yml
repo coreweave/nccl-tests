@@ -35,6 +35,7 @@ jobs:
   build:
     name: Building ${{ inputs.dockerfile }}
     runs-on: [cw]
+    container: 'ghcr.io/coreweave/github-actions-images/github-base-runner:v1.4.0'
     steps:
       - uses: actions/checkout@v4
       - name: Fetch BuildKit Client Certs
