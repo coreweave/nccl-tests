@@ -34,11 +34,26 @@ on:
 jobs:
   build:
     name: Building ${{ inputs.dockerfile }}
-    runs-on: [self-hosted, Linux]
+    runs-on: [self-hosted, cw]
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch BuildKit Client Certs
+        uses: dopplerhq/secrets-fetch-action@v1.2.0
+        id: client-certs
+        with:
+          doppler-token: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
+          doppler-project: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
+          doppler-config: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_CONFIG }}
+          inject-env-vars: false
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.7.1
+        with:
+          driver: remote
+          endpoint: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
+        env:
+          BUILDER_NODE_0_AUTH_TLS_CACERT: ${{ steps.client-certs.outputs.TLS_CACERT }}
+          BUILDER_NODE_0_AUTH_TLS_CERT: ${{ steps.client-certs.outputs.TLS_CERT }}
+          BUILDER_NODE_0_AUTH_TLS_KEY: ${{ steps.client-certs.outputs.TLS_KEY }}
       - name: Login to container registry
         uses: docker/login-action@v3.3.0
         with:
