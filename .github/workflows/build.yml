@@ -67,12 +67,6 @@ jobs:
           BUILDER_NODE_0_AUTH_TLS_CACERT: ${{ steps.client-certs.outputs.TLS_CACERT }}
           BUILDER_NODE_0_AUTH_TLS_CERT: ${{ steps.client-certs.outputs.TLS_CERT }}
           BUILDER_NODE_0_AUTH_TLS_KEY: ${{ steps.client-certs.outputs.TLS_KEY }}
-      # - name: Login to container registry
-      #   uses: docker/login-action@v3.3.0
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
       - name: Get base registry
         run: |
           echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
@@ -86,6 +80,13 @@ jobs:
           images: ${{ env.REGISTRY }}
           tags: |
             type=sha,prefix=${{ env.TAG_PREFIX }},format=short
+      - name: Initialize registry credentials file
+        env:
+          USER: ${{ github.actor }}
+          PASS: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          jq -n '.auths."ghcr.io" = { username: env.USER, password: env.PASS }' \
+          | install -m400 /dev/stdin ~/.docker/config.json
       - name: Build and push Docker image
         id: docker-build
         uses: docker/build-push-action@v6.9.0
@@ -104,6 +105,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}:buildcache,mode=max
+      - name: Clear registry credentials
+        if: always()
+        run: |
+          rm -f ~/.docker/config.json && [ ! -e ~/.docker/config.json ]
       - uses: 8BitJonny/gh-get-current-pr@2.1.3
         id: PR
         with:
