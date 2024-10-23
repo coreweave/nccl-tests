@@ -9,6 +9,11 @@ on:
 jobs:
   cu118:
     uses: ./.github/workflows/build.yml
+    secrets:
+      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
+      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
+      BUILDKIT_CONSUMER_DOPPLER_CONFIG: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_CONFIG }}
+      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
     with:
       folder: .
       dockerfile: Dockerfile.ubuntu20
@@ -22,6 +27,11 @@ jobs:
 
   cu120:
     uses: ./.github/workflows/build.yml
+    secrets:
+      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
+      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
+      BUILDKIT_CONSUMER_DOPPLER_CONFIG: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_CONFIG }}
+      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
     with:
       folder: .
       dockerfile: Dockerfile.ubuntu20
@@ -35,6 +45,11 @@ jobs:
 
   cu122:
     uses: ./.github/workflows/build.yml
+    secrets:
+      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
+      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
+      BUILDKIT_CONSUMER_DOPPLER_CONFIG: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_CONFIG }}
+      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
     with:
       folder: .
       dockerfile: Dockerfile.ubuntu20
@@ -48,6 +63,11 @@ jobs:
 
   cu124:
     uses: ./.github/workflows/build.yml
+    secrets:
+      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
+      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
+      BUILDKIT_CONSUMER_DOPPLER_CONFIG: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_CONFIG }}
+      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
     with:
       folder: .
       dockerfile: Dockerfile.ubuntu20
@@ -61,6 +81,11 @@ jobs:
 
   cu126:
     uses: ./.github/workflows/build.yml
+    secrets:
+      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
+      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
+      BUILDKIT_CONSUMER_DOPPLER_CONFIG: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_CONFIG }}
+      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
     with:
       folder: .
       dockerfile: Dockerfile.ubuntu20
