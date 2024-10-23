@@ -34,7 +34,7 @@ on:
 jobs:
   build:
     name: Building ${{ inputs.dockerfile }}
-    runs-on: [self-hosted, cw]
+    runs-on: [cw]
     steps:
       - uses: actions/checkout@v4
       - name: Fetch BuildKit Client Certs
