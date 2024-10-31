@@ -132,7 +132,7 @@ RUN source /opt/hpcx/hpcx-init.sh && \
       --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
       --with-platform=contrib/platform/mellanox/optimized \
       --with-slurm --with-hwloc --with-libevent \
-      ---with-pmi \
+      --with-pmi \
       --without-xpmem --with-cuda --with-ucc=/opt/hpcx/ucc && \
       make -j20 && \
       make -j20 install && \
