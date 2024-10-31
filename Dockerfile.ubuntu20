@@ -22,7 +22,7 @@ RUN apt-get -qq update && \
 
 RUN LIB_DIR="/usr/lib/$(gcc -print-multiarch)"; \
     echo "LIB: $LIB_DIR"; \
-    stat "$LIB_DIR" \
+    stat "$LIB_DIR"; \
     ls "$LIB_DIR"
 
 # Mellanox OFED (latest)

@@ -24,7 +24,7 @@ RUN apt-get -qq update && \
 
 RUN PMIX_DIR="/usr/lib/$(gcc -print-multiarch)/pmix2"; \
     echo "PMIX: $PMIX_DIR"; \
-    stat "$PMIX_DIR" \
+    stat "$PMIX_DIR"; \
     ls "$PMIX_DIR"
 
 # Mellanox OFED (latest)
