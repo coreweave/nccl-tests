@@ -7,24 +7,6 @@ on:
       - .github/workflows/build.yml
 
 jobs:
-  cu118:
-    uses: ./.github/workflows/build.yml
-    secrets:
-      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
-      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
-      BUILDKIT_CONSUMER_DOPPLER_CONFIG: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_CONFIG }}
-      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
-    with:
-      folder: .
-      dockerfile: Dockerfile.ubuntu20
-      base-image: nvidia/cuda
-      base-tag: 11.8.0-cudnn8-devel-ubuntu20.04
-      cuda-version-minor: "11.8.0"
-      cuda-version-major: "11.8"
-      nccl-version: 2.16.5-1
-      cuda-samples-version: "11.6"
-      hpcx-distribution: "hpcx-v2.14-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl2.16-x86_64"
-
   cu120:
     uses: ./.github/workflows/build.yml
     secrets:
@@ -41,7 +23,7 @@ jobs:
       cuda-version-major: "12.0"
       nccl-version: 2.19.3-1
       cuda-samples-version: "12.0"
-      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
+      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu20.04-cuda12"
 
   cu122:
     uses: ./.github/workflows/build.yml
@@ -59,7 +41,7 @@ jobs:
       cuda-version-major: "12.2"
       nccl-version: 2.21.5-1
       cuda-samples-version: "12.2"
-      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
+      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu20.04-cuda12"
 
   cu124:
     uses: ./.github/workflows/build.yml
@@ -77,7 +59,7 @@ jobs:
       cuda-version-major: "12.4"
       nccl-version: 2.23.4-1
       cuda-samples-version: "12.4"
-      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
+      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu20.04-cuda12"
 
   cu126:
     uses: ./.github/workflows/build.yml
@@ -95,4 +77,4 @@ jobs:
       cuda-version-major: "12.6"
       nccl-version: 2.23.4-1
       cuda-samples-version: "12.5"
-      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu20.04-cuda12-x86_64"
+      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu20.04-cuda12"
