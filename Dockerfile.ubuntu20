@@ -66,7 +66,9 @@ RUN cd /tmp && \
     HPCX_DIR="/opt/hpcx" && \
     wget -q -O - "https://blobstore.object.ord1.coreweave.com/drivers/${DIST_NAME}.tbz" | tar xjf - && \
     grep -IrlF "/build-result/${DIST_NAME}" "${DIST_NAME}" | xargs -rd'\n' sed -i -e "s:/build-result/${DIST_NAME}:${HPCX_DIR}:g" && \
-    mv "${DIST_NAME}" "${HPCX_DIR}"
+    mv "${DIST_NAME}" "${HPCX_DIR}" && \
+    rm -r /opt/hpcx/ompi
+# OpenMPI will be rebuilt later
 
 FROM base as gdrcopy
 RUN apt-get -qq update && \
@@ -162,7 +164,7 @@ ENV UCX_VFS_ENABLE=no
 # For Ubuntu 22, we can replace PMI2 (--with-pmi) with PMIx
 # --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2
 RUN apt-get -qq update && apt-get -qq install -y --no-install-recommends libpmi2-0 libpmi2-0-dev
-RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.tar.gz && cd openmpi-gitclone && \
+RUN cd /opt/hpcx/sources && tar -zxvf openmpi-gitclone.tar.gz && cd openmpi-gitclone && \
     ./configure --prefix=/opt/hpcx/ompi \
            --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
            --with-platform=contrib/platform/mellanox/optimized \
