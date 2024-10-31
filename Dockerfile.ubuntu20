@@ -35,31 +35,31 @@ RUN apt-get -qq update \
     && rm -rf /var/lib/apt/lists/*
 #         mlnx-ofed-hpc-user-only
 
-# IB perftest with GDR
-ENV PERFTEST_VERSION_HASH=5b47ede
-
-RUN mkdir /tmp/build && \
-    cd /tmp/build && \
-    git clone https://github.com/coreweave/perftest && \
-    cd perftest && \
-    git checkout $PERFTEST_VERSION_HASH && \
-    ./autogen.sh && \
-    ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
-    make install && \
-    cd /tmp && \
-    rm -r /tmp/build
-
-# Build GPU Bandwidthtest from samples
-ARG CUDA_SAMPLES_VERSION
-RUN mkdir /tmp/build && \
-    cd /tmp/build && \
-    curl -sLo master.zip https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.zip && \
-    unzip master.zip && \
-    cd cuda-samples-${CUDA_SAMPLES_VERSION}/Samples/1_Utilities/bandwidthTest && \
-    make && \
-    install bandwidthTest /usr/bin/ && \
-    cd /tmp && \
-    rm -r /tmp/build
+## IB perftest with GDR
+#ENV PERFTEST_VERSION_HASH=5b47ede
+#
+#RUN mkdir /tmp/build && \
+#    cd /tmp/build && \
+#    git clone https://github.com/coreweave/perftest && \
+#    cd perftest && \
+#    git checkout $PERFTEST_VERSION_HASH && \
+#    ./autogen.sh && \
+#    ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
+#    make install && \
+#    cd /tmp && \
+#    rm -r /tmp/build
+#
+## Build GPU Bandwidthtest from samples
+#ARG CUDA_SAMPLES_VERSION
+#RUN mkdir /tmp/build && \
+#    cd /tmp/build && \
+#    curl -sLo master.zip https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.zip && \
+#    unzip master.zip && \
+#    cd cuda-samples-${CUDA_SAMPLES_VERSION}/Samples/1_Utilities/bandwidthTest && \
+#    make && \
+#    install bandwidthTest /usr/bin/ && \
+#    cd /tmp && \
+#    rm -r /tmp/build
 
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
@@ -70,28 +70,28 @@ RUN cd /tmp && \
     grep -IrlF "/build-result/${HPCX_DISTRIBUTION}" ${HPCX_DISTRIBUTION} | xargs -rd'\n' sed -i -e "s:/build-result/${HPCX_DISTRIBUTION}:${HPCX_DIR}:g" && \
     mv ${HPCX_DISTRIBUTION} ${HPCX_DIR}
 
-FROM base as gdrcopy
-RUN apt-get -qq update && \
-    apt-get -qq install -y --no-install-recommends \
-      build-essential devscripts debhelper fakeroot pkg-config check &&\
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# GDRCopy userspace components (2.4)
-RUN mkdir /tmp/build /tmp/gdrcopy && \
-    cd /tmp/build && \
-    wget -qO- 'https://github.com/NVIDIA/gdrcopy/archive/refs/tags/v2.4.tar.gz' | tar xzf - && \
-    CUDA=/usr/local/cuda ./gdrcopy-2.4/packages/build-deb-packages.sh -k && \
-    mv ./gdrcopy-tests_2.4*.deb ./libgdrapi_2.4*.deb /tmp/gdrcopy/ && \
-    cd /tmp && \
-    rm -r /tmp/build
-
-FROM base
-COPY --from=gdrcopy /tmp/gdrcopy /tmp/gdrcopy/
-RUN cd /tmp/gdrcopy && \
-    dpkg -i *.deb && \
-    cd /tmp && \
-    rm -r /tmp/gdrcopy
+#FROM base as gdrcopy
+#RUN apt-get -qq update && \
+#    apt-get -qq install -y --no-install-recommends \
+#      build-essential devscripts debhelper fakeroot pkg-config check &&\
+#    apt-get clean && \
+#    rm -rf /var/lib/apt/lists/*
+#
+## GDRCopy userspace components (2.4)
+#RUN mkdir /tmp/build /tmp/gdrcopy && \
+#    cd /tmp/build && \
+#    wget -qO- 'https://github.com/NVIDIA/gdrcopy/archive/refs/tags/v2.4.tar.gz' | tar xzf - && \
+#    CUDA=/usr/local/cuda ./gdrcopy-2.4/packages/build-deb-packages.sh -k && \
+#    mv ./gdrcopy-tests_2.4*.deb ./libgdrapi_2.4*.deb /tmp/gdrcopy/ && \
+#    cd /tmp && \
+#    rm -r /tmp/build
+#
+#FROM base
+#COPY --from=gdrcopy /tmp/gdrcopy /tmp/gdrcopy/
+#RUN cd /tmp/gdrcopy && \
+#    dpkg -i *.deb && \
+#    cd /tmp && \
+#    rm -r /tmp/gdrcopy
 
 # HPC-X Environment variables
 COPY ./printpaths.sh /tmp
@@ -166,7 +166,7 @@ ENV UCX_VFS_ENABLE=no
 RUN apt-get -qq update && apt-get -qq install -y --no-install-recommends libpmi2-0 libpmi2-0-dev
 RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.tar.gz && cd openmpi-gitclone && \
     ./configure --prefix=/opt/hpcx/ompi \
-           --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
+           --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx --with-ucx-libdir=/opt/hpcx/ucx/lib \
            --with-platform=contrib/platform/mellanox/optimized \
            --with-slurm --with-hwloc --with-libevent \
            --with-pmi \

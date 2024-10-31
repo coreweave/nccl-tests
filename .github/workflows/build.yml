@@ -100,7 +100,7 @@ jobs:
             TARGET_NCCL_VERSION=${{ inputs.nccl-version }}
             CUDA_SAMPLES_VERSION=${{ inputs.cuda-samples-version }}
             HPCX_DISTRIBUTION=${{ inputs.hpcx-distribution }}
-          push: true
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}:buildcache
