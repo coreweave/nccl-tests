@@ -126,7 +126,7 @@ RUN source /opt/hpcx/hpcx-init.sh && \
     cd /opt/hpcx/sources && \
     tar -zxvf openmpi-gitclone.tar.gz && \
     cd openmpi-gitclone && \
-    ./configure --prefix=/opt/hpcx/ompi \
+    ./configure -C --prefix=/opt/hpcx/ompi \
       --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
       --with-platform=contrib/platform/mellanox/optimized \
       --with-slurm --with-hwloc --with-libevent \
