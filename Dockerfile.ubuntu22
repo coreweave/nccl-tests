@@ -1,9 +1,8 @@
+# syntax=docker/dockerfile:1.4
 ARG CUDA_VERSION_MINOR=12.4.1
-ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION_MINOR}-cudnn-devel-ubuntu22.04
-FROM ${BASE_IMAGE} as base
-
 ARG CUDA_VERSION_MAJOR=12.4
-ARG TARGET_NCCL_VERSION=2.23.4-1
+ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION_MINOR}-cudnn-devel-ubuntu22.04
+FROM ${BASE_IMAGE} AS base
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
@@ -18,8 +17,6 @@ RUN apt-get -qq update && \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
         datacenter-gpu-manager \
-        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} \
-        libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR} \
         git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -34,6 +31,51 @@ RUN apt-get -qq update \
     && rm -rf /var/lib/apt/lists/*
 #         mlnx-ofed-hpc-user-only
 
+
+FROM base AS builder-base
+RUN apt-get -qq update && \
+    apt-get -qq install -y --no-install-recommends \
+      build-essential devscripts debhelper fakeroot pkg-config check && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+
+FROM builder-base AS nccl
+# NCCL
+ARG TARGET_NCCL_VERSION='2.23.4-1'
+ARG CUDA_ARCH_LIST='70 80 89 90'
+# Converts CUDA_ARCH_LIST to '-gencode=arch=compute_XX,code=sm_XX -gencode=...' format with PTX for the last listed arch
+RUN NVCC_GENCODE="$( \
+    echo "${CUDA_ARCH_LIST}" | sed -e \
+      's:\S\+:-gencode=arch=compute_\0,code=sm_\0:g; s:_[[:digit:]]\+$:\0 -gencode=arch=compute\0,code=compute\0:' \
+    )" && \
+    BUILD_THREADS="$(echo "${NVCC_GENCODE}" | wc -w)" && \
+    mkdir /tmp/build && \
+    cd /tmp/build && \
+    wget -qO- "https://github.com/NVIDIA/nccl/archive/refs/tags/v${TARGET_NCCL_VERSION}.tar.gz" \
+    | tar --strip-components=1 -xzf - && \
+    NVCC_APPEND_FLAGS="--threads=${BUILD_THREADS}" \
+      make -j20 pkg.debian.build NVCC_GENCODE="${NVCC_GENCODE}" && \
+    cd build/pkg/deb && \
+    ls -l && \
+    mkdir /tmp/libnccl2 && \
+    mv ./libnccl*.deb /tmp/libnccl2/ && \
+    cd /tmp && \
+    rm -r /tmp/build
+
+
+FROM builder-base AS gdrcopy
+# GDRCopy userspace components (2.4)
+RUN mkdir /tmp/build /tmp/gdrcopy && \
+    cd /tmp/build && \
+    wget -qO- 'https://github.com/NVIDIA/gdrcopy/archive/refs/tags/v2.4.tar.gz' | tar xzf - && \
+    CUDA=/usr/local/cuda ./gdrcopy-2.4/packages/build-deb-packages.sh -k && \
+    mv ./gdrcopy-tests_2.4*.deb ./libgdrapi_2.4*.deb /tmp/gdrcopy/ && \
+    cd /tmp && \
+    rm -r /tmp/build
+
+
+FROM base
 # IB perftest with GDR
 ENV PERFTEST_VERSION_HASH=5b47ede
 
@@ -72,28 +114,12 @@ RUN cd /tmp && \
     rm -r /opt/hpcx/ompi
 # OpenMPI will be rebuilt later
 
-FROM base as gdrcopy
-RUN apt-get -qq update && \
-    apt-get -qq install -y --no-install-recommends \
-      build-essential devscripts debhelper fakeroot pkg-config check &&\
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# GDRCopy userspace components (2.4)
-RUN mkdir /tmp/build /tmp/gdrcopy && \
-    cd /tmp/build && \
-    wget -qO- 'https://github.com/NVIDIA/gdrcopy/archive/refs/tags/v2.4.tar.gz' | tar xzf - && \
-    CUDA=/usr/local/cuda ./gdrcopy-2.4/packages/build-deb-packages.sh -k && \
-    mv ./gdrcopy-tests_2.4*.deb ./libgdrapi_2.4*.deb /tmp/gdrcopy/ && \
-    cd /tmp && \
-    rm -r /tmp/build
-
-FROM base
-COPY --from=gdrcopy /tmp/gdrcopy /tmp/gdrcopy/
-RUN cd /tmp/gdrcopy && \
-    dpkg -i *.deb && \
-    cd /tmp && \
-    rm -r /tmp/gdrcopy
+RUN --mount=type=bind,from=libnccl2,source=/tmp/libnccl2,target=/tmp/libnccl2 \
+    cd /tmp/libnccl2 && \
+    dpkg -i *.deb
+RUN --mount=type=bind,from=gdrcopy,source=/tmp/gdrcopy,target=/tmp/gdrcopy \
+    cd /tmp/gdrcopy && \
+    dpkg -i *.deb
 
 # HPC-X Environment variables
 COPY ./printpaths.sh /tmp
