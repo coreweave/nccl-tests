@@ -40,7 +40,7 @@ RUN apt-get -qq update && \
     rm -rf /var/lib/apt/lists/*
 
 
-FROM builder-base AS nccl
+FROM builder-base AS libnccl2
 # NCCL
 ARG TARGET_NCCL_VERSION='2.23.4-1'
 ARG CUDA_ARCH_LIST='70 80 89 90'
