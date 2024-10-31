@@ -15,10 +15,7 @@ on:
       base-tag:
         required: true
         type: string
-      cuda-version-minor:
-        required: true
-        type: string
-      cuda-version-major:
+      cuda-version:
         required: true
         type: string
       nccl-version:
@@ -95,8 +92,7 @@ jobs:
           file: ${{ inputs.folder }}/${{ inputs.dockerfile }}
           build-args: |-
             BASE_IMAGE=${{ inputs.base-image }}:${{ inputs.base-tag }}
-            CUDA_VERSION_MINOR=${{ inputs.cuda-version-minor }}
-            CUDA_VERSION_MAJOR=${{ inputs.cuda-version-major }}
+            CUDA_VERSION=${{ inputs.cuda-version }}
             TARGET_NCCL_VERSION=${{ inputs.nccl-version }}
             CUDA_SAMPLES_VERSION=${{ inputs.cuda-samples-version }}
             HPCX_DISTRIBUTION=${{ inputs.hpcx-distribution }}

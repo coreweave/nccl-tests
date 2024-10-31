@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
-ARG CUDA_VERSION_MINOR=12.4.1
-ARG CUDA_VERSION_MAJOR=12.4
-ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION_MINOR}-cudnn-devel-ubuntu20.04
+
+ARG CUDA_VERSION=12.4.1
+ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu20.04
 FROM ${BASE_IMAGE} AS base
 
 ARG DEBIAN_FRONTEND=noninteractive
