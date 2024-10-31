@@ -66,6 +66,7 @@ RUN apt-get -qq update \
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
 ARG HPCX_DISTRIBUTION="hpcx-v2.20-gcc-mlnx_ofed-ubuntu22.04-cuda12"
+ARG TARGETARCH
 ARG _HPCX_ARCH="${TARGETARCH/amd64/x86_64}"
 ARG _HPCX_ARCH="${_HPCX_ARCH/arm64/aarch64}"
 ARG _HPCX_NAME="${HPCX_DISTRIBUTION}-${_HPCX_ARCH}"
