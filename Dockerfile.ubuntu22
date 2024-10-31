@@ -68,12 +68,12 @@ RUN apt-get -qq update \
 ARG HPCX_DISTRIBUTION="hpcx-v2.20-gcc-mlnx_ofed-ubuntu22.04-cuda12"
 ARG _HPCX_ARCH="${TARGETARCH/amd64/x86_64}"
 ARG _HPCX_ARCH="${_HPCX_ARCH/arm64/aarch64}"
-ARG HPCX_DISTRIBUTION="${HPCX_DISTRIBUTION}-${_HPCX_ARCH}"
+ARG _HPCX_NAME="${HPCX_DISTRIBUTION}-${_HPCX_ARCH}"
 RUN cd /tmp && \
     export HPCX_DIR="/opt/hpcx" && \
-    wget -q -O - https://blobstore.object.ord1.coreweave.com/drivers/${HPCX_DISTRIBUTION}.tbz | tar xjf - && \
-    grep -IrlF "/build-result/${HPCX_DISTRIBUTION}" ${HPCX_DISTRIBUTION} | xargs -rd'\n' sed -i -e "s:/build-result/${HPCX_DISTRIBUTION}:${HPCX_DIR}:g" && \
-    mv ${HPCX_DISTRIBUTION} ${HPCX_DIR}
+    wget -q -O - https://blobstore.object.ord1.coreweave.com/drivers/${_HPCX_NAME}.tbz | tar xjf - && \
+    grep -IrlF "/build-result/${_HPCX_NAME}" ${_HPCX_NAME} | xargs -rd'\n' sed -i -e "s:/build-result/${_HPCX_NAME}:${HPCX_DIR}:g" && \
+    mv ${_HPCX_NAME} ${HPCX_DIR}
 
 #FROM base as gdrcopy
 #RUN apt-get -qq update && \
