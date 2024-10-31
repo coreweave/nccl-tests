@@ -120,6 +120,7 @@ RUN cd /tmp && \
     rm -r /opt/hpcx/ompi
 
 # Rebuild OpenMPI to support SLURM
+SHELL ["/bin/bash", "-c"]
 RUN source /opt/hpcx/hpcx-init.sh && \
     hpcx_load && \
     cd /opt/hpcx/sources && \
@@ -135,6 +136,7 @@ RUN source /opt/hpcx/hpcx-init.sh && \
       make -j20 install && \
       cd .. && \
       rm -r openmpi-gitclone
+SHELL ["/bin/sh", "-c"]
 
 
 FROM base
