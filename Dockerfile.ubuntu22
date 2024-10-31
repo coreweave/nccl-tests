@@ -22,6 +22,11 @@ RUN apt-get -qq update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN PMIX_DIR="/usr/lib/$(gcc -print-multiarch)/pmix2"; \
+    echo "PMIX: $PMIX_DIR"; \
+    stat "$PMIX_DIR" \
+    ls "$PMIX_DIR"
+
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
 RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu22.04/mellanox_mlnx_ofed.list

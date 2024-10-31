@@ -20,6 +20,11 @@ RUN apt-get -qq update && \
         datacenter-gpu-manager \
         git
 
+RUN LIB_DIR="/usr/lib/$(gcc -print-multiarch)"; \
+    echo "LIB: $LIB_DIR"; \
+    stat "$LIB_DIR" \
+    ls "$LIB_DIR"
+
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
 RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu20.04/mellanox_mlnx_ofed.list
