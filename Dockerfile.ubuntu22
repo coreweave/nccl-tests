@@ -1,12 +1,28 @@
 # syntax=docker/dockerfile:1.4
 
 ARG CUDA_VERSION=12.4.1
-ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu22.04
+ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
 FROM ${BASE_IMAGE} AS base
+
+ENV NV_CUDNN_VERSION 9.5.1.17-1
+ENV NV_CUDNN_PACKAGE_NAME libcudnn9-cuda-12
+ENV NV_CUDNN_PACKAGE libcudnn9-cuda-12=${NV_CUDNN_VERSION}
+ENV NV_CUDNN_PACKAGE_DEV libcudnn9-dev-cuda-12=${NV_CUDNN_VERSION}
+
+LABEL com.nvidia.cudnn.version="${NV_CUDNN_VERSION}"
+
+RUN apt-get -qq update && \
+    apt-get -qq install -y \
+        --no-install-recommends \
+        "${NV_CUDNN_PACKAGE}" \
+        "${NV_CUDNN_PACKAGE_DEV}" && \
+    apt-mark hold "${NV_CUDNN_PACKAGE_NAME}" && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
-        apt-get -qq install -y \
+    apt-get -qq install -y \
         --allow-change-held-packages \
         --no-install-recommends \
         --allow-downgrades \
