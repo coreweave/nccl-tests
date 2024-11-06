@@ -49,7 +49,8 @@ the following components:
 CoreWeave
 also [publishes images](https://hub.docker.com/r/coreweave/nccl-tests/tags)
 built from these Dockerfiles that can be used as base for your own images.  
-The images below include **NCCL v2.23.4-1**, **HPC-X v2.20.0**, and **cuDNN v9.5.1.17-1**.
+The images below include **NCCL v2.23.4-1**, **HPC-X v2.20.0**, and **cuDNN v9.5.1.17-1**.  
+Each image is multi-arch, and can be used for both `linux/amd64` and `linux/arm64` containers.
 
 | **Image Tag**                                                              | **Ubuntu** | **CUDA** |
 |----------------------------------------------------------------------------|------------|----------|
