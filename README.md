@@ -168,7 +168,7 @@ used via `srun`'s `--container-image` parameter. This prevents having to
 install the script and its requirements on all compute nodes.
 
 **Note:** You can specify the container image in an `sbatch`, but all the
-commands will be then run from inside the container. Therefore, we recommend
+commands will then run from inside the container. Therefore, we recommend
 only specifying the container image in any subsequent `srun` calls.
 
 ## Running DeepSpeed Training Jobs
