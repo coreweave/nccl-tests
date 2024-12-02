@@ -21,7 +21,7 @@ jobs:
       cuda-version: "12.0.1"
       nccl-version: 2.23.4-1
       cuda-samples-version: "12.0"
-      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu22.04-cuda12"
+      hpcx-distribution: "hpcx-v2.21-gcc-doca_ofed-ubuntu22.04-cuda12"
 
   cu122:
     uses: ./.github/workflows/build.yml
@@ -37,7 +37,7 @@ jobs:
       cuda-version: "12.2.2"
       nccl-version: 2.23.4-1
       cuda-samples-version: "12.2"
-      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu22.04-cuda12"
+      hpcx-distribution: "hpcx-v2.21-gcc-doca_ofed-ubuntu22.04-cuda12"
 
   cu124:
     uses: ./.github/workflows/build.yml
@@ -53,7 +53,7 @@ jobs:
       cuda-version: "12.4.1"
       nccl-version: 2.23.4-1
       cuda-samples-version: "12.4"
-      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu22.04-cuda12"
+      hpcx-distribution: "hpcx-v2.21-gcc-doca_ofed-ubuntu22.04-cuda12"
 
   cu126:
     uses: ./.github/workflows/build.yml
@@ -69,4 +69,4 @@ jobs:
       cuda-version: "12.6.2"
       nccl-version: 2.23.4-1
       cuda-samples-version: "12.5"
-      hpcx-distribution: "hpcx-v2.20-gcc-mlnx_ofed-ubuntu22.04-cuda12"
+      hpcx-distribution: "hpcx-v2.21-gcc-doca_ofed-ubuntu22.04-cuda12"
