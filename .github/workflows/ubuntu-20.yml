@@ -7,22 +7,6 @@ on:
       - .github/workflows/build.yml
 
 jobs:
-  cu120:
-    uses: ./.github/workflows/build.yml
-    secrets:
-      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
-      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
-      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
-    with:
-      folder: .
-      dockerfile: Dockerfile.ubuntu20
-      base-image: nvidia/cuda
-      base-tag: 12.0.1-devel-ubuntu20.04
-      cuda-version: "12.0.1"
-      nccl-version: 2.23.4-1
-      cuda-samples-version: "12.0"
-      hpcx-distribution: "hpcx-v2.21-gcc-doca_ofed-ubuntu20.04-cuda12"
-
   cu122:
     uses: ./.github/workflows/build.yml
     secrets:
