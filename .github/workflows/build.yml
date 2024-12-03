@@ -34,6 +34,10 @@ on:
         required: true
       BUILDKIT_CONSUMER_ENDPOINT:
         required: true
+      BUILDKIT_CONSUMER_AMD64_ENDPOINT:
+        required: true
+      BUILDKIT_CONSUMER_ARM64_ENDPOINT:
+        required: true
 
 jobs:
   build:
