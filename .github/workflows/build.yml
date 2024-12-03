@@ -63,7 +63,6 @@ jobs:
               platforms: linux/amd64
             - endpoint: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
               platforms: linux/arm64
-          driver-opts: env.BUILDKIT_STEP_LOG_MAX_SIZE=10485760,env.BUILDKIT_STEP_LOG_MAX_SPEED=-1
         env:
           BUILDER_NODE_0_AUTH_TLS_CACERT: ${{ steps.client-certs.outputs.TLS_CACERT }}
           BUILDER_NODE_0_AUTH_TLS_CERT: ${{ steps.client-certs.outputs.TLS_CERT }}
