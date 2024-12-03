@@ -7,7 +7,7 @@ on:
       - .github/workflows/build.yml
 
 jobs:
-  cu122:
+  cu123:
     uses: ./.github/workflows/build.yml
     secrets:
       ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
@@ -17,40 +17,8 @@ jobs:
       folder: .
       dockerfile: Dockerfile.ubuntu20
       base-image: nvidia/cuda
-      base-tag: 12.2.2-devel-ubuntu20.04
-      cuda-version: "12.2.2"
+      base-tag: 12.3.2-devel-ubuntu20.04
+      cuda-version: "12.3.2"
       nccl-version: 2.23.4-1
-      cuda-samples-version: "12.2"
-      hpcx-distribution: "hpcx-v2.21-gcc-doca_ofed-ubuntu20.04-cuda12"
-
-  cu124:
-    uses: ./.github/workflows/build.yml
-    secrets:
-      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
-      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
-      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
-    with:
-      folder: .
-      dockerfile: Dockerfile.ubuntu20
-      base-image: nvidia/cuda
-      base-tag: 12.4.1-devel-ubuntu20.04
-      cuda-version: "12.4.1"
-      nccl-version: 2.23.4-1
-      cuda-samples-version: "12.4"
-      hpcx-distribution: "hpcx-v2.21-gcc-doca_ofed-ubuntu20.04-cuda12"
-
-  cu126:
-    uses: ./.github/workflows/build.yml
-    secrets:
-      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
-      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
-      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
-    with:
-      folder: .
-      dockerfile: Dockerfile.ubuntu20
-      base-image: nvidia/cuda
-      base-tag: 12.6.2-devel-ubuntu20.04
-      cuda-version: "12.6.2"
-      nccl-version: 2.23.4-1
-      cuda-samples-version: "12.5"
+      cuda-samples-version: "12.3"
       hpcx-distribution: "hpcx-v2.21-gcc-doca_ofed-ubuntu20.04-cuda12"
