@@ -61,10 +61,9 @@ jobs:
         uses: docker/setup-buildx-action@v3.7.1
         with:
           driver: remote
-          endpoint: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
+          endpoint: ${{ secrets.BUILDKIT_CONSUMER_AMD64_ENDPOINT }}
+          platforms: linux/amd64
           append: |
-            - endpoint: ${{ secrets.BUILDKIT_CONSUMER_AMD64_ENDPOINT }}
-              platforms: linux/amd64
             - endpoint: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
               platforms: linux/arm64
         env:
@@ -74,9 +73,6 @@ jobs:
           BUILDER_NODE_1_AUTH_TLS_CACERT: ${{ steps.client-certs.outputs.TLS_CACERT }}
           BUILDER_NODE_1_AUTH_TLS_CERT: ${{ steps.client-certs.outputs.TLS_CERT }}
           BUILDER_NODE_1_AUTH_TLS_KEY: ${{ steps.client-certs.outputs.TLS_KEY }}
-          BUILDER_NODE_2_AUTH_TLS_CACERT: ${{ steps.client-certs.outputs.TLS_CACERT }}
-          BUILDER_NODE_2_AUTH_TLS_CERT: ${{ steps.client-certs.outputs.TLS_CERT }}
-          BUILDER_NODE_2_AUTH_TLS_KEY: ${{ steps.client-certs.outputs.TLS_KEY }}
       - name: Get base registry
         run: |
           echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
