@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.4
 
-ARG CUDA_VERSION=12.4.1
+ARG CUDA_VERSION=12.8.0
 ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu20.04
 FROM ${BASE_IMAGE} AS base
 
-ENV NV_CUDNN_VERSION 9.5.1.17-1
+ENV NV_CUDNN_VERSION 9.7.0.66-1
 ENV NV_CUDNN_PACKAGE_NAME libcudnn9-cuda-12
 ENV NV_CUDNN_PACKAGE libcudnn9-cuda-12=${NV_CUDNN_VERSION}
 ENV NV_CUDNN_PACKAGE_DEV libcudnn9-dev-cuda-12=${NV_CUDNN_VERSION}
@@ -58,8 +58,8 @@ RUN apt-get -qq update && \
 
 FROM builder-base AS libnccl2
 # NCCL
-ARG TARGET_NCCL_VERSION='2.23.4-1'
-ARG CUDA_ARCH_LIST='70 80 89 90'
+ARG TARGET_NCCL_VERSION='2.25.1-1'
+ARG CUDA_ARCH_LIST='70 80 89 90 100'
 # Converts CUDA_ARCH_LIST to '-gencode=arch=compute_XX,code=sm_XX -gencode=...' format with PTX for the last listed arch
 RUN NVCC_GENCODE="$( \
     echo "${CUDA_ARCH_LIST}" | sed -e \
@@ -110,7 +110,7 @@ RUN mkdir /tmp/build && \
 
 FROM builder-base AS cuda-samples
 # Build GPU Bandwidthtest from samples
-ARG CUDA_SAMPLES_VERSION
+ARG CUDA_SAMPLES_VERSION="12.5"
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
     wget -qO- https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.tar.gz \
@@ -126,7 +126,7 @@ RUN mkdir /tmp/build && \
 FROM builder-base AS hpcx
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.21-gcc-doca_ofed-ubuntu20.04-cuda12"
+ARG HPCX_DISTRIBUTION="hpcx-v2.22-gcc-doca_ofed-ubuntu20.04-cuda12"
 RUN cd /tmp && \
     DIST_NAME="${HPCX_DISTRIBUTION}-$(uname -m)" && \
     HPCX_DIR="/opt/hpcx" && \
@@ -219,23 +219,23 @@ ENV HPCX_HCOLL_DIR=/opt/hpcx/hcoll
 ENV HPCX_MPI_DIR=/opt/hpcx/ompi
 ENV HPCX_OSHMEM_DIR=/opt/hpcx/ompi
 ENV HPCX_MPI_TESTS_DIR=/opt/hpcx/ompi/tests
-ENV HPCX_OSU_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-5.8
-ENV HPCX_OSU_CUDA_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-5.8-cuda
-ENV HPCX_IPM_DIR=/opt/hpcx/ompi/tests/ipm-2.0.6
-ENV HPCX_CLUSTERKIT_DIR=/opt/hpcx/clusterkit
+ENV HPCX_OSU_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks
+ENV HPCX_OSU_CUDA_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-cuda
+ENV HPCX_IPM_DIR=""
+ENV HPCX_CLUSTERKIT_DIR=""
 ENV OMPI_HOME=/opt/hpcx/ompi
 ENV MPI_HOME=/opt/hpcx/ompi
 ENV OSHMEM_HOME=/opt/hpcx/ompi
 ENV OPAL_PREFIX=/opt/hpcx/ompi
 ENV OLD_PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ENV PATH=/opt/hpcx/sharp/bin:/opt/hpcx/clusterkit/bin:/opt/hpcx/hcoll/bin:/opt/hpcx/ucc/bin:/opt/hpcx/ucx/bin:/opt/hpcx/ompi/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PATH=/opt/hpcx/sharp/bin:/opt/hpcx/hcoll/bin:/opt/hpcx/ucc/bin:/opt/hpcx/ucx/bin:/opt/hpcx/ompi/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV OLD_LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64
 ENV LD_LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ucc/lib/ucc:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib/ucx:/opt/hpcx/ucx/lib:/opt/hpcx/sharp/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
 ENV OLD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs
 ENV LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ompi/lib:/opt/hpcx/sharp/lib:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/cuda/lib64/stubs
 ENV OLD_CPATH=""
-ENV CPATH=/opt/hpcx/ompi/include:/opt/hpcx/ucc/include:/opt/hpcx/ucx/include:/opt/hpcx/sharp/include:/opt/hpcx/hcoll/include:
-ENV PKG_CONFIG_PATH=/opt/hpcx/hcoll/lib/pkgconfig:/opt/hpcx/sharp/lib/pkgconfig:/opt/hpcx/ucx/lib/pkgconfig:/opt/hpcx/ompi/lib/pkgconfig:
+ENV CPATH=/opt/hpcx/ompi/include:/opt/hpcx/ucc/include:/opt/hpcx/ucx/include:/opt/hpcx/sharp/include:/opt/hpcx/hcoll/include
+ENV PKG_CONFIG_PATH=/opt/hpcx/hcoll/lib/pkgconfig:/opt/hpcx/sharp/lib/pkgconfig:/opt/hpcx/ucx/lib/pkgconfig:/opt/hpcx/ompi/lib/pkgconfig
 # End of auto-generated paths
 
 # Disable UCX VFS to stop errors about fuse mount failure
