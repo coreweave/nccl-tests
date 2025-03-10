@@ -1,13 +1,28 @@
-ARG CUDA_VERSION_MINOR=11.7.1
-ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION_MINOR}-cudnn8-devel-ubuntu20.04
-FROM ${BASE_IMAGE} as base
+# syntax=docker/dockerfile:1.4
 
-ARG CUDA_VERSION_MAJOR=11.7
-ARG TARGET_NCCL_VERSION=2.14.3-1
+ARG CUDA_VERSION=12.8.0
+ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu20.04
+FROM ${BASE_IMAGE} AS base
+
+ENV NV_CUDNN_VERSION 9.7.0.66-1
+ENV NV_CUDNN_PACKAGE_NAME libcudnn9-cuda-12
+ENV NV_CUDNN_PACKAGE libcudnn9-cuda-12=${NV_CUDNN_VERSION}
+ENV NV_CUDNN_PACKAGE_DEV libcudnn9-dev-cuda-12=${NV_CUDNN_VERSION}
+
+LABEL com.nvidia.cudnn.version="${NV_CUDNN_VERSION}"
+
+RUN apt-get -qq update && \
+    apt-get -qq install -y \
+        --no-install-recommends \
+        "${NV_CUDNN_PACKAGE}" \
+        "${NV_CUDNN_PACKAGE_DEV}" && \
+    apt-mark hold "${NV_CUDNN_PACKAGE_NAME}" && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -qq update && \
-        apt-get -qq install -y \
+    apt-get -qq install -y \
         --allow-change-held-packages \
         --no-install-recommends \
         --allow-downgrades \
@@ -18,9 +33,9 @@ RUN apt-get -qq update && \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
         datacenter-gpu-manager \
-        libnccl2=$TARGET_NCCL_VERSION+cuda${CUDA_VERSION_MAJOR} \
-        libnccl-dev=${TARGET_NCCL_VERSION}+cuda${CUDA_VERSION_MAJOR} \
-        git
+        git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
@@ -32,48 +47,43 @@ RUN apt-get -qq update \
     && rm -rf /var/lib/apt/lists/*
 #         mlnx-ofed-hpc-user-only
 
-# IB perftest with GDR
-ENV PERFTEST_VERSION_HASH=5b47ede
 
-RUN mkdir /tmp/build && \
-    cd /tmp/build && \
-    git clone https://github.com/coreweave/perftest && \
-    cd perftest && \
-    git checkout $PERFTEST_VERSION_HASH && \
-    ./autogen.sh && \
-    ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
-    make install && \
-    cd /tmp && \
-    rm -r /tmp/build
-
-# Build GPU Bandwidthtest from samples
-ARG CUDA_SAMPLES_VERSION
-RUN mkdir /tmp/build && \
-    cd /tmp/build && \
-    curl -sLo master.zip https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.zip && \
-    unzip master.zip && \
-    cd cuda-samples-${CUDA_SAMPLES_VERSION}/Samples/1_Utilities/bandwidthTest && \
-    make && \
-    install bandwidthTest /usr/bin/ && \
-    cd /tmp && \
-    rm -r /tmp/build
-
-# HPC-X
-# grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.14-gcc-MLNX_OFED_LINUX-5-ubuntu20.04-cuda11-gdrcopy2-nccl2.16-x86_64"
-RUN cd /tmp && \
-    export HPCX_DIR="/opt/hpcx" && \
-    wget -q -O - https://blobstore.object.ord1.coreweave.com/drivers/${HPCX_DISTRIBUTION}.tbz | tar xjf - && \
-    grep -IrlF "/build-result/${HPCX_DISTRIBUTION}" ${HPCX_DISTRIBUTION} | xargs -rd'\n' sed -i -e "s:/build-result/${HPCX_DISTRIBUTION}:${HPCX_DIR}:g" && \
-    mv ${HPCX_DISTRIBUTION} ${HPCX_DIR}
-
-FROM base as gdrcopy
+FROM base AS builder-base
 RUN apt-get -qq update && \
     apt-get -qq install -y --no-install-recommends \
-      build-essential devscripts debhelper fakeroot pkg-config check &&\
+      build-essential devscripts debhelper fakeroot pkg-config check && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+
+FROM builder-base AS libnccl2
+# NCCL
+ARG TARGET_NCCL_VERSION='2.25.1-1'
+ARG CUDA_ARCH_LIST='70 80 89 90 100'
+# Converts CUDA_ARCH_LIST to '-gencode=arch=compute_XX,code=sm_XX -gencode=...' format with PTX for the last listed arch
+RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
+      CUDA_ARCH_LIST="${CUDA_ARCH_LIST% 100}" ;; \
+    esac && \
+    NVCC_GENCODE="$( \
+    echo "${CUDA_ARCH_LIST}" | sed -e \
+      's:\S\+:-gencode=arch=compute_\0,code=sm_\0:g; s:_[[:digit:]]\+$:\0 -gencode=arch=compute\0,code=compute\0:' \
+    )" && \
+    BUILD_THREADS="$(echo "${NVCC_GENCODE}" | wc -w)" && \
+    mkdir /tmp/build && \
+    cd /tmp/build && \
+    wget -qO- "https://github.com/NVIDIA/nccl/archive/refs/tags/v${TARGET_NCCL_VERSION}.tar.gz" \
+    | tar --strip-components=1 -xzf - && \
+    NVCC_APPEND_FLAGS="--threads=${BUILD_THREADS}" \
+      make -j20 pkg.debian.build NVCC_GENCODE="${NVCC_GENCODE}" && \
+    cd build/pkg/deb && \
+    ls -l && \
+    mkdir /tmp/libnccl2 && \
+    mv ./libnccl*.deb /tmp/libnccl2/ && \
+    cd /tmp && \
+    rm -r /tmp/build
+
+
+FROM builder-base AS gdrcopy
 # GDRCopy userspace components (2.4)
 RUN mkdir /tmp/build /tmp/gdrcopy && \
     cd /tmp/build && \
@@ -83,12 +93,91 @@ RUN mkdir /tmp/build /tmp/gdrcopy && \
     cd /tmp && \
     rm -r /tmp/build
 
-FROM base
-COPY --from=gdrcopy /tmp/gdrcopy /tmp/gdrcopy/
-RUN cd /tmp/gdrcopy && \
-    dpkg -i *.deb && \
+
+FROM builder-base AS perftest
+# IB perftest with GDR
+ENV PERFTEST_VERSION_HASH=5b47ede
+RUN mkdir /tmp/build && \
+    cd /tmp/build && \
+    git clone https://github.com/coreweave/perftest && \
+    cd perftest && \
+    git checkout $PERFTEST_VERSION_HASH && \
+    ./autogen.sh && \
+    ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
+    make -j20 && \
+    mkdir /tmp/perftest && \
+    make install DESTDIR=/tmp/perftest && \
     cd /tmp && \
-    rm -r /tmp/gdrcopy
+    rm -r /tmp/build
+
+
+FROM builder-base AS cuda-samples
+# Build GPU Bandwidthtest from samples
+ARG CUDA_SAMPLES_VERSION="12.5"
+RUN mkdir /tmp/build && \
+    cd /tmp/build && \
+    wget -qO- https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.tar.gz \
+    | tar --strip-components=1 -xzf - && \
+    cd Samples/1_Utilities/bandwidthTest && \
+    make -j20 && \
+    mkdir -p /tmp/cuda-samples/usr/bin && \
+    install bandwidthTest /tmp/cuda-samples/usr/bin/ && \
+    cd /tmp && \
+    rm -r /tmp/build
+
+
+FROM builder-base AS hpcx
+# HPC-X
+# grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
+ARG HPCX_DISTRIBUTION="hpcx-v2.22-gcc-doca_ofed-ubuntu20.04-cuda12"
+RUN cd /tmp && \
+    DIST_NAME="${HPCX_DISTRIBUTION}-$(uname -m)" && \
+    HPCX_DIR="/opt/hpcx" && \
+    wget -q -O - "https://blobstore.object.ord1.coreweave.com/drivers/${DIST_NAME}.tbz" | tar xjf - && \
+    grep -IrlF "/build-result/${DIST_NAME}" "${DIST_NAME}" | xargs -rd'\n' sed -i -e "s:/build-result/${DIST_NAME}:${HPCX_DIR}:g" && \
+    mv "${DIST_NAME}" "${HPCX_DIR}" && \
+    rm -r /opt/hpcx/ompi
+
+# Rebuild OpenMPI to support SLURM
+# For Ubuntu 22, we can replace PMI2 (--with-pmi) with PMIx
+# --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2
+RUN apt-get -qq update && \
+    apt-get -qq install -y --no-install-recommends \
+      libpmi2-0 libpmi2-0-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+SHELL ["/bin/bash", "-c"]
+RUN source /opt/hpcx/hpcx-init.sh && \
+    hpcx_load && \
+    cd /opt/hpcx/sources && \
+    tar -xzf openmpi-gitclone.tar.gz && \
+    cd openmpi-gitclone && \
+    ./configure -C --prefix=/opt/hpcx/ompi \
+      --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
+      --with-platform=contrib/platform/mellanox/optimized \
+      --with-slurm --with-hwloc --with-libevent \
+      --with-pmi \
+      --without-xpmem --with-cuda --with-ucc=/opt/hpcx/ucc && \
+      make -j20 && \
+      make -j20 install && \
+      cd .. && \
+      rm -r openmpi-gitclone
+SHELL ["/bin/sh", "-c"]
+
+
+# This stage is mostly shared between amd64 and arm64,
+# but arm64 has a few extra steps appended to it later
+FROM base AS base-amd64
+RUN --mount=type=bind,from=libnccl2,source=/tmp/libnccl2,target=/tmp/install \
+    cd /tmp/install && dpkg -i *.deb
+RUN --mount=type=bind,from=gdrcopy,source=/tmp/gdrcopy,target=/tmp/install \
+    cd /tmp/install && dpkg -i *.deb
+
+COPY --link --from=perftest /tmp/perftest/ /
+COPY --link --from=cuda-samples /tmp/cuda-samples/ /
+COPY --link --from=hpcx /opt/hpcx /opt/hpcx
+
+RUN ldconfig
 
 # HPC-X Environment variables
 COPY ./printpaths.sh /tmp
@@ -135,9 +224,9 @@ ENV HPCX_HCOLL_DIR=/opt/hpcx/hcoll
 ENV HPCX_MPI_DIR=/opt/hpcx/ompi
 ENV HPCX_OSHMEM_DIR=/opt/hpcx/ompi
 ENV HPCX_MPI_TESTS_DIR=/opt/hpcx/ompi/tests
-ENV HPCX_OSU_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-5.8
-ENV HPCX_OSU_CUDA_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-5.8-cuda
-ENV HPCX_IPM_DIR=/opt/hpcx/ompi/tests/ipm-2.0.6
+ENV HPCX_OSU_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks
+ENV HPCX_OSU_CUDA_DIR=/opt/hpcx/ompi/tests/osu-micro-benchmarks-cuda
+ENV HPCX_IPM_DIR=""
 ENV HPCX_CLUSTERKIT_DIR=/opt/hpcx/clusterkit
 ENV OMPI_HOME=/opt/hpcx/ompi
 ENV MPI_HOME=/opt/hpcx/ompi
@@ -150,28 +239,18 @@ ENV LD_LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ucc/lib/ucc:/
 ENV OLD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs
 ENV LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ompi/lib:/opt/hpcx/sharp/lib:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/cuda/lib64/stubs
 ENV OLD_CPATH=""
-ENV CPATH=/opt/hpcx/ompi/include:/opt/hpcx/ucc/include:/opt/hpcx/ucx/include:/opt/hpcx/sharp/include:/opt/hpcx/hcoll/include:
-ENV PKG_CONFIG_PATH=/opt/hpcx/hcoll/lib/pkgconfig:/opt/hpcx/sharp/lib/pkgconfig:/opt/hpcx/ucx/lib/pkgconfig:/opt/hpcx/ompi/lib/pkgconfig:
+ENV CPATH=/opt/hpcx/ompi/include:/opt/hpcx/ucc/include:/opt/hpcx/ucx/include:/opt/hpcx/sharp/include:/opt/hpcx/hcoll/include
+ENV PKG_CONFIG_PATH=/opt/hpcx/hcoll/lib/pkgconfig:/opt/hpcx/sharp/lib/pkgconfig:/opt/hpcx/ucx/lib/pkgconfig:/opt/hpcx/ompi/lib/pkgconfig
 # End of auto-generated paths
 
+FROM base-amd64 AS base-arm64
+# Clusterkit isn't included in HPC-X on ARM64 (as of v2.22)
+ENV HPCX_CLUSTERKIT_DIR=""
+ENV PATH=/opt/hpcx/sharp/bin/bin:/opt/hpcx/hcoll/bin:/opt/hpcx/ucc/bin:/opt/hpcx/ucx/bin:/opt/hpcx/ompi/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+FROM base-${TARGETARCH}
 # Disable UCX VFS to stop errors about fuse mount failure
 ENV UCX_VFS_ENABLE=no
-
-# Rebuild OpenMPI to support SLURM
-# For Ubuntu 22, we can replace PMI2 (--with-pmi) with PMIx
-# --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2
-RUN apt-get -qq update && apt-get -qq install -y --no-install-recommends libpmi2-0 libpmi2-0-dev
-RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.tar.gz && cd openmpi-gitclone && \
-    ./configure --prefix=/opt/hpcx/ompi \
-           --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
-           --with-platform=contrib/platform/mellanox/optimized \
-           --with-slurm --with-hwloc --with-libevent \
-           --with-pmi \
-           --without-xpmem --with-cuda --with-ucc=/opt/hpcx/ucc && \
-           make -j14 && \
-           make -j14 install && \
-           cd .. && \
-           rm -r openmpi-gitclone
 
 # NCCL SHARP PLugin (master)
 ### Disabled as HPC-X has a recent enough version at this time
@@ -190,7 +269,7 @@ RUN cd /opt/hpcx/sources/ && rm -r /opt/hpcx/ompi && tar -zxvf openmpi-gitclone.
 ENV NCCL_TESTS_COMMITISH=2cbb968
 WORKDIR /opt/nccl-tests
 RUN wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
-    make MPI=1 && \
+    make -j20 MPI=1 && \
     ln -s /opt/nccl-tests /opt/nccl_tests
 
 RUN ldconfig
