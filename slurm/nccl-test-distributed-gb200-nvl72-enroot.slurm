@@ -28,6 +28,6 @@ echo "Using nodes: $SLURM_JOB_NODELIST"
 # Save the container to a NFS mount for speed ups on large jobs
 # --container-save=/mnt/home/user/nccl-tests.sqsh -> --container-image=/mnt/home/user/nccl-tests.sqsh
 
-srun --container-image=ghcr.io#coreweave/nccl-tests:12.8.0-devel-ubuntu22.04-nccl2.25.1-1-57fa979 \
+srun --container-image=ghcr.io#coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e \
      --mpi=pmix --no-container-remap-root --container-mount-home \
      /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
