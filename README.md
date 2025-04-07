@@ -146,7 +146,7 @@ find the following examples of 64 GPU (8 node) runs:
  - [H100 without enroot](./slurm/nccl-test-distributed-h100-64.slurm)
  - [H100 with enroot](./slurm/nccl-test-distributed-h100-64-enroot.slurm)
  - [H100 with enroot and SHARP](./slurm/nccl-test-distributed-h100-64-enroot-sharp.slurm)
- - [GB200 with enroot](./slurm/nccl-test-distributed-gb100-nvl72-enroot.slurm)
+ - [GB200 with enroot](./slurm/nccl-test-distributed-gb200-nvl72-enroot.slurm)
 
 #### Running Jobs
 
