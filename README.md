@@ -8,13 +8,23 @@ the vast majority of all distributed training frameworks such as
 [PyTorch Distributed](https://pytorch.org/tutorials/beginner/dist_overview.html)
 and [Horovod](https://horovod.readthedocs.io/en/stable/gpus_include.html).
 
-NCCL is supported across all CoreWeave NVIDIA GPUs over Ethernet. In addition,
-the specialized A100 HGX clusters are built to the design of NVIDIA DGX
-SuperPODs, including
-[NVIDIA Quantum InfiniBand](https://www.nvidia.com/en-us/networking/quantum2/)
+NCCL is supported across CoreWeave NVIDIA GPUs over Ethernet and InfiniBand. In addition,
+the specialized GB200 NVL72 clusters are built with
+[NVIDIA Quantum-X800 InfiniBand](https://www.nvidia.com/en-us/networking/products/infiniband/quantum-x800/)
 networking and in-network collections using
-[NVIDIA SHARP](https://docs.nvidia.com/networking/display/SHARPv270/Introduction)
+[NVIDIA SHARP](https://docs.nvidia.com/networking/display/sharpv300/introduction)
 to deliver the highest distributed training performance possible.
+
+* [NCCL for Distributed Training](#nccl-for-distributed-training)
+  * [Docker Images](#docker-images)
+  * [Running NCCL Tests](#running-nccl-tests)
+    * [MPI Operator](#mpi-operator)
+      * [Running Jobs](#running-jobs)
+    * [Slurm](#slurm)
+      * [Running Jobs](#running-jobs-1)
+      * [Enroot](#enroot)
+  * [Running DeepSpeed Training Jobs](#running-deepspeed-training-jobs)
+  * [GDRCopy](#gdrcopy)
 
 ## Docker Images
 
@@ -33,7 +43,7 @@ the following components:
 - NVIDIA [GDRCopy](https://developer.nvidia.com/gdrcopy) libraries leverage
   GPUDirect RDMA for improved GPU to host memory copy performance in certain
   applications. The kernel support for GDRCopy exists on CoreWeave's
-  bare-metal nodes. GDRCopy is only supported on A100 training clusters.
+  bare-metal nodes.
 - NVIDIA [NCCL SHARP Plugin](https://github.com/Mellanox/nccl-rdma-sharp-plugins)
   for SHARP support in NCCL
 - NVIDIA [NCCL Tests](https://github.com/NVIDIA/nccl-tests) for verification
@@ -127,7 +137,7 @@ terminating before starting a new job with the same name.
 ### Slurm
 
 CoreWeave provides a way to deploy a slurm cluster on top of our managed
-kubernetes cluster using a tool called `sunk`.
+Kubernetes cluster using a tool called `sunk`.
 
 Example `SBATCH` scripts are provided in the `slurm/` directory. There you'll
 find the following examples of 64 GPU (8 node) runs:
@@ -136,6 +146,7 @@ find the following examples of 64 GPU (8 node) runs:
  - [H100 without enroot](./slurm/nccl-test-distributed-h100-64.slurm)
  - [H100 with enroot](./slurm/nccl-test-distributed-h100-64-enroot.slurm)
  - [H100 with enroot and SHARP](./slurm/nccl-test-distributed-h100-64-enroot-sharp.slurm)
+ - [GB200 with enroot](./slurm/nccl-test-distributed-gb100-nvl72-enroot.slurm)
 
 #### Running Jobs
 
@@ -149,7 +160,7 @@ To start the NCCL test, submit the job via `sbatch`:
 
 ```bash
 export PARTITION=<enter partition>
-sbatch --partition="$PARTITION" nccl-test-distributed-a100-64.slurm
+sbatch --partition="$PARTITION" nccl-test-distributed-h100-64.slurm
 ```
 
 The logs will be written to `./nccl_test.out`.
