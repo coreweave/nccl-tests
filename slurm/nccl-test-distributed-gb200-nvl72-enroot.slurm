@@ -19,7 +19,7 @@ export NCCL_COLLNET_ENABLE=0
 
 export NVIDIA_IMEX_CHANNELS=0
 export NCCL_NVLS_ENABLE=0
-
+export NCCL_NET_GDR_C2C=1
 export PMIX_MCA_gds='^ds12'
 
 # Log the assigned nodes
