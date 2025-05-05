@@ -18,6 +18,6 @@ export UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1
 # Log the assigned nodes
 echo "Using nodes: $SLURM_JOB_NODELIST"
 
-srun --container-image=ghcr.io#coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143 \
+srun --container-image=ghcr.io#coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e \
      --container-remap-root --no-container-mount-home \
      /opt/nccl-tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
