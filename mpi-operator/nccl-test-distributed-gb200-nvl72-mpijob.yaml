@@ -1,9 +1,11 @@
+# This assumes you have a signle NVL72 rack in your cluster.
+# If you have multiple, add an affinity to the workers for a specific rack/nvlink domain.
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-64
+  name: nccl-test-64-h100-8n
 spec:
-  slotsPerWorker: 8
+  slotsPerWorker: 4
   runPolicy:
     cleanPodPolicy: Running
   mpiReplicaSpecs:
@@ -20,18 +22,23 @@ spec:
                 - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
                   value: "1"
               # Uncomment to be able to exec in to launcher pod for interactive testing
-              # command: ['sleep', '86400']
+              # command: [ 'sleep', '86400' ]
               command: ["/bin/bash", "-c"]
+              # Can also try setting '-x NCCL_ALGO=NVLSTREE'
               args: [
                   "mpirun \
                   -np 64 \
+                  -bind-to none \
                   -x LD_LIBRARY_PATH \
                   -x NCCL_SOCKET_IFNAME=eth0 \
                   -x NCCL_IB_HCA=ibp \
-                  -x NCCL_GDRCOPY_ENABLE=1 \
-                  -x NCCL_DEBUG=INFO \
-                  -x NCCL_DEBUG_SUBSYS=INIT \
-                  /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
+                  -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1 \
+                  -x SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1 \
+                  -x NCCL_COLLNET_ENABLE=0 \
+                  -x NVIDIA_IMEX_CHANNELS=0 \
+                  -x NCCL_NVLS_ENABLE=0 \
+                  -x NCCL_NET_GDR_C2C=1 \
+                  /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1 #-n 200 #-w 2 -n 20
                   ",
                 ]
               resources:
@@ -39,40 +46,41 @@ spec:
                   cpu: 2
                   memory: 128Mi
     Worker:
-      replicas: 8
+      replicas: 18
       template:
+        labels:
+          metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
             - image: ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e
               name: nccl
               resources:
                 requests:
-                  cpu: 90
-                  memory: 400Gi
-                  nvidia.com/gpu: 8
-                  rdma/ib: 1
+                  cpu: "64"
+                  memory: 900Gi
+                  nvidia.com/gpu: 4
                 limits:
-                  nvidia.com/gpu: 8
+                  memory: 900Gi
+                  nvidia.com/gpu: 4
                   rdma/ib: 1
               volumeMounts:
                 - mountPath: /dev/shm
                   name: dshm
-                - mountPath: /dev/gdrdrv
-                  name: gdrdrv
-
           affinity:
             nodeAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
                 nodeSelectorTerms:
                   - matchExpressions:
-                    - key: node.coreweave.cloud/type
-                      operator: In
-                      values:
-                        - gd-8xa100-i128
+                      - key: node.coreweave.cloud/type
+                        operator: In
+                        values:
+                          - gb200-4x
+                      # Uncomment and add a value if you want to target a specific NVL72 rack
+                      # - key: ds.coreweave.com/nvlink.domain
+                      #   operator: In
+                      #   values:
+                      #     - <NVLINK_DOMAIN>
           volumes:
             - emptyDir:
                 medium: Memory
               name: dshm
-            - name: gdrdrv
-              hostPath:
-                path: /dev/gdrdrv
