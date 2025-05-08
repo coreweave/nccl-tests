@@ -21,7 +21,7 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 12.2.2-devel-ubuntu20.04
       cuda-version: "12.2.2"
-      nccl-version: 2.26.2-1
+      nccl-version: 2.26.5-1
       cuda-samples-version: "12.2"
       hpcx-distribution: "hpcx-v2.22.1-gcc-doca_ofed-ubuntu20.04-cuda12"
 
@@ -39,7 +39,7 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 12.4.1-devel-ubuntu20.04
       cuda-version: "12.4.1"
-      nccl-version: 2.26.2-1
+      nccl-version: 2.26.5-1
       cuda-samples-version: "12.4"
       hpcx-distribution: "hpcx-v2.22.1-gcc-doca_ofed-ubuntu20.04-cuda12"
 
@@ -57,7 +57,7 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 12.6.3-devel-ubuntu20.04
       cuda-version: "12.6.3"
-      nccl-version: 2.26.2-1
+      nccl-version: 2.26.5-1
       cuda-samples-version: "12.5"
       hpcx-distribution: "hpcx-v2.22.1-gcc-doca_ofed-ubuntu20.04-cuda12"
 
@@ -75,6 +75,6 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 12.8.1-devel-ubuntu20.04
       cuda-version: "12.8.1"
-      nccl-version: 2.26.2-1
+      nccl-version: 2.26.5-1
       cuda-samples-version: "12.5"
       hpcx-distribution: "hpcx-v2.22.1-gcc-doca_ofed-ubuntu20.04-cuda12"
