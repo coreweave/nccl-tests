@@ -129,7 +129,7 @@ RUN mkdir /tmp/build && \
 FROM builder-base AS hpcx
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.22.1-gcc-doca_ofed-ubuntu20.04-cuda12"
+ARG HPCX_DISTRIBUTION="hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
 RUN cd /tmp && \
     DIST_NAME="${HPCX_DISTRIBUTION}-$(uname -m)" && \
     HPCX_DIR="/opt/hpcx" && \
