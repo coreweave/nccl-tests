@@ -25,6 +25,11 @@ to deliver the highest distributed training performance possible.
       * [Enroot](#enroot)
   * [Running DeepSpeed Training Jobs](#running-deepspeed-training-jobs)
   * [GDRCopy](#gdrcopy)
+  * [Expected Performance](#expected-performance)
+    * [GB200](#gb200)
+      * [Single Rack](#single-rack)
+      * [2 Racks](#2-racks)
+      * [20 Racks](#20-racks)
 
 ## Docker Images
 
