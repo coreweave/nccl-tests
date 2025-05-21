@@ -12,7 +12,7 @@ spec:
       template:
           spec:
             containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
+            - image: ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e
               name: nccl
               env:
               - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -36,19 +36,6 @@ spec:
                 requests:
                   cpu: 2
                   memory: 128Mi
-            affinity:
-              nodeAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  nodeSelectorTerms:
-                    - matchExpressions:
-                      - key: topology.kubernetes.io/region
-                        operator: In
-                        values:
-                        - LAS1
-
-            schedulerName: prioritize-image-locality
-            enableServiceLinks: false
-            automountServiceAccountToken: false
     Worker:
       replicas: 8
       template:
@@ -56,7 +43,7 @@ spec:
           metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
-          - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
+          - image: ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e
             name: nccl
             resources:
               requests:
@@ -76,23 +63,11 @@ spec:
               requiredDuringSchedulingIgnoredDuringExecution:
                 nodeSelectorTerms:
                 - matchExpressions:
-                  - key: gpu.nvidia.com/model
+                  - key: node.coreweave.cloud/type
                     operator: In
                     values:
-                    - A100_NVLINK_80GB
-                  - key: topology.kubernetes.io/region
-                    operator: In
-                    values:
-                    - LAS1
-                  - key: ib.coreweave.cloud/speed
-                    operator: In
-                    values:
-                    - 800G
-
+                      - gd-8xa100-i128
           volumes:
             - emptyDir:
                 medium: Memory
               name: dshm
-
-          enableServiceLinks: false
-          automountServiceAccountToken: false

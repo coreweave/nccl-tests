@@ -12,7 +12,7 @@ spec:
       template:
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
+            - image: ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -47,7 +47,7 @@ spec:
           metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.4.1-cudnn-devel-ubuntu20.04-nccl2.21.5-1-85f9143
+            - image: ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e
               name: nccl
               resources:
                 requests:
@@ -67,10 +67,10 @@ spec:
               requiredDuringSchedulingIgnoredDuringExecution:
                 nodeSelectorTerms:
                   - matchExpressions:
-                      - key: gpu.nvidia.com/model
+                      - key: node.coreweave.cloud/type
                         operator: In
                         values:
-                          - H100_NVLINK_80GB
+                          - gd-8xh100ib-i128
           volumes:
             - emptyDir:
                 medium: Memory
