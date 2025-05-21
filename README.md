@@ -8,13 +8,28 @@ the vast majority of all distributed training frameworks such as
 [PyTorch Distributed](https://pytorch.org/tutorials/beginner/dist_overview.html)
 and [Horovod](https://horovod.readthedocs.io/en/stable/gpus_include.html).
 
-NCCL is supported across all CoreWeave NVIDIA GPUs over Ethernet. In addition,
-the specialized A100 HGX clusters are built to the design of NVIDIA DGX
-SuperPODs, including
-[NVIDIA Quantum InfiniBand](https://www.nvidia.com/en-us/networking/quantum2/)
+NCCL is supported across CoreWeave NVIDIA GPUs over Ethernet and InfiniBand. In addition,
+the specialized GB200 NVL72 clusters are built with
+[NVIDIA Quantum-X800 InfiniBand](https://www.nvidia.com/en-us/networking/products/infiniband/quantum-x800/)
 networking and in-network collections using
-[NVIDIA SHARP](https://docs.nvidia.com/networking/display/SHARPv270/Introduction)
+[NVIDIA SHARP](https://docs.nvidia.com/networking/display/sharpv300/introduction)
 to deliver the highest distributed training performance possible.
+
+* [NCCL for Distributed Training](#nccl-for-distributed-training)
+  * [Docker Images](#docker-images)
+  * [Running NCCL Tests](#running-nccl-tests)
+    * [MPI Operator](#mpi-operator)
+      * [Running Jobs](#running-jobs)
+    * [Slurm](#slurm)
+      * [Running Jobs](#running-jobs-1)
+      * [Enroot](#enroot)
+  * [Running DeepSpeed Training Jobs](#running-deepspeed-training-jobs)
+  * [GDRCopy](#gdrcopy)
+  * [Expected Performance](#expected-performance)
+    * [GB200](#gb200)
+      * [Single Rack](#single-rack)
+      * [2 Racks](#2-racks)
+      * [20 Racks](#20-racks)
 
 ## Docker Images
 
@@ -33,7 +48,7 @@ the following components:
 - NVIDIA [GDRCopy](https://developer.nvidia.com/gdrcopy) libraries leverage
   GPUDirect RDMA for improved GPU to host memory copy performance in certain
   applications. The kernel support for GDRCopy exists on CoreWeave's
-  bare-metal nodes. GDRCopy is only supported on A100 training clusters.
+  bare-metal nodes.
 - NVIDIA [NCCL SHARP Plugin](https://github.com/Mellanox/nccl-rdma-sharp-plugins)
   for SHARP support in NCCL
 - NVIDIA [NCCL Tests](https://github.com/NVIDIA/nccl-tests) for verification
@@ -49,20 +64,22 @@ the following components:
 CoreWeave
 also [publishes images](https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests)
 built from these Dockerfiles that can be used as base for your own images.  
-The images below include **NCCL v2.26.2-1**, **HPC-X v2.22.1**, and **cuDNN v9.8.0.87-1**.  
+The images below include **NCCL v2.26.5-1**, **HPC-X v2.23**, and **cuDNN v9.8.0.87-1**.  
 Each image is multi-arch, and can be used for both `linux/amd64` and `linux/arm64` containers.
 Compute capabilities up to Blackwell (10.0) are supported.
 
 | **Image Tag**                                                              | **Ubuntu** | **CUDA** |
 |----------------------------------------------------------------------------|------------|----------|
-| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e | 22.04      | 12.8.1   |
-| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.26.2-1-0708d2e | 22.04      | 12.6.3   |
-| ghcr.io/coreweave/nccl-tests:12.4.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e | 22.04      | 12.4.1   |
-| ghcr.io/coreweave/nccl-tests:12.2.2-devel-ubuntu22.04-nccl2.26.2-1-0708d2e | 22.04      | 12.2.2   |
-| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu20.04-nccl2.26.2-1-0708d2e | 20.04      | 12.8.1   |
-| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu20.04-nccl2.26.2-1-0708d2e | 20.04      | 12.6.3   |
-| ghcr.io/coreweave/nccl-tests:12.4.1-devel-ubuntu20.04-nccl2.26.2-1-0708d2e | 20.04      | 12.4.1   |
-| ghcr.io/coreweave/nccl-tests:12.2.2-devel-ubuntu20.04-nccl2.26.2-1-0708d2e | 20.04      | 12.2.2   |
+| ghcr.io/coreweave/nccl-tests:12.9.0-devel-ubuntu22.04-nccl2.26.5-1-ba5f58f | 22.04      | 12.9.0   |
+| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.5-1-ba5f58f | 22.04      | 12.8.1   |
+| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.26.5-1-ba5f58f | 22.04      | 12.6.3   |
+| ghcr.io/coreweave/nccl-tests:12.4.1-devel-ubuntu22.04-nccl2.26.5-1-ba5f58f | 22.04      | 12.4.1   |
+| ghcr.io/coreweave/nccl-tests:12.2.2-devel-ubuntu22.04-nccl2.26.5-1-ba5f58f | 22.04      | 12.2.2   |
+| ghcr.io/coreweave/nccl-tests:12.9.0-devel-ubuntu20.04-nccl2.26.5-1-ba5f58f | 20.04      | 12.9.0   |
+| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu20.04-nccl2.26.5-1-ba5f58f | 20.04      | 12.8.1   |
+| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu20.04-nccl2.26.5-1-ba5f58f | 20.04      | 12.6.3   |
+| ghcr.io/coreweave/nccl-tests:12.4.1-devel-ubuntu20.04-nccl2.26.5-1-ba5f58f | 20.04      | 12.4.1   |
+| ghcr.io/coreweave/nccl-tests:12.2.2-devel-ubuntu20.04-nccl2.26.5-1-ba5f58f | 20.04      | 12.2.2   |
 
 ## Running NCCL Tests
 
@@ -128,7 +145,7 @@ terminating before starting a new job with the same name.
 ### Slurm
 
 CoreWeave provides a way to deploy a slurm cluster on top of our managed
-kubernetes cluster using a tool called `sunk`.
+Kubernetes cluster using a tool called `sunk`.
 
 Example `SBATCH` scripts are provided in the `slurm/` directory. There you'll
 find the following examples of 64 GPU (8 node) runs:
@@ -151,13 +168,13 @@ To start the NCCL test, submit the job via `sbatch`:
 
 ```bash
 export PARTITION=<enter partition>
-sbatch --partition="$PARTITION" nccl-test-distributed-a100-64.slurm
+sbatch --partition="$PARTITION" nccl-test-distributed-h100-64.slurm
 ```
 
 You can also easily override the number of nodes the test will use. The following will use 4 nodes
 instead of 8:
 ```bash
-sbatch --partition="$PARTITION" -N 4 nccl-test-distributed-a100-64.slurm
+sbatch --partition="$PARTITION" -N 4 nccl-test-distributed-h100-64.slurm
 ```
 
 The logs will be written to `./nccl_test.out`.

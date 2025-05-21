@@ -21,9 +21,9 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 12.2.2-devel-ubuntu20.04
       cuda-version: "12.2.2"
-      nccl-version: 2.26.2-1
+      nccl-version: 2.26.5-1
       cuda-samples-version: "12.2"
-      hpcx-distribution: "hpcx-v2.22.1-gcc-doca_ofed-ubuntu20.04-cuda12"
+      hpcx-distribution: "hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
 
   cu124:
     uses: ./.github/workflows/build.yml
@@ -39,9 +39,9 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 12.4.1-devel-ubuntu20.04
       cuda-version: "12.4.1"
-      nccl-version: 2.26.2-1
+      nccl-version: 2.26.5-1
       cuda-samples-version: "12.4"
-      hpcx-distribution: "hpcx-v2.22.1-gcc-doca_ofed-ubuntu20.04-cuda12"
+      hpcx-distribution: "hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
 
   cu126:
     uses: ./.github/workflows/build.yml
@@ -57,9 +57,9 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 12.6.3-devel-ubuntu20.04
       cuda-version: "12.6.3"
-      nccl-version: 2.26.2-1
+      nccl-version: 2.26.5-1
       cuda-samples-version: "12.5"
-      hpcx-distribution: "hpcx-v2.22.1-gcc-doca_ofed-ubuntu20.04-cuda12"
+      hpcx-distribution: "hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
 
   cu128:
     uses: ./.github/workflows/build.yml
@@ -75,6 +75,24 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 12.8.1-devel-ubuntu20.04
       cuda-version: "12.8.1"
-      nccl-version: 2.26.2-1
+      nccl-version: 2.26.5-1
       cuda-samples-version: "12.5"
-      hpcx-distribution: "hpcx-v2.22.1-gcc-doca_ofed-ubuntu20.04-cuda12"
+      hpcx-distribution: "hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
+
+  cu129:
+    uses: ./.github/workflows/build.yml
+    secrets:
+      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
+      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
+      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
+      BUILDKIT_CONSUMER_AMD64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_AMD64_ENDPOINT }}
+      BUILDKIT_CONSUMER_ARM64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
+    with:
+      folder: .
+      dockerfile: Dockerfile.ubuntu20
+      base-image: nvidia/cuda
+      base-tag: 12.9.0-devel-ubuntu20.04
+      cuda-version: "12.9.0"
+      nccl-version: 2.26.5-1
+      cuda-samples-version: "12.5"
+      hpcx-distribution: "hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
