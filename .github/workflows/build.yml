@@ -128,4 +128,4 @@ jobs:
             @${{ github.triggering_actor }} Build complete, ${{ steps.docker-build.outcome }}:
             ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            Image: `${{ fromJSON(steps.docker-build.outputs.metadata)['image.name'] }}`
+            Image: `${{ steps.meta.outputs.tags }}`
