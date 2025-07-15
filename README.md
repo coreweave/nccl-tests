@@ -64,22 +64,22 @@ the following components:
 CoreWeave
 also [publishes images](https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests)
 built from these Dockerfiles that can be used as base for your own images.  
-The images below include **NCCL v2.27.5-1**, **HPC-X v2.23**, and **cuDNN v9.10.2.21-1**.  
+The images below include **NCCL v2.27.6-1**, **HPC-X v2.23**, and **cuDNN v9.10.2.21-1**.  
 Each image is multi-arch, and can be used for both `linux/amd64` and `linux/arm64` containers.
 Compute capabilities up to Blackwell (10.0) are supported.
 
 | **Image Tag**                                                              | **Ubuntu** | **CUDA** |
 |----------------------------------------------------------------------------|------------|----------|
-| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.27.5-1-0120901 | 22.04      | 12.9.1   |
-| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.27.5-1-0120901 | 22.04      | 12.8.1   |
-| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.27.5-1-0120901 | 22.04      | 12.6.3   |
-| ghcr.io/coreweave/nccl-tests:12.4.1-devel-ubuntu22.04-nccl2.27.5-1-0120901 | 22.04      | 12.4.1   |
-| ghcr.io/coreweave/nccl-tests:12.2.2-devel-ubuntu22.04-nccl2.27.5-1-0120901 | 22.04      | 12.2.2   |
-| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu20.04-nccl2.27.5-1-0120901 | 20.04      | 12.9.1   |
-| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu20.04-nccl2.27.5-1-0120901 | 20.04      | 12.8.1   |
-| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu20.04-nccl2.27.5-1-0120901 | 20.04      | 12.6.3   |
-| ghcr.io/coreweave/nccl-tests:12.4.1-devel-ubuntu20.04-nccl2.27.5-1-0120901 | 20.04      | 12.4.1   |
-| ghcr.io/coreweave/nccl-tests:12.2.2-devel-ubuntu20.04-nccl2.27.5-1-0120901 | 20.04      | 12.2.2   |
+| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.27.6-1-7c12c62 | 22.04      | 12.9.1   |
+| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.27.6-1-7c12c62 | 22.04      | 12.8.1   |
+| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.27.6-1-7c12c62 | 22.04      | 12.6.3   |
+| ghcr.io/coreweave/nccl-tests:12.4.1-devel-ubuntu22.04-nccl2.27.6-1-7c12c62 | 22.04      | 12.4.1   |
+| ghcr.io/coreweave/nccl-tests:12.2.2-devel-ubuntu22.04-nccl2.27.6-1-7c12c62 | 22.04      | 12.2.2   |
+| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu20.04-nccl2.27.6-1-7c12c62 | 20.04      | 12.9.1   |
+| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu20.04-nccl2.27.6-1-7c12c62 | 20.04      | 12.8.1   |
+| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu20.04-nccl2.27.6-1-7c12c62 | 20.04      | 12.6.3   |
+| ghcr.io/coreweave/nccl-tests:12.4.1-devel-ubuntu20.04-nccl2.27.6-1-7c12c62 | 20.04      | 12.4.1   |
+| ghcr.io/coreweave/nccl-tests:12.2.2-devel-ubuntu20.04-nccl2.27.6-1-7c12c62 | 20.04      | 12.2.2   |
 
 ## Running NCCL Tests
 
