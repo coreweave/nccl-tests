@@ -1,12 +1,13 @@
 #!/bin/bash
 ###
-#SBATCH --job-name=nccl_test
+#SBATCH --job-name=nccl_test_allreduce
 #SBATCH --nodes=8
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8
 #SBATCH --time=20:00
-#SBATCH --output="%x.out"
-#SBATCH --exclusive
+#SBATCH --output="%x_%j.out" # Use %x for job name and %j for slurm job ID in output file name
+#SBATCH --exclusive # Use --exclusive to ensure no other jobs run on the same nodes
+
 
 module load image-defaults
 
