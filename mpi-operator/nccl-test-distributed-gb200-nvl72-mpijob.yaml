@@ -1,4 +1,4 @@
-# This assumes you have a signle NVL72 rack in your cluster.
+# This assumes you have a single NVL72 rack in your cluster.
 # If you have multiple, add an affinity to the workers for a specific rack/nvlink domain.
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
