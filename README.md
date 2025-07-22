@@ -18,20 +18,14 @@ to deliver the highest distributed training performance possible.
 * [NCCL for Distributed Training](#nccl-for-distributed-training)
    * [Docker Images](#docker-images)
    * [Running NCCL Tests](#running-nccl-tests)
-
       * [MPI Operator](#mpi-operator)
-
          * [Running Jobs](#running-jobs)
-
       * [Slurm](#slurm)
-
          * [Running Jobs](#running-jobs-1)
          * [Enroot](#enroot)
-
    * [Running DeepSpeed Training Jobs](#running-deepspeed-training-jobs)
    * [GDRCopy](#gdrcopy)
    * [Expected Performance](#expected-performance)
-
       * [GB200](#gb200)
          * [Single Rack](#single-rack)
          * [2 Racks](#2-racks)

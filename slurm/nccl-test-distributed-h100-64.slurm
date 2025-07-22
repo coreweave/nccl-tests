@@ -29,4 +29,4 @@ export NCCL_COLLNET_ENABLE=0
 # Log the assigned nodes
 echo "Using nodes: $SLURM_JOB_NODELIST"
 
-srun /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
+srun /opt/nccl_tests/build/all_reduce_perf --kill-on-bad-exit=1 -b 512M -e 8G -f 2 -g 1
