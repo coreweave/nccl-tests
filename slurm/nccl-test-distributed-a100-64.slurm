@@ -22,4 +22,4 @@ export UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1
 # Log the assigned nodes
 echo "Using nodes: $SLURM_JOB_NODELIST"
 
-srun /opt/nccl_tests/build/all_reduce_perf --kill-on-bad-exit=1 -b 512M -e 8G -f 2 -g 1
+srun  --kill-on-bad-exit=1 /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
