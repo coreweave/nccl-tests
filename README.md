@@ -16,20 +16,20 @@ networking and in-network collections using
 to deliver the highest distributed training performance possible.
 
 * [NCCL for Distributed Training](#nccl-for-distributed-training)
-  * [Docker Images](#docker-images)
-  * [Running NCCL Tests](#running-nccl-tests)
-    * [MPI Operator](#mpi-operator)
-      * [Running Jobs](#running-jobs)
-    * [Slurm](#slurm)
-      * [Running Jobs](#running-jobs-1)
-      * [Enroot](#enroot)
-  * [Running DeepSpeed Training Jobs](#running-deepspeed-training-jobs)
-  * [GDRCopy](#gdrcopy)
-  * [Expected Performance](#expected-performance)
-    * [GB200](#gb200)
-      * [Single Rack](#single-rack)
-      * [2 Racks](#2-racks)
-      * [20 Racks](#20-racks)
+   * [Docker Images](#docker-images)
+   * [Running NCCL Tests](#running-nccl-tests)
+      * [MPI Operator](#mpi-operator)
+         * [Running Jobs](#running-jobs)
+      * [Slurm](#slurm)
+         * [Running Jobs](#running-jobs-1)
+         * [Enroot](#enroot)
+   * [Running DeepSpeed Training Jobs](#running-deepspeed-training-jobs)
+   * [GDRCopy](#gdrcopy)
+   * [Expected Performance](#expected-performance)
+      * [GB200](#gb200)
+         * [Single Rack](#single-rack)
+         * [2 Racks](#2-racks)
+         * [20 Racks](#20-racks)
 
 ## Docker Images
 
@@ -38,28 +38,28 @@ template for your distributed training applications. The Dockerfiles include
 the following components:
 
 - NVIDIA [Mellanox OFED Driver](https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/)
-  userspace components. The kernel side is installed on our bare-metal nodes and
-  does not need to be installed by users. The OFED drivers are necessary for
-  optimized InfiniBand communication.
+   userspace components. The kernel side is installed on our bare-metal nodes and
+   does not need to be installed by users. The OFED drivers are necessary for
+   optimized InfiniBand communication.
 - NVIDIA [HPC-X](https://developer.nvidia.com/networking/hpc-x) which is a
-  packaging of OpenMPI and UCX
+   packaging of OpenMPI and UCX
 - NVIDIA HPC-X OpenMPI compiled with external PMIx to
-  enable [SLURM](https://slurm.schedmd.com/) integration
+   enable [SLURM](https://slurm.schedmd.com/) integration
 - NVIDIA [GDRCopy](https://developer.nvidia.com/gdrcopy) libraries leverage
-  GPUDirect RDMA for improved GPU to host memory copy performance in certain
-  applications. The kernel support for GDRCopy exists on CoreWeave's
-  bare-metal nodes.
+   GPUDirect RDMA for improved GPU to host memory copy performance in certain
+   applications. The kernel support for GDRCopy exists on CoreWeave's
+   bare-metal nodes.
 - NVIDIA [NCCL SHARP Plugin](https://github.com/Mellanox/nccl-rdma-sharp-plugins)
-  for SHARP support in NCCL
+   for SHARP support in NCCL
 - NVIDIA [NCCL Tests](https://github.com/NVIDIA/nccl-tests) for verification
-  and benchmarking purposes
+   and benchmarking purposes
 - NVIDIA [DCGM](https://developer.nvidia.com/dcgm) for GPU tests and health
-  checks
+   checks
 - NVIDIA [bandwidthTest](https://docs.nvidia.com/cuda/demo-suite/index.html#bandwidthTest)
-  utility
+   utility
 - [RDMA Perftest](https://github.com/linux-rdma/perftest/) with GPUDirect
 - OpenSSH server and related settings to enable images to easily be used as
-  MPI Runners
+   MPI Runners
 
 CoreWeave
 also [publishes images](https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests)
@@ -85,8 +85,9 @@ Compute capabilities up to Blackwell (10.0) are supported.
 
 There are many sample jobs in this repo showing how to run distributed NCCL
 tests, using the following workload managers:
- - [MPI Operator](https://github.com/kubeflow/mpi-operator)
- - [Slurm](https://slurm.schedmd.com/)
+
+- [MPI Operator](https://github.com/kubeflow/mpi-operator)
+- [Slurm](https://slurm.schedmd.com/)
 
 ### MPI Operator
 
@@ -97,20 +98,20 @@ user, simply execute an MPIJob manifest in your namespace.
 
 Example manifests are provided in the `mpi-operator/` directory. There you'll
 find the following examples of 64 GPU (8 node) runs:
- - [A40](./mpi-operator/nccl-test-distributed-a40-64-las1-mpijob.yaml)
- - [A100](./mpi-operator/nccl-test-distributed-a100-64-las1-mpijob.yaml)
- - [A100 with GDRCopy](./mpi-operator/nccl-test-distributed-a100-64-las1-gdrcopy-mpijob.yaml)
- - [A100 without Infiniband](./mpi-operator/nccl-test-distributed-a100-64-las1-no-ib-mpijob.yaml)
- - [A100 with SHARP](./mpi-operator/nccl-test-distributed-a100-64-las1-sharp-mpijob.yaml)
- - [H100](./mpi-operator/nccl-test-distributed-h100-64-las1-mpijob.yaml)
- - [H100 with SHARP](./mpi-operator/nccl-test-distributed-h100-64-las1-sharp-mpijob.yaml)
- - [GB200 NVL72](./mpi-operator/nccl-test-distributed-gb200-nvl72-mpijob.yaml)
+
+- [A40](./mpi-operator/nccl-test-distributed-a40-64-las1-mpijob.yaml)
+- [A100](./mpi-operator/nccl-test-distributed-a100-64-las1-mpijob.yaml)
+- [A100 with GDRCopy](./mpi-operator/nccl-test-distributed-a100-64-las1-gdrcopy-mpijob.yaml)
+- [A100 without Infiniband](./mpi-operator/nccl-test-distributed-a100-64-las1-no-ib-mpijob.yaml)
+- [A100 with SHARP](./mpi-operator/nccl-test-distributed-a100-64-las1-sharp-mpijob.yaml)
+- [H100](./mpi-operator/nccl-test-distributed-h100-64-las1-mpijob.yaml)
+- [H100 with SHARP](./mpi-operator/nccl-test-distributed-h100-64-las1-sharp-mpijob.yaml)
+- [GB200 NVL72](./mpi-operator/nccl-test-distributed-gb200-nvl72-mpijob.yaml)
 
 #### Running Jobs
 
 To start the NCCL test, apply the sample manifest into your namespace with
 `kubectl`:
-
 
 ```bash
 $ kubectl apply -f nccl-test-distributed-h100-64-las1-sharp-mpijob.yaml
@@ -149,12 +150,13 @@ Kubernetes cluster using a tool called `sunk`.
 
 Example `SBATCH` scripts are provided in the `slurm/` directory. There you'll
 find the following examples of 64 GPU (8 node) runs:
- - [A100 without enroot](./slurm/nccl-test-distributed-a100-64.slurm)
- - [A100 with enroot](./slurm/nccl-test-distributed-a100-64-enroot.slurm)
- - [H100 without enroot](./slurm/nccl-test-distributed-h100-64.slurm)
- - [H100 with enroot](./slurm/nccl-test-distributed-h100-64-enroot.slurm)
- - [H100 with enroot and SHARP](./slurm/nccl-test-distributed-h100-64-enroot-sharp.slurm)
- - [GB200 with enroot](./slurm/nccl-test-distributed-gb200-nvl72-enroot.slurm)
+
+- [A100 without enroot](./slurm/nccl-test-distributed-a100-64.slurm)
+- [A100 with enroot](./slurm/nccl-test-distributed-a100-64-enroot.slurm)
+- [H100 without enroot](./slurm/nccl-test-distributed-h100-64.slurm)
+- [H100 with enroot](./slurm/nccl-test-distributed-h100-64-enroot.slurm)
+- [H100 with enroot and SHARP](./slurm/nccl-test-distributed-h100-64-enroot-sharp.slurm)
+- [GB200 with enroot](./slurm/nccl-test-distributed-gb200-nvl72-enroot.slurm)
 
 #### Running Jobs
 
@@ -173,14 +175,15 @@ sbatch --partition="$PARTITION" nccl-test-distributed-h100-64.slurm
 
 You can also easily override the number of nodes the test will use. The following will use 4 nodes
 instead of 8:
+
 ```bash
 sbatch --partition="$PARTITION" -N 4 nccl-test-distributed-h100-64.slurm
 ```
 
-The logs will be written to `./nccl_test.out`.
+The logs will be written to `./nccl_test_jobID.out`.
 
 **Note:** The jobs that don't use enroot rely on `nccl-tests` being installed
-at `/opt/nccl-tests`, which will be true of every `sunk` cluster.
+at `/opt/nccl-tests`, which will be true on the compute nodes of every `sunk` cluster. The login node will probably *not* have this directory.
 
 #### Enroot
 
@@ -246,6 +249,7 @@ The following runs used NCCL `2.26.2`.
 ```
 
 #### 2 Racks
+
 ```bash
 #  Rank 143 Group  0 Pid  14840 on slurm-gb200-207-171 device  3 [0x01] NVIDIA Graphics Device
 #

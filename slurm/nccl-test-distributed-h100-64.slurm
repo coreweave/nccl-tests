@@ -1,13 +1,15 @@
 #!/bin/bash
 ###
-#SBATCH --job-name=nccl_test
+#SBATCH --job-name=nccl_test_allreduce
 #SBATCH --nodes=8
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8
 #SBATCH --time=20:00
-#SBATCH --output="%x.out"
-#SBATCH --exclusive
+#SBATCH --output="%x_%j.out" # Use %x for job name and %j for slurm job ID in output file name
+#SBATCH --exclusive # Use --exclusive to ensure no other jobs run on the same nodes
 
+
+. /usr/share/modules/init/bash
 module load image-defaults
 
 # NCCL environment variables are documented at:
@@ -28,4 +30,4 @@ export NCCL_COLLNET_ENABLE=0
 # Log the assigned nodes
 echo "Using nodes: $SLURM_JOB_NODELIST"
 
-srun /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
+srun --mpi=pmix --kill-on-bad-exit=1 /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
