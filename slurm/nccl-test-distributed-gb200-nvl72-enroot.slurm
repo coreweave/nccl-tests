@@ -18,6 +18,7 @@ export NCCL_IB_HCA=ibp
 export UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1
 export SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1
 export NCCL_COLLNET_ENABLE=0
+export OMPI_MCA_coll_hcoll_enable=0
 
 export NVIDIA_IMEX_CHANNELS=0
 export NCCL_NVLS_ENABLE=0
