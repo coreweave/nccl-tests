@@ -38,6 +38,7 @@ spec:
                   -x NVIDIA_IMEX_CHANNELS=0 \
                   -x NCCL_NVLS_ENABLE=0 \
                   -x NCCL_NET_GDR_C2C=1 \
+                  -mca coll_hcoll_enable 0 \
                   /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1 #-n 200 #-w 2 -n 20
                   ",
                 ]
