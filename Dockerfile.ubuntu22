@@ -58,7 +58,7 @@ RUN apt-get -qq update && \
 
 FROM builder-base AS libnccl2
 # NCCL
-ARG TARGET_NCCL_VERSION='2.27.6-1'
+ARG TARGET_NCCL_VERSION='2.27.7-1'
 ARG CUDA_ARCH_LIST='70 80 89 90 100 120'
 # Converts CUDA_ARCH_LIST to '-gencode=arch=compute_XX,code=sm_XX -gencode=...' format with PTX for the last listed arch
 RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
