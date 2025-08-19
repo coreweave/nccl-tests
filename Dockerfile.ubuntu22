@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1.4
 
-ARG CUDA_VERSION=12.9.1
+ARG CUDA_VERSION=13.0.0
 ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
 FROM ${BASE_IMAGE} AS base
 
 ENV NV_CUDNN_VERSION 9.8.0.87-1
-ENV NV_CUDNN_PACKAGE_NAME libcudnn9-cuda-12
-ENV NV_CUDNN_PACKAGE libcudnn9-cuda-12=${NV_CUDNN_VERSION}
-ENV NV_CUDNN_PACKAGE_DEV libcudnn9-dev-cuda-12=${NV_CUDNN_VERSION}
+ENV NV_CUDNN_PACKAGE_NAME libcudnn9-cuda-13
+ENV NV_CUDNN_PACKAGE libcudnn9-cuda-13=${NV_CUDNN_VERSION}
+ENV NV_CUDNN_PACKAGE_DEV libcudnn9-dev-cuda-13=${NV_CUDNN_VERSION}
 
 LABEL com.nvidia.cudnn.version="${NV_CUDNN_VERSION}"
 
@@ -113,7 +113,7 @@ RUN mkdir /tmp/build && \
 
 FROM builder-base AS cuda-samples
 # Build GPU Bandwidthtest from samples
-ARG CUDA_SAMPLES_VERSION="12.5"
+ARG CUDA_SAMPLES_VERSION="13.0"
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
     wget -qO- https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.tar.gz \
