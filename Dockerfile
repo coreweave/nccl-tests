@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.4
 
 ARG CUDA_VERSION=12.9.1
-ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu20.04
+ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
 FROM ${BASE_IMAGE} AS base
 
-ENV NV_CUDNN_VERSION 9.10.2.21-1
+ENV NV_CUDNN_VERSION 9.8.0.87-1
 ENV NV_CUDNN_PACKAGE_NAME libcudnn9-cuda-12
 ENV NV_CUDNN_PACKAGE libcudnn9-cuda-12=${NV_CUDNN_VERSION}
 ENV NV_CUDNN_PACKAGE_DEV libcudnn9-dev-cuda-12=${NV_CUDNN_VERSION}
@@ -39,7 +39,7 @@ RUN apt-get -qq update && \
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
-RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu20.04/mellanox_mlnx_ofed.list
+RUN cd /etc/apt/sources.list.d/ && . /etc/os-release && wget "https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu${VERSION_ID:?}/mellanox_mlnx_ofed.list"
 
 RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
@@ -129,7 +129,7 @@ RUN mkdir /tmp/build && \
 FROM builder-base AS hpcx
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
+ARG HPCX_DISTRIBUTION="hpcx-v2.23-gcc-doca_ofed-ubuntu22.04-cuda12"
 RUN cd /tmp && \
     DIST_NAME="${HPCX_DISTRIBUTION}-$(uname -m)" && \
     HPCX_DIR="/opt/hpcx" && \
@@ -139,13 +139,6 @@ RUN cd /tmp && \
     rm -r /opt/hpcx/ompi
 
 # Rebuild OpenMPI to support SLURM
-# For Ubuntu 22, we can replace PMI2 (--with-pmi) with PMIx
-# --with-pmix=/usr/lib/x86_64-linux-gnu/pmix2
-RUN apt-get -qq update && \
-    apt-get -qq install -y --no-install-recommends \
-      libpmi2-0 libpmi2-0-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
 SHELL ["/bin/bash", "-c"]
 RUN source /opt/hpcx/hpcx-init.sh && \
     hpcx_load && \
@@ -156,7 +149,7 @@ RUN source /opt/hpcx/hpcx-init.sh && \
       --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
       --with-platform=contrib/platform/mellanox/optimized \
       --with-slurm --with-hwloc --with-libevent \
-      --with-pmi \
+      --with-pmix="/usr/lib/$(gcc -print-multiarch)/pmix2" \
       --without-xpmem --with-cuda --with-ucc=/opt/hpcx/ucc && \
       make -j20 && \
       make -j20 install && \
