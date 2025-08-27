@@ -63,4 +63,4 @@ fi
 
 srun --container-image="$CONTAINER_IMAGE" \
      --mpi=pmix "$cflag" --no-container-mount-home --kill-on-bad-exit=1 \
-     /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
+     /opt/nccl_tests/build/all_reduce_perf -b 16M -e 8G -f 2 -g 1
