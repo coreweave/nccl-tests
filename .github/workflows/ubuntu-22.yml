@@ -23,4 +23,4 @@ jobs:
       cuda-version: "13.0.0"
       nccl-version: 2.27.7-1
       cuda-samples-version: "13.0"
-      hpcx-distribution: "hpcx-v2.23-gcc-doca_ofed-ubuntu22.04-cuda12"
+      hpcx-distribution: "hpcx-v2.24-gcc-doca_ofed-ubuntu22.04-cuda13"
