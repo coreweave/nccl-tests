@@ -125,6 +125,20 @@ RUN mkdir /tmp/build /tmp/gdrcopy && \
 #    cd /tmp && \
 #    rm -r /tmp/build
 
+FROM builder-base AS nvbandwidth
+ARG NVBANDWIDTH_VERSION='0.8'
+ARG CUDA_ARCH_LIST='80 89 90 100 120'
+RUN mkdir /tmp/build && \
+    cd /tmp/build && \
+    apt-get -qq install --no-install-recommends -y libboost-program-options-dev && \
+    wget -qO- "https://github.com/NVIDIA/nvbandwidth/archive/refs/tags/v${NVBANDWIDTH_VERSION}.tar.gz" \
+    | tar --strip-components=1 -xzf - && \
+    cmake -DMULTINODE=1 -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCH_LIST}" . && \
+    make -j20 && \
+    mkdir -p /tmp/nvbandwidth/usr/bin && \
+    install nvbandwidth /tmp/nvbandwidth/usr/bin/ && \
+    cd /tmp && \
+    rm -r /tmp/build
 
 FROM builder-base AS hpcx
 # HPC-X
@@ -167,7 +181,7 @@ RUN --mount=type=bind,from=gdrcopy,source=/tmp/gdrcopy,target=/tmp/install \
     cd /tmp/install && dpkg -i *.deb
 
 #COPY --link --from=perftest /tmp/perftest/ /
-#COPY --link --from=cuda-samples /tmp/cuda-samples/ /
+COPY --link --from=nvbandwidth /tmp/nvbandwidth/ /
 COPY --link --from=hpcx /opt/hpcx /opt/hpcx
 
 RUN ldconfig
