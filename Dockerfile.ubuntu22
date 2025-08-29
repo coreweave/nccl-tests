@@ -131,7 +131,8 @@ ARG CUDA_ARCH_LIST='80 89 90 100 120'
 RUN mkdir /tmp/build && \
     cd /tmp/build && \
     apt-get -qq update && \
-    apt-get -qq install --no-install-recommends -y libboost-program-options-dev && \
+    apt-get -qq install --no-install-recommends -y \
+      libboost-program-options-dev cmake && \
     apt-get clean && \
     wget -qO- "https://github.com/NVIDIA/nvbandwidth/archive/refs/tags/v${NVBANDWIDTH_VERSION}.tar.gz" \
     | tar --strip-components=1 -xzf - && \
