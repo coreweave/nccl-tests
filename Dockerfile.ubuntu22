@@ -136,7 +136,7 @@ RUN mkdir /tmp/build && \
     apt-get clean && \
     wget -qO- "https://github.com/NVIDIA/nvbandwidth/archive/refs/tags/v${NVBANDWIDTH_VERSION}.tar.gz" \
     | tar --strip-components=1 -xzf - && \
-    cmake -DMULTINODE=1 -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCH_LIST}" . && \
+    cmake -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCH_LIST}" . && \
     make -j20 && \
     mkdir -p /tmp/nvbandwidth/usr/bin && \
     install nvbandwidth /tmp/nvbandwidth/usr/bin/ && \
