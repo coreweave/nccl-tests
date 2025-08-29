@@ -94,21 +94,24 @@ RUN mkdir /tmp/build /tmp/gdrcopy && \
     rm -r /tmp/build
 
 
-#FROM builder-base AS perftest
-## IB perftest with GDR
-#ENV PERFTEST_VERSION_HASH=5b47ede
-#RUN mkdir /tmp/build && \
-#    cd /tmp/build && \
-#    git clone https://github.com/coreweave/perftest && \
-#    cd perftest && \
-#    git checkout $PERFTEST_VERSION_HASH && \
-#    ./autogen.sh && \
-#    ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
-#    make -j20 && \
-#    mkdir /tmp/perftest && \
-#    make install DESTDIR=/tmp/perftest && \
-#    cd /tmp && \
-#    rm -r /tmp/build
+FROM builder-base AS perftest
+# IB perftest with GDR
+ENV PERFTEST_VERSION_HASH=5b47ede
+RUN mkdir /tmp/build && \
+    cd /tmp/build && \
+    git clone https://github.com/coreweave/perftest && \
+    cd perftest && \
+    git checkout $PERFTEST_VERSION_HASH && \
+    if [ "${CUDA_VERSION%%.*}" -ge 13 ]; then \
+      sed -Eie 's@cuCtxCreate\(([^),]+),([^),]+),([^),]+)\)@cuCtxCreate(\1, NULL,\2,\3)@' src/cuda_memory.c; \
+    fi && \
+    ./autogen.sh && \
+    ./configure CUDA_H_PATH=/usr/local/cuda/include/cuda.h && \
+    make -j20 && \
+    mkdir /tmp/perftest && \
+    make install DESTDIR=/tmp/perftest && \
+    cd /tmp && \
+    rm -r /tmp/build
 
 
 #FROM builder-base AS cuda-samples
@@ -183,7 +186,7 @@ RUN --mount=type=bind,from=libnccl2,source=/tmp/libnccl2,target=/tmp/install \
 RUN --mount=type=bind,from=gdrcopy,source=/tmp/gdrcopy,target=/tmp/install \
     cd /tmp/install && dpkg -i *.deb
 
-#COPY --link --from=perftest /tmp/perftest/ /
+COPY --link --from=perftest /tmp/perftest/ /
 COPY --link --from=nvbandwidth /tmp/nvbandwidth/ /
 COPY --link --from=hpcx /opt/hpcx /opt/hpcx
 
