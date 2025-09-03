@@ -114,20 +114,6 @@ RUN mkdir /tmp/build && \
     rm -r /tmp/build
 
 
-#FROM builder-base AS cuda-samples
-## Build GPU Bandwidthtest from samples
-#ARG CUDA_SAMPLES_VERSION="13.0"
-#RUN mkdir /tmp/build && \
-#    cd /tmp/build && \
-#    wget -qO- https://github.com/NVIDIA/cuda-samples/archive/refs/tags/v${CUDA_SAMPLES_VERSION}.tar.gz \
-#    | tar --strip-components=1 -xzf - && \
-#    cd Samples/1_Utilities/bandwidthTest && \
-#    make -j20 && \
-#    mkdir -p /tmp/cuda-samples/usr/bin && \
-#    install bandwidthTest /tmp/cuda-samples/usr/bin/ && \
-#    cd /tmp && \
-#    rm -r /tmp/build
-
 FROM builder-base AS nvbandwidth
 ARG NVBANDWIDTH_VERSION='0.8'
 ARG CUDA_ARCH_LIST='80;89;90;100;120'
@@ -145,6 +131,7 @@ RUN mkdir /tmp/build && \
     install nvbandwidth /tmp/nvbandwidth/usr/bin/ && \
     cd /tmp && \
     rm -r /tmp/build
+
 
 FROM builder-base AS hpcx
 # HPC-X
