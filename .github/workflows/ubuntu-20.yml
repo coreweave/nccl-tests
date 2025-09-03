@@ -22,7 +22,6 @@ jobs:
       base-tag: 12.6.3-devel-ubuntu20.04
       cuda-version: "12.6.3"
       nccl-version: 2.27.7-1
-      cuda-samples-version: "12.5"
       hpcx-distribution: "hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
 
   cu128:
@@ -40,7 +39,6 @@ jobs:
       base-tag: 12.8.1-devel-ubuntu20.04
       cuda-version: "12.8.1"
       nccl-version: 2.27.7-1
-      cuda-samples-version: "12.5"
       hpcx-distribution: "hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
 
   cu129:
@@ -58,5 +56,4 @@ jobs:
       base-tag: 12.9.1-devel-ubuntu20.04
       cuda-version: "12.9.1"
       nccl-version: 2.27.7-1
-      cuda-samples-version: "12.5"
       hpcx-distribution: "hpcx-v2.23-gcc-doca_ofed-ubuntu20.04-cuda12"
