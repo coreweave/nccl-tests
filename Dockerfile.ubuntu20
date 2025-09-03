@@ -117,7 +117,10 @@ RUN mkdir /tmp/build && \
 FROM builder-base AS nvbandwidth
 ARG NVBANDWIDTH_VERSION='0.8'
 ARG CUDA_ARCH_LIST='80;89;90;100;120'
-RUN mkdir /tmp/build && \
+RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
+      CUDA_ARCH_LIST="${CUDA_ARCH_LIST%;100*}"; \
+    esac && \
+    mkdir /tmp/build && \
     cd /tmp/build && \
     apt-get -qq update && \
     apt-get -qq install --no-install-recommends -y \
