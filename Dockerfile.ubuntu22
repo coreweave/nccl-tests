@@ -8,6 +8,7 @@ ENV NV_CUDNN_VERSION='9.12.0.46-1'
 ENV NV_CUDNN_PACKAGE_NAME="libcudnn9-cuda-${CUDA_VERSION%%.*}"
 ENV NV_CUDNN_PACKAGE="libcudnn9-cuda-${CUDA_VERSION%%.*}=${NV_CUDNN_VERSION}"
 ENV NV_CUDNN_PACKAGE_DEV="libcudnn9-dev-cuda-${CUDA_VERSION%%.*}=${NV_CUDNN_VERSION}"
+ARG NV_CUDNN_PACKAGE_HEADERS="libcudnn9-headers-cuda-${CUDA_VERSION%%.*}=${NV_CUDNN_VERSION}"
 
 LABEL com.nvidia.cudnn.version="${NV_CUDNN_VERSION}"
 
@@ -15,7 +16,8 @@ RUN apt-get -qq update && \
     apt-get -qq install -y \
         --no-install-recommends \
         "${NV_CUDNN_PACKAGE}" \
-        "${NV_CUDNN_PACKAGE_DEV}" && \
+        "${NV_CUDNN_PACKAGE_DEV}" \
+        "${NV_CUDNN_PACKAGE_HEADERS}" && \
     apt-mark hold "${NV_CUDNN_PACKAGE_NAME}" && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
