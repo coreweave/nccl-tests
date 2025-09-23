@@ -71,10 +71,10 @@ Compute capabilities up to Blackwell (10.0) are supported.
 
 | **Image Tag**                                                              | **Ubuntu** | **CUDA** |
 |----------------------------------------------------------------------------|------------|----------|
-| ghcr.io/coreweave/nccl-tests:13.0.0-devel-ubuntu22.04-nccl2.28.3-1-9a3fdd0 | 22.04      | 13.0.0   |
-| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-9a3fdd0 | 22.04      | 12.9.1   |
-| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.28.3-1-9a3fdd0 | 22.04      | 12.8.1   |
-| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.28.3-1-9a3fdd0 | 22.04      | 12.6.3   |
+| ghcr.io/coreweave/nccl-tests:13.0.0-devel-ubuntu22.04-nccl2.28.3-1-b87f806 | 22.04      | 13.0.0   |
+| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-b87f806 | 22.04      | 12.9.1   |
+| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.28.3-1-b87f806 | 22.04      | 12.8.1   |
+| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.28.3-1-b87f806 | 22.04      | 12.6.3   |
 
 ## Running NCCL Tests
 
