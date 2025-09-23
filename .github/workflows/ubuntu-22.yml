@@ -70,7 +70,7 @@ jobs:
       folder: .
       dockerfile: Dockerfile.ubuntu22
       base-image: nvidia/cuda
-      base-tag: 13.0.0-devel-ubuntu22.04
-      cuda-version: "13.0.0"
+      base-tag: 13.0.1-devel-ubuntu22.04
+      cuda-version: "13.0.1"
       nccl-version: 2.28.3-1
       hpcx-distribution: "hpcx-v2.24-gcc-doca_ofed-ubuntu22.04-cuda13"
