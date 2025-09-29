@@ -14,7 +14,7 @@ spec:
       template:
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -53,7 +53,7 @@ spec:
           metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.26.2-1-0708d2e
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
               name: nccl
               resources:
                 requests:

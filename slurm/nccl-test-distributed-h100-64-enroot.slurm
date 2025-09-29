@@ -4,26 +4,32 @@
 #SBATCH --nodes=8
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=128GB
 #SBATCH --time=20:00
 #SBATCH --output="%x_%j.out" # Use %x for job name and %j for slurm job ID in output file name
 #SBATCH --exclusive # Use --exclusive to ensure no other jobs run on the same nodes
 
 # NCCL environment variables are documented at:
 # https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html
-
-# Use these environment variables to ensure optimal InfiniBand performance.
+# Out Of Band is set to run over front-end ethernet.
+# Backend is restricted to use ibp* interfaces to ensure it doesn't try to use any RoCE interfaces from the frontend.
 
 export NCCL_SOCKET_IFNAME=eth0
 export NCCL_IB_HCA=ibp
-export UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1,ibp4:1,ibp5:1,ibp6:1,ibp7:1
-export SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1
-export NCCL_COLLNET_ENABLE=0
+
+# Disable UCX
+# Restrict the transport layer for UCX, it tries to use all transports by default, this forces it on TCP. NCCL does not use UCX at all.
+# We explictly deactivate it to avoid initializing UCX by mistake as it can lead to crashes.
+export UCX_TLS=tcp
+export UCX_NET_DEVICES=eth0
+export OMPI_MCA_coll_hcoll_enable=0
 export PMIX_MCA_gds='^ds12'
 
 # Define nccl version we will test
 # See https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests for available tags.
 
-nccl_version="12.9.1-devel-ubuntu22.04-nccl2.27.6-1-7c12c62"
+nccl_version="12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957"
 
 # Create a directory to store container images. You can change this
 # or use an existing directory below.
