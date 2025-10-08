@@ -41,8 +41,9 @@ spec:
     Worker:
       replicas: 8
       template:
-        labels:
-          metadata.coreweave.cloud/job: nccl-test
+        metadata:
+          labels:
+            metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
             - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
