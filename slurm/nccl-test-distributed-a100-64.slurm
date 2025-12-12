@@ -6,6 +6,7 @@
 #SBATCH --gpus-per-node=8
 #SBATCH --time=20:00
 #SBATCH --output="%x_%j.out" # Use %x for job name and %j for slurm job ID in output file name
+#SBATCH --distribution=block:block # Better align ranks with numa affinities ( rank0-3 = numa0, rank4-7 = numa1 )
 #SBATCH --exclusive # Use --exclusive to ensure no other jobs run on the same nodes
 
 

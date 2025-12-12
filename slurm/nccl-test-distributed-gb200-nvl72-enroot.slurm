@@ -8,6 +8,7 @@
 #SBATCH --mem=128GB
 #SBATCH --time=20:00
 #SBATCH --output="%x_%j.out" # Use %x for job name and %j for slurm job ID in output file name
+#SBATCH --distribution=block:block # Better align ranks with numa affinities ( rank0-1 = numa0, rank2-3 = numa1 )
 #SBATCH --exclusive # Use --exclusive to ensure no other jobs run on the same nodes
 
 # NCCL environment variables are documented at:
