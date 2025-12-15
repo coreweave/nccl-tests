@@ -1,9 +1,9 @@
-# This assumes you have a signle NVL72 rack in your cluster.
+# This assumes you have a single NVL72 rack in your cluster.
 # If you have multiple, add an affinity to the workers for a specific rack/nvlink domain.
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-64-h100-8n
+  name: nccl-test-72-gb200-18n
 spec:
   slotsPerWorker: 4
   runPolicy:
@@ -27,7 +27,6 @@ spec:
               # Can also try setting '-x NCCL_ALGO=NVLSTREE'
               args: [
                   "mpirun \
-                  -np 64 \
                   -bind-to none \
                   -x LD_LIBRARY_PATH \
                   -x NCCL_SOCKET_IFNAME=eth0 \
@@ -58,10 +57,11 @@ spec:
               name: nccl
               resources:
                 requests:
-                  cpu: "64"
+                  cpu: "140"
                   memory: 900Gi
                   nvidia.com/gpu: 4
                 limits:
+                  cpu: "140"
                   memory: 900Gi
                   nvidia.com/gpu: 4
                   rdma/ib: 1
