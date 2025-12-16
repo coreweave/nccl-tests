@@ -1,9 +1,12 @@
-# This assumes you have a single NVL72 rack in your cluster.
-# If you have multiple, add an affinity to the workers for a specific rack/nvlink domain.
+# This job spans 32 workers across 2 NVL72 racks with only 16 workers per rack.
+# Topology spread constraints encourage even distribution across exactly 2 zones.
+# To modify this for an even larger number of racks, increase the number of replicas, and set:
+# .spec.mpiReplicaSpecs.Worker.template.spec.topologySpreadConstraints[0].minDomains
+# To match the number of racks to use.
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-72-gb200-18n
+  name: nccl-test-128-gb200-32n
 spec:
   slotsPerWorker: 4
   runPolicy:
@@ -47,12 +50,24 @@ spec:
                   cpu: 2
                   memory: 128Mi
     Worker:
-      replicas: 18
+      replicas: 32
       template:
         metadata:
           labels:
             metadata.coreweave.cloud/job: nccl-test
         spec:
+          topologySpreadConstraints:
+            # maxSkew 1 prevents uneven splits (like 18 nodes on one rack and 14 on the other)
+            # minDomains isn't strictly necessary here, but would be at larger scales
+            # to give a minimum desired rack count if an even split might be feasible
+            # on fewer racks (e.g., 144 replicas could be packed on 8 NVL72 racks instead of 9)
+            - maxSkew: 1
+              minDomains: 2
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  metadata.coreweave.cloud/job: nccl-test
           containers:
             - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
               name: nccl
@@ -71,8 +86,9 @@ spec:
                   name: dshm
           affinity:
             podAffinity:
-              # This gives workers a preference to cluster together on the same rack
               preferredDuringSchedulingIgnoredDuringExecution:
+                # This clusters workers onto the minimum number of racks possible,
+                # subject to the topologySpreadConstraints specified earlier
                 - weight: 100
                   podAffinityTerm:
                     labelSelector:
@@ -87,10 +103,11 @@ spec:
                         operator: In
                         values:
                           - gb200-4x
-                      # Uncomment and add a value if you want to target a specific NVL72 rack
+                      # Uncomment and add values if you want to target a specific set of NVL72 racks
                       # - key: ds.coreweave.com/nvlink.domain
                       #   operator: In
                       #   values:
+                      #     - <NVLINK_DOMAIN>
                       #     - <NVLINK_DOMAIN>
           volumes:
             - emptyDir:
