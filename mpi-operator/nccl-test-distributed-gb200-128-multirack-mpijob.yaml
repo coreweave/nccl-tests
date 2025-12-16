@@ -1,0 +1,115 @@
+# This job spans 32 workers across 2 NVL72 racks with only 16 workers per rack.
+# Topology spread constraints encourage even distribution across exactly 2 zones.
+# To modify this for an even larger number of racks, increase the number of replicas, and set:
+# .spec.mpiReplicaSpecs.Worker.template.spec.topologySpreadConstraints[0].minDomains
+# To match the number of racks to use.
+apiVersion: kubeflow.org/v2beta1
+kind: MPIJob
+metadata:
+  name: nccl-test-128-gb200-32n
+spec:
+  slotsPerWorker: 4
+  runPolicy:
+    cleanPodPolicy: Running
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+        spec:
+          containers:
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+              name: nccl
+              env:
+                - name: OMPI_ALLOW_RUN_AS_ROOT
+                  value: "1"
+                - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
+                  value: "1"
+              # Uncomment to be able to exec in to launcher pod for interactive testing
+              # command: [ 'sleep', '86400' ]
+              command: ["/bin/bash", "-c"]
+              # Can also try setting '-x NCCL_ALGO=NVLSTREE'
+              args: [
+                  "mpirun \
+                  -bind-to none \
+                  -x LD_LIBRARY_PATH \
+                  -x NCCL_SOCKET_IFNAME=eth0 \
+                  -x NCCL_IB_HCA=ibp \
+                  -x NVIDIA_IMEX_CHANNELS=0 \
+                  -x NCCL_NET_GDR_C2C=1 \
+                  -x NCCL_MNNVL_ENABLE=1 \
+                  -x NCCL_CUMEM_ENABLE=1 \
+                  -x NCCL_SHM_DISABLE=0 \
+                  -x UCX_TLS=tcp \
+                  -x UCX_NET_DEVICES=eth0 \
+                  -x OMPI_MCA_coll_hcoll_enable=0 \
+                  /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
+                  ",
+                ]
+              resources:
+                requests:
+                  cpu: 2
+                  memory: 128Mi
+    Worker:
+      replicas: 32
+      template:
+        metadata:
+          labels:
+            metadata.coreweave.cloud/job: nccl-test
+        spec:
+          topologySpreadConstraints:
+            # maxSkew 1 prevents uneven splits (like 18 nodes on one rack and 14 on the other)
+            # minDomains isn't strictly necessary here, but would be at larger scales
+            # to give an minimum desired rack count if an even split might be feasible
+            # on fewer racks (e.g., 144 replicas could be packed on 8 NVL72 racks instead of 9)
+            - maxSkew: 1
+              minDomains: 2
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  metadata.coreweave.cloud/job: nccl-test
+          containers:
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+              name: nccl
+              resources:
+                requests:
+                  cpu: "140"
+                  memory: 900Gi
+                  nvidia.com/gpu: 4
+                limits:
+                  cpu: "140"
+                  memory: 900Gi
+                  nvidia.com/gpu: 4
+                  rdma/ib: 1
+              volumeMounts:
+                - mountPath: /dev/shm
+                  name: dshm
+          affinity:
+            podAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                # This clusters workers onto the minimum number of racks possible,
+                # subject to the topologySpreadConstraints specified earlier
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        metadata.coreweave.cloud/job: nccl-test
+                    topologyKey: topology.kubernetes.io/zone
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node.coreweave.cloud/type
+                        operator: In
+                        values:
+                          - gb200-4x
+                      # Uncomment and add values if you want to target a specific set of NVL72 racks
+                      # - key: ds.coreweave.com/nvlink.domain
+                      #   operator: In
+                      #   values:
+                      #     - <NVLINK_DOMAIN>
+                      #     - <NVLINK_DOMAIN>
+          volumes:
+            - emptyDir:
+                medium: Memory
+              name: dshm
