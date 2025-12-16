@@ -70,6 +70,15 @@ spec:
                 - mountPath: /dev/shm
                   name: dshm
           affinity:
+            podAffinity:
+              # This gives workers a preference to cluster together on the same rack
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        metadata.coreweave.cloud/job: nccl-test
+                    topologyKey: topology.kubernetes.io/zone
             nodeAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
                 nodeSelectorTerms:
