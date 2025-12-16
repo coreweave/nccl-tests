@@ -59,7 +59,7 @@ spec:
           topologySpreadConstraints:
             # maxSkew 1 prevents uneven splits (like 18 nodes on one rack and 14 on the other)
             # minDomains isn't strictly necessary here, but would be at larger scales
-            # to give an minimum desired rack count if an even split might be feasible
+            # to give a minimum desired rack count if an even split might be feasible
             # on fewer racks (e.g., 144 replicas could be packed on 8 NVL72 racks instead of 9)
             - maxSkew: 1
               minDomains: 2
