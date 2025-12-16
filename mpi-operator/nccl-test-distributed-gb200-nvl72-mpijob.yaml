@@ -31,14 +31,15 @@ spec:
                   -x LD_LIBRARY_PATH \
                   -x NCCL_SOCKET_IFNAME=eth0 \
                   -x NCCL_IB_HCA=ibp \
-                  -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1 \
-                  -x SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1 \
-                  -x NCCL_COLLNET_ENABLE=0 \
                   -x NVIDIA_IMEX_CHANNELS=0 \
-                  -x NCCL_NVLS_ENABLE=0 \
                   -x NCCL_NET_GDR_C2C=1 \
-                  -mca coll_hcoll_enable 0 \
-                  /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1 #-n 200 #-w 2 -n 20
+                  -x NCCL_MNNVL_ENABLE=1 \
+                  -x NCCL_CUMEM_ENABLE=1 \
+                  -x NCCL_SHM_DISABLE=0 \
+                  -x UCX_TLS=tcp \
+                  -x UCX_NET_DEVICES=eth0 \
+                  -x OMPI_MCA_coll_hcoll_enable=0 \
+                  /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
                   ",
                 ]
               resources:
