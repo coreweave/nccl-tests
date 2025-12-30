@@ -64,17 +64,17 @@ the following components:
 CoreWeave
 also [publishes images](https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests)
 built from these Dockerfiles that can be used as base for your own images.  
-The images below include **NCCL v2.28.7-1**, **HPC-X v2.24.1**,
+The images below include **NCCL v2.29.2-1**, **HPC-X v2.24.1**,
 and **cuDNN v9.15.1.9-1**.  
 Each image is multi-arch, and can be used for both `linux/amd64` and `linux/arm64` containers.
 Compute capabilities up to Blackwell (10.0 & 12.0) are supported.
 
 | **Image Tag**                                                              | **Ubuntu** | **CUDA** |
 |----------------------------------------------------------------------------|------------|----------|
-| ghcr.io/coreweave/nccl-tests:13.0.1-devel-ubuntu22.04-nccl2.28.7-1-d70ae26 | 22.04      | 13.0.1   |
-| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.7-1-d70ae26 | 22.04      | 12.9.1   |
-| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.28.7-1-d70ae26 | 22.04      | 12.8.1   |
-| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.28.7-1-d70ae26 | 22.04      | 12.6.3   |
+| ghcr.io/coreweave/nccl-tests:13.0.1-devel-ubuntu22.04-nccl2.29.2-1-2ca8240 | 22.04      | 13.0.1   |
+| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.29.2-1-2ca8240 | 22.04      | 12.9.1   |
+| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.29.2-1-2ca8240 | 22.04      | 12.8.1   |
+| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.29.2-1-2ca8240 | 22.04      | 12.6.3   |
 
 ## Running NCCL Tests
 
