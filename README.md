@@ -94,13 +94,13 @@ user, simply execute an MPIJob manifest in your namespace.
 Example manifests are provided in the `mpi-operator/` directory. There you'll
 find the following examples of 64 GPU (8 node) runs:
 
-- [A40](./mpi-operator/nccl-test-distributed-a40-64-las1-mpijob.yaml)
-- [A100](./mpi-operator/nccl-test-distributed-a100-64-las1-mpijob.yaml)
-- [A100 with GDRCopy](./mpi-operator/nccl-test-distributed-a100-64-las1-gdrcopy-mpijob.yaml)
-- [A100 without Infiniband](./mpi-operator/nccl-test-distributed-a100-64-las1-no-ib-mpijob.yaml)
-- [A100 with SHARP](./mpi-operator/nccl-test-distributed-a100-64-las1-sharp-mpijob.yaml)
-- [H100](./mpi-operator/nccl-test-distributed-h100-64-las1-mpijob.yaml)
-- [H100 with SHARP](./mpi-operator/nccl-test-distributed-h100-64-las1-sharp-mpijob.yaml)
+- [A40](./mpi-operator/nccl-test-distributed-a40-64-mpijob.yaml)
+- [A100](./mpi-operator/nccl-test-distributed-a100-64-mpijob.yaml)
+- [A100 with GDRCopy](./mpi-operator/nccl-test-distributed-a100-64-gdrcopy-mpijob.yaml)
+- [A100 without Infiniband](./mpi-operator/nccl-test-distributed-a100-64-noib-mpijob.yaml)
+- [A100 with SHARP](./mpi-operator/nccl-test-distributed-a100-64-sharp-mpijob.yaml)
+- [H100](./mpi-operator/nccl-test-distributed-h100-64-mpijob.yaml)
+- [H100 with SHARP](./mpi-operator/nccl-test-distributed-h100-64-sharp-mpijob.yaml)
 - [GB200 NVL72](./mpi-operator/nccl-test-distributed-gb200-nvl72-mpijob.yaml)
 
 #### Running Jobs
@@ -109,7 +109,7 @@ To start the NCCL test, apply the sample manifest into your namespace with
 `kubectl`:
 
 ```bash
-$ kubectl apply -f nccl-test-distributed-h100-64-las1-sharp-mpijob.yaml
+$ kubectl apply -f nccl-test-distributed-h100-64-sharp-mpijob.yaml
 $ kubectl get pods
 nccl-test-64-launcher-lnnrw   1/1     Running   0          14s
 nccl-test-64-worker-0         1/1     Running   0          16s
