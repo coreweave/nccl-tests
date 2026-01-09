@@ -2,7 +2,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - Dockerfile.ubuntu22
+      - Dockerfile
       - .github/workflows/ubuntu-22.yml
       - .github/workflows/build.yml
 
@@ -17,7 +17,7 @@ jobs:
       BUILDKIT_CONSUMER_ARM64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
     with:
       folder: .
-      dockerfile: Dockerfile.ubuntu22
+      dockerfile: Dockerfile
       base-image: nvidia/cuda
       base-tag: 12.6.3-devel-ubuntu22.04
       cuda-version: "12.6.3"
@@ -34,7 +34,7 @@ jobs:
       BUILDKIT_CONSUMER_ARM64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
     with:
       folder: .
-      dockerfile: Dockerfile.ubuntu22
+      dockerfile: Dockerfile
       base-image: nvidia/cuda
       base-tag: 12.8.1-devel-ubuntu22.04
       cuda-version: "12.8.1"
@@ -51,7 +51,7 @@ jobs:
       BUILDKIT_CONSUMER_ARM64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
     with:
       folder: .
-      dockerfile: Dockerfile.ubuntu22
+      dockerfile: Dockerfile
       base-image: nvidia/cuda
       base-tag: 12.9.1-devel-ubuntu22.04
       cuda-version: "12.9.1"
@@ -68,7 +68,7 @@ jobs:
       BUILDKIT_CONSUMER_ARM64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
     with:
       folder: .
-      dockerfile: Dockerfile.ubuntu22
+      dockerfile: Dockerfile
       base-image: nvidia/cuda
       base-tag: 13.0.1-devel-ubuntu22.04
       cuda-version: "13.0.1"
@@ -85,7 +85,7 @@ jobs:
       BUILDKIT_CONSUMER_ARM64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
     with:
       folder: .
-      dockerfile: Dockerfile.ubuntu22
+      dockerfile: Dockerfile
       base-image: nvidia/cuda
       base-tag: 13.1.0-devel-ubuntu22.04
       cuda-version: "13.1.0"
