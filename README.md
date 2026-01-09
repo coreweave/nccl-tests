@@ -69,13 +69,23 @@ and **cuDNN v9.15.1.9-1**.
 Each image is multi-arch, and can be used for both `linux/amd64` and `linux/arm64` containers.
 Compute capabilities up to Blackwell (10.0 & 12.0) are supported.
 
-| **Image Tag**                                                              | **Ubuntu** | **CUDA** |
-|----------------------------------------------------------------------------|------------|----------|
-| ghcr.io/coreweave/nccl-tests:13.1.0-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 22.04      | 13.1.0   |
-| ghcr.io/coreweave/nccl-tests:13.0.1-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 22.04      | 13.0.1   |
-| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 22.04      | 12.9.1   |
-| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 22.04      | 12.8.1   |
-| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 22.04      | 12.6.3   |
+### Ubuntu 24.04
+
+| **Image Tag**                                                              | **CUDA** |
+|----------------------------------------------------------------------------|----------|
+| ghcr.io/coreweave/nccl-tests:13.1.0-devel-ubuntu24.04-nccl2.29.2-1-e940cb4 | 13.1.0   |
+| ghcr.io/coreweave/nccl-tests:13.0.1-devel-ubuntu24.04-nccl2.29.2-1-e940cb4 | 13.0.1   |
+| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu24.04-nccl2.29.2-1-e940cb4 | 12.9.1   |
+
+### Ubuntu 22.04
+
+| **Image Tag**                                                              | **CUDA** |
+|----------------------------------------------------------------------------|----------|
+| ghcr.io/coreweave/nccl-tests:13.1.0-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 13.1.0   |
+| ghcr.io/coreweave/nccl-tests:13.0.1-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 13.0.1   |
+| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 12.9.1   |
+| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 12.8.1   |
+| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.29.2-1-4e5aaa7 | 12.6.3   |
 
 ## Running NCCL Tests
 
