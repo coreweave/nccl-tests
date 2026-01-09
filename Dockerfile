@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-ARG CUDA_VERSION=13.0.1
-ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
+ARG CUDA_VERSION=13.1.0
+ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04
 FROM ${BASE_IMAGE} AS base
 
 ENV NV_CUDNN_VERSION='9.15.1.9-1'
@@ -41,7 +41,7 @@ RUN apt-get -qq update && \
 
 # Mellanox OFED (latest)
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
-RUN cd /etc/apt/sources.list.d/ && wget https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu22.04/mellanox_mlnx_ofed.list
+RUN cd /etc/apt/sources.list.d/ && . /etc/os-release && wget "https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu${VERSION_ID:?}/mellanox_mlnx_ofed.list"
 
 RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
@@ -141,11 +141,11 @@ RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
 FROM builder-base AS hpcx
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.24.1-gcc-doca_ofed-ubuntu22.04-cuda12"
+ARG HPCX_DISTRIBUTION="hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda12"
 RUN cd /tmp && \
     DIST_NAME="${HPCX_DISTRIBUTION}-$(uname -m)" && \
     HPCX_DIR="/opt/hpcx" && \
-    wget -q -O - "https://blobstore.object.ord1.coreweave.com/drivers/${DIST_NAME}.tbz" | tar xjf - && \
+    wget -q -O - "https://ml-dev.cwobject.com/ci/nccl-tests/${DIST_NAME}.tbz" | tar --no-same-owner -xjf - && \
     grep -IrlF "/build-result/${DIST_NAME}" "${DIST_NAME}" | xargs -rd'\n' sed -i -e "s:/build-result/${DIST_NAME}:${HPCX_DIR}:g" && \
     mv "${DIST_NAME}" "${HPCX_DIR}" && \
     rm -r /opt/hpcx/ompi

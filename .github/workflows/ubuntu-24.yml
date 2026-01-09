@@ -7,40 +7,6 @@ on:
       - .github/workflows/build.yml
 
 jobs:
-  cu126:
-    uses: ./.github/workflows/build.yml
-    secrets:
-      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
-      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
-      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
-      BUILDKIT_CONSUMER_AMD64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_AMD64_ENDPOINT }}
-      BUILDKIT_CONSUMER_ARM64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
-    with:
-      folder: .
-      dockerfile: Dockerfile
-      base-image: nvidia/cuda
-      base-tag: 12.6.3-devel-ubuntu22.04
-      cuda-version: "12.6.3"
-      nccl-version: 2.29.2-1
-      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu22.04-cuda12"
-
-  cu128:
-    uses: ./.github/workflows/build.yml
-    secrets:
-      ORG_BUILDKIT_CLIENT_TOKEN: ${{ secrets.ORG_BUILDKIT_CLIENT_TOKEN }}
-      BUILDKIT_CONSUMER_DOPPLER_PROJECT: ${{ secrets.BUILDKIT_CONSUMER_DOPPLER_PROJECT }}
-      BUILDKIT_CONSUMER_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ENDPOINT }}
-      BUILDKIT_CONSUMER_AMD64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_AMD64_ENDPOINT }}
-      BUILDKIT_CONSUMER_ARM64_ENDPOINT: ${{ secrets.BUILDKIT_CONSUMER_ARM64_ENDPOINT }}
-    with:
-      folder: .
-      dockerfile: Dockerfile
-      base-image: nvidia/cuda
-      base-tag: 12.8.1-devel-ubuntu22.04
-      cuda-version: "12.8.1"
-      nccl-version: 2.29.2-1
-      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu22.04-cuda12"
-
   cu129:
     uses: ./.github/workflows/build.yml
     secrets:
@@ -53,10 +19,10 @@ jobs:
       folder: .
       dockerfile: Dockerfile
       base-image: nvidia/cuda
-      base-tag: 12.9.1-devel-ubuntu22.04
+      base-tag: 12.9.1-devel-ubuntu24.04
       cuda-version: "12.9.1"
       nccl-version: 2.29.2-1
-      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu22.04-cuda12"
+      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda12"
 
   cu130:
     uses: ./.github/workflows/build.yml
@@ -70,10 +36,10 @@ jobs:
       folder: .
       dockerfile: Dockerfile
       base-image: nvidia/cuda
-      base-tag: 13.0.1-devel-ubuntu22.04
+      base-tag: 13.0.1-devel-ubuntu24.04
       cuda-version: "13.0.1"
       nccl-version: 2.29.2-1
-      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu22.04-cuda13"
+      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda13"
 
   cu131:
     uses: ./.github/workflows/build.yml
@@ -87,7 +53,7 @@ jobs:
       folder: .
       dockerfile: Dockerfile
       base-image: nvidia/cuda
-      base-tag: 13.1.0-devel-ubuntu22.04
+      base-tag: 13.1.0-devel-ubuntu24.04
       cuda-version: "13.1.0"
       nccl-version: 2.29.2-1
-      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu22.04-cuda13"
+      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda13"
