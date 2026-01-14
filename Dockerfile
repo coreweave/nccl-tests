@@ -34,7 +34,10 @@ RUN apt-get -qq update && \
         iputils-ping net-tools \
         libnuma1 libsubunit0 libpci-dev \
         libpmix-dev \
-        datacenter-gpu-manager \
+        "datacenter-gpu-manager-4-cuda${CUDA_VERSION%%.*}" \
+        "datacenter-gpu-manager-4-proprietary-cuda${CUDA_VERSION%%.*}" \
+        datacenter-gpu-manager-4-proprietary \
+        pci.ids usb.ids \
         git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
