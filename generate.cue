@@ -26,65 +26,49 @@ _gpu: gpus.gpus[gpu]
 _workers: scale div _gpu.gpusPerNode
 
 // Resolve image (override takes precedence, then GPU-specific, then default)
-_image: string
+_image: defaultImage
 if image != "" {
 	_image: image
 }
-if image == "" {
-	_image: defaultImage
-}
 
 // Generate job name (lowercase)
-_name: string
+_name: "nccl-test-\(scale)-\(strings.ToLower(_gpu.name))"
 if name != "" {
 	_name: name
-}
-if name == "" {
-	_name: "nccl-test-\(scale)-\(strings.ToLower(_gpu.name))"
 }
 
 // Build env var flags string from mpiEnv list
 _gpuEnvFlags: strings.Join([for k, v in _gpu.mpiEnv {"-x \(k)=\(v)"}], " \\\n  ")
 
 // Build gdrcopy env flags
-_gdrcopyEnvFlags: string
+_gdrcopyEnvFlags: string | *""
 if gdrcopy {
 	_gdrcopyEnvFlags: "-x NCCL_GDRCOPY_ENABLE=1 \\\n  -x NCCL_DEBUG=INFO \\\n  -x NCCL_DEBUG_SUBSYS=INIT"
 }
-if !gdrcopy {
-	_gdrcopyEnvFlags: ""
-}
 
 // Build sharp env flags (COLLNET + ALGO for H100)
-_sharpEnvFlags: string
-if sharp && gpu == "h100" {
-	_sharpEnvFlags: "-x NCCL_COLLNET_ENABLE=1 \\\n  -x NCCL_ALGO=COLLNETCHAIN"
-}
-if sharp && gpu != "h100" {
-	_sharpEnvFlags: "-x NCCL_COLLNET_ENABLE=1"
-}
-if !sharp {
-	_sharpEnvFlags: ""
+_sharpEnvFlags: string | *""
+if sharp {
+	if gpu == "h100" {
+		_sharpEnvFlags: "-x NCCL_COLLNET_ENABLE=1 \\\n  -x NCCL_ALGO=COLLNETCHAIN"
+	}
+	if gpu != "h100" {
+		_sharpEnvFlags: "-x NCCL_COLLNET_ENABLE=1"
+	}
 }
 
 // Combine all extra env flags
 _allExtraEnv: [for s in [_gpuEnvFlags, _gdrcopyEnvFlags, _sharpEnvFlags] if s != "" {s}]
 _extraEnvStr: strings.Join(_allExtraEnv, " \\\n  ")
-_extraEnv:    string
+_extraEnv:    string | *""
 if _extraEnvStr != "" {
 	_extraEnv: " \\\n  \(_extraEnvStr)"
 }
-if _extraEnvStr == "" {
-	_extraEnv: ""
-}
 
 // Determine IB HCA setting (eth0 when noib, else ibp)
-_ibHca: string
+_ibHca: string | *"ibp"
 if noib {
 	_ibHca: "eth0"
-}
-if !noib {
-	_ibHca: "ibp"
 }
 
 // Build UCX_NET_DEVICES part (only when has ibDevices and not noib and not gdrcopy)
@@ -97,10 +81,7 @@ if _gpu.ibDevices == "" || noib || gdrcopy {
 }
 
 // Build bind-to part (only when not gdrcopy)
-_bindPart: string
-if !gdrcopy {
-	_bindPart: " \\\n  -bind-to none"
-}
+_bindPart: string | *" \\\n  -bind-to none"
 if gdrcopy {
 	_bindPart: ""
 }
@@ -118,7 +99,10 @@ _launcherContainer: corev1.#Container & {
 	]
 	command: ["/bin/bash", "-c"]
 	args: [_mpirunArgs]
-	resources: requests: {cpu: "2", memory: "128Mi"}
+	resources: {
+		requests: {cpu: "2", memory: "128Mi"}
+		limits:   {cpu: "2", memory: "128Mi"}
+	}
 }
 
 // Determine if we should request IB resources (GPU supports IB and noib is not set)

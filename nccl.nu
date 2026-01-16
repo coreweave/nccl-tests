@@ -26,7 +26,7 @@ def generate_cue_file [node: record] {
     let mem_ki = $cap.memory | str replace "Ki" "" | into int
     let mem_gi = ($mem_ki / 1048576 | math floor)
     let ib_speed = $labels | get -o "ib.coreweave.cloud/speed" | default "0G"
-    let has_ib = $ib_speed != "0G" and $ib_speed != ""
+    let has_ib = $ib_speed != "0G"
     let config_name = $node_type | str replace "-" "_" --all
     # Detect IB devices from node labels (pattern: ib.coreweave.cloud/neighbors.current.ibp<N>.device)
     let ib_device_labels = ($labels | columns | where { |k| $k =~ 'ib.coreweave.cloud/neighbors.current.ibp\d+\.device' })
@@ -107,14 +107,14 @@ def "main sync" [
     print ($status | table)
 
     # Find missing configs
-    let missing = ($cluster_gpus | where { |t| $t not-in $cue_node_types })
+    let missing = ($cluster_gpus | where { |t| not ($t in $cue_node_types) })
 
     if ($missing | length) > 0 {
         print $"\n($missing | length) GPU type\(s\) in cluster without config:\n"
 
         for gpu_type in $missing {
             let create = (input $"Create config for ($gpu_type)? [Y/n] ")
-            if $create == "" or $create == "y" or $create == "Y" {
+            if ($create | str downcase) in ["", "y"] {
                 # Get node details
                 let node = (kubectl ...$kc get nodes -l $"node.coreweave.cloud/type=($gpu_type)" -o json
                     | from json
