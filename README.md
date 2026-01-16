@@ -113,6 +113,36 @@ find the following examples of 64 GPU (8 node) runs:
 - [H100](./mpi-operator/nccl-test-distributed-h100-64-mpijob.yaml)
 - [H100 with SHARP](./mpi-operator/nccl-test-distributed-h100-64-sharp-mpijob.yaml)
 - [GB200 NVL72](./mpi-operator/nccl-test-distributed-gb200-nvl72-mpijob.yaml)
+- [GB200 NVL72 Multi-rack](./mpi-operator/nccl-test-distributed-gb200-128-multirack-mpijob.yaml)
+
+#### Generating Custom Manifests
+
+For custom configurations, use `nccl.nu` to generate manifests dynamically.
+Requires [Nushell](https://www.nushell.sh/).
+
+```bash
+# Generate manifest for 64 H100 GPUs
+./nccl.nu generate --gpu h100 --scale 64
+
+# Generate with SHARP and multi-rack topology
+./nccl.nu generate --gpu h100 --scale 128 --sharp --multirack
+
+# Generate and apply directly to cluster
+./nccl.nu generate --gpu a100 --scale 64 --apply
+
+# Use custom container image
+./nccl.nu generate --gpu h100 --scale 64 --image ghcr.io/custom/image:tag
+```
+
+Available options:
+- `--gpu` - GPU type (a100, h100, a40, gb200, rtxp6000_8x)
+- `--scale` - Total GPU count (must be divisible by GPUs per node)
+- `--multirack` - Enable multi-rack topology spread constraints
+- `--noib` - Disable InfiniBand
+- `--gdrcopy` - Enable GDRCopy
+- `--sharp` - Enable SHARP/COLLNET
+- `--apply` - Apply manifest directly to cluster
+- `--image` - Override container image
 
 #### Running Jobs
 
