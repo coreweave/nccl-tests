@@ -1,7 +1,8 @@
 #!/bin/bash
 ###
 #SBATCH --job-name=nccl_test_allreduce
-#SBATCH --nodes=18
+#SBATCH --nodes=16
+#SBATCH --segment=16
 #SBATCH --ntasks-per-node=4
 #SBATCH --gpus-per-node=4
 #SBATCH --cpus-per-task=8
