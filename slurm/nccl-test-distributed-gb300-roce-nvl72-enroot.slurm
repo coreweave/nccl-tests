@@ -28,6 +28,7 @@ export NCCL_P2P_NET_CHUNKSIZE=524288
 export NCCL_NVLSTREE_MAX_CHUNKSIZE=262144
 export NCCL_NVLS_CHUNKSIZE=262144
 export NCCL_IB_ADDR_FAMILY=AF_INET6
+export NCCL_IB_ADDR_RANGE=fd02::/16
 export NCCL_IB_TC=96
 
 # Out Of Band is set to run over front-end ethernet.
