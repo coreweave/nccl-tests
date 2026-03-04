@@ -17,8 +17,11 @@
 # This variant uses RoCE networking with the Spectrum-X NCCL plugin.
 
 # Spectrum-X NCCL plugin
+# https://docs.nvidia.com/networking/display/hpcvx225/spectrum-x-nccl-plugin
+# Set to "spcx" for very large jobs (10k+ GPUs) where the plugin can improve performance.
+# For smaller jobs, "none" provides better performance.
 export LD_LIBRARY_PATH=/opt/hpcx/nccl_spectrum-x_plugin/lib:$LD_LIBRARY_PATH
-export NCCL_NET_PLUGIN=spcx
+export NCCL_NET_PLUGIN=none
 
 # RoCE / Spectrum-X tuning
 export NCCL_IB_NET_LATENCY=50
