@@ -17,8 +17,11 @@
 # This variant uses RoCE networking with the Spectrum-X NCCL plugin.
 
 # Spectrum-X NCCL plugin
+# https://docs.nvidia.com/networking/display/hpcvx225/spectrum-x-nccl-plugin
+# Set to "spcx" for very large jobs (10k+ GPUs) where the plugin can improve performance.
+# For smaller jobs, "none" provides better performance.
 export LD_LIBRARY_PATH=/opt/hpcx/nccl_spectrum-x_plugin/lib:$LD_LIBRARY_PATH
-export NCCL_NET_PLUGIN=spcx
+export NCCL_NET_PLUGIN=none
 
 # RoCE / Spectrum-X tuning
 export NCCL_IB_NET_LATENCY=50
@@ -28,6 +31,7 @@ export NCCL_P2P_NET_CHUNKSIZE=524288
 export NCCL_NVLSTREE_MAX_CHUNKSIZE=262144
 export NCCL_NVLS_CHUNKSIZE=262144
 export NCCL_IB_ADDR_FAMILY=AF_INET6
+export NCCL_IB_ADDR_RANGE=fd02::/16
 export NCCL_IB_TC=96
 
 # Out Of Band is set to run over front-end ethernet.
