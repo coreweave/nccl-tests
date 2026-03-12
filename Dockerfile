@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG CUDA_VERSION=13.1.0
+ARG CUDA_VERSION=13.1.1
 ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04
 FROM ${BASE_IMAGE} AS base
 
@@ -63,7 +63,7 @@ RUN apt-get -qq update && \
 
 FROM builder-base AS libnccl2
 # NCCL
-ARG TARGET_NCCL_VERSION='2.29.2-1'
+ARG TARGET_NCCL_VERSION='2.29.7-1'
 ARG CUDA_ARCH_LIST='80 89 90 100 120'
 # Converts CUDA_ARCH_LIST to '-gencode=arch=compute_XX,code=sm_XX -gencode=...' format with PTX for the last listed arch
 RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
@@ -144,7 +144,7 @@ RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
 FROM builder-base AS hpcx
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda12"
+ARG HPCX_DISTRIBUTION="hpcx-v2.26-gcc-doca_ofed-ubuntu24.04-cuda12"
 RUN cd /tmp && \
     DIST_NAME="${HPCX_DISTRIBUTION}-$(uname -m)" && \
     HPCX_DIR="/opt/hpcx" && \
