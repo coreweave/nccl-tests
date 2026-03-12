@@ -73,19 +73,19 @@ Compute capabilities up to Blackwell (10.0 & 12.0) are supported.
 
 | **Image Tag**                                                              | **CUDA** |
 |----------------------------------------------------------------------------|----------|
-| ghcr.io/coreweave/nccl-tests:13.1.1-devel-ubuntu24.04-nccl2.29.7-1-??????? | 13.1.1   |
-| ghcr.io/coreweave/nccl-tests:13.0.2-devel-ubuntu24.04-nccl2.29.7-1-??????? | 13.0.2   |
-| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu24.04-nccl2.29.7-1-??????? | 12.9.1   |
+| ghcr.io/coreweave/nccl-tests:13.1.1-devel-ubuntu24.04-nccl2.29.7-1-916b12d | 13.1.1   |
+| ghcr.io/coreweave/nccl-tests:13.0.2-devel-ubuntu24.04-nccl2.29.7-1-916b12d | 13.0.2   |
+| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu24.04-nccl2.29.7-1-916b12d | 12.9.1   |
 
 ### Ubuntu 22.04
 
 | **Image Tag**                                                              | **CUDA** |
 |----------------------------------------------------------------------------|----------|
-| ghcr.io/coreweave/nccl-tests:13.1.1-devel-ubuntu22.04-nccl2.29.7-1-??????? | 13.1.1   |
-| ghcr.io/coreweave/nccl-tests:13.0.2-devel-ubuntu22.04-nccl2.29.7-1-??????? | 13.0.2   |
-| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.29.7-1-??????? | 12.9.1   |
-| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.29.7-1-??????? | 12.8.1   |
-| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.29.7-1-??????? | 12.6.3   |
+| ghcr.io/coreweave/nccl-tests:13.1.1-devel-ubuntu22.04-nccl2.29.7-1-916b12d | 13.1.1   |
+| ghcr.io/coreweave/nccl-tests:13.0.2-devel-ubuntu22.04-nccl2.29.7-1-916b12d | 13.0.2   |
+| ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.29.7-1-916b12d | 12.9.1   |
+| ghcr.io/coreweave/nccl-tests:12.8.1-devel-ubuntu22.04-nccl2.29.7-1-916b12d | 12.8.1   |
+| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.29.7-1-916b12d | 12.6.3   |
 
 ## Running NCCL Tests
 
