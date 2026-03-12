@@ -21,8 +21,8 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 12.9.1-devel-ubuntu24.04
       cuda-version: "12.9.1"
-      nccl-version: 2.29.2-1
-      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda12"
+      nccl-version: 2.29.7-1
+      hpcx-distribution: "hpcx-v2.26-gcc-doca_ofed-ubuntu24.04-cuda12"
 
   cu130:
     uses: ./.github/workflows/build.yml
@@ -36,10 +36,10 @@ jobs:
       folder: .
       dockerfile: Dockerfile
       base-image: nvidia/cuda
-      base-tag: 13.0.1-devel-ubuntu24.04
-      cuda-version: "13.0.1"
-      nccl-version: 2.29.2-1
-      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda13"
+      base-tag: 13.0.2-devel-ubuntu24.04
+      cuda-version: "13.0.2"
+      nccl-version: 2.29.7-1
+      hpcx-distribution: "hpcx-v2.26-gcc-doca_ofed-ubuntu24.04-cuda13"
 
   cu131:
     uses: ./.github/workflows/build.yml
@@ -53,7 +53,7 @@ jobs:
       folder: .
       dockerfile: Dockerfile
       base-image: nvidia/cuda
-      base-tag: 13.1.0-devel-ubuntu24.04
-      cuda-version: "13.1.0"
-      nccl-version: 2.29.2-1
-      hpcx-distribution: "hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda13"
+      base-tag: 13.1.1-devel-ubuntu24.04
+      cuda-version: "13.1.1"
+      nccl-version: 2.29.7-1
+      hpcx-distribution: "hpcx-v2.26-gcc-doca_ofed-ubuntu24.04-cuda13"

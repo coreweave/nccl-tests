@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG CUDA_VERSION=13.1.0
+ARG CUDA_VERSION=13.1.1
 ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04
 FROM ${BASE_IMAGE} AS base
 
@@ -63,7 +63,7 @@ RUN apt-get -qq update && \
 
 FROM builder-base AS libnccl2
 # NCCL
-ARG TARGET_NCCL_VERSION='2.29.2-1'
+ARG TARGET_NCCL_VERSION='2.29.7-1'
 ARG CUDA_ARCH_LIST='80 89 90 100 120'
 # Converts CUDA_ARCH_LIST to '-gencode=arch=compute_XX,code=sm_XX -gencode=...' format with PTX for the last listed arch
 RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
@@ -144,21 +144,23 @@ RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
 FROM builder-base AS hpcx
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda12"
+ARG HPCX_DISTRIBUTION="hpcx-v2.26-gcc-doca_ofed-ubuntu24.04-cuda12"
 RUN cd /tmp && \
     DIST_NAME="${HPCX_DISTRIBUTION}-$(uname -m)" && \
     HPCX_DIR="/opt/hpcx" && \
     wget -q -O - "https://ml-dev.cwobject.com/ci/nccl-tests/${DIST_NAME}.tbz" | tar --no-same-owner -xjf - && \
     grep -IrlF "/build-result/${DIST_NAME}" "${DIST_NAME}" | xargs -rd'\n' sed -i -e "s:/build-result/${DIST_NAME}:${HPCX_DIR}:g" && \
     mv "${DIST_NAME}" "${HPCX_DIR}" && \
-    rm -r /opt/hpcx/ompi
+    rm -f /opt/hpcx/ompi && \
+    rm -rf /opt/hpcx/ompi4 /opt/hpcx/ompi5 && \
+    sed -i 's:{HPCX_DIR}/ompi[45]:{HPCX_DIR}/ompi:g' /opt/hpcx/hpcx-init.sh
 
 # Rebuild OpenMPI to support SLURM
 SHELL ["/bin/bash", "-c"]
 RUN source /opt/hpcx/hpcx-init.sh && \
     hpcx_load && \
     cd /opt/hpcx/sources && \
-    tar -xzf openmpi-gitclone.tar.gz && \
+    tar -xzf openmpi4-gitclone.tar.gz && \
     cd openmpi-gitclone && \
     ./configure -C --prefix=/opt/hpcx/ompi \
       --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
