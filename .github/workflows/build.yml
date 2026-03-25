@@ -21,6 +21,9 @@ on:
       nccl-version:
         required: true
         type: string
+      nccl-commit:
+        required: false
+        type: string
       hpcx-distribution:
         required: true
         type: string
@@ -100,6 +103,7 @@ jobs:
             BASE_IMAGE=${{ inputs.base-image }}:${{ inputs.base-tag }}
             CUDA_VERSION=${{ inputs.cuda-version }}
             TARGET_NCCL_VERSION=${{ inputs.nccl-version }}
+            NCCL_COMMIT=${{ inputs.nccl-commit }}
             HPCX_DISTRIBUTION=${{ inputs.hpcx-distribution }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}

@@ -64,6 +64,7 @@ RUN apt-get -qq update && \
 FROM builder-base AS libnccl2
 # NCCL
 ARG TARGET_NCCL_VERSION='2.30.0-1'
+ARG NCCL_COMMIT=''
 ARG CUDA_ARCH_LIST='80 89 90 100 120'
 # Converts CUDA_ARCH_LIST to '-gencode=arch=compute_XX,code=sm_XX -gencode=...' format with PTX for the last listed arch
 RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
@@ -76,7 +77,7 @@ RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
     BUILD_THREADS="$(echo "${NVCC_GENCODE}" | wc -w)" && \
     mkdir /tmp/build && \
     cd /tmp/build && \
-    wget -qO- "https://github.com/NVIDIA/nccl/archive/refs/tags/v${TARGET_NCCL_VERSION}.tar.gz" \
+    wget -qO- "https://github.com/NVIDIA/nccl/archive/${NCCL_COMMIT:-refs/tags/v${TARGET_NCCL_VERSION}}.tar.gz" \
     | tar --strip-components=1 -xzf - && \
     NVCC_APPEND_FLAGS="--threads=${BUILD_THREADS}" \
       make -j20 pkg.debian.build NVCC_GENCODE="${NVCC_GENCODE}" && \
