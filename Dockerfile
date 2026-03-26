@@ -65,15 +65,18 @@ FROM builder-base AS libnccl2
 # NCCL
 ARG TARGET_NCCL_VERSION='2.30.0-1'
 ARG NCCL_COMMIT=''
-ARG CUDA_ARCH_LIST='80 89 90 100 120'
+ARG CUDA_ARCH_LIST='80 89 90 100f 120'
 # Converts CUDA_ARCH_LIST to '-gencode=arch=compute_XX,code=sm_XX -gencode=...' format with PTX for the last listed arch
 RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
-      CUDA_ARCH_LIST="${CUDA_ARCH_LIST% 100 120}" ;; \
+      CUDA_ARCH_LIST="${CUDA_ARCH_LIST%% 100*}" ;; \
+    12.8.*) \
+      CUDA_ARCH_LIST="$(echo "${CUDA_ARCH_LIST}" | sed 's:100f:100/')" ;; \
     esac && \
     NVCC_GENCODE="$( \
     echo "${CUDA_ARCH_LIST}" | sed -e \
       's:\S\+:-gencode=arch=compute_\0,code=sm_\0:g; s:_[[:digit:]]\+$:\0 -gencode=arch=compute\0,code=compute\0:' \
     )" && \
+    printf "NVCC_GENCODE: %s\n" "${NVCC_GENCODE}" && \
     BUILD_THREADS="$(echo "${NVCC_GENCODE}" | wc -w)" && \
     mkdir /tmp/build && \
     cd /tmp/build && \
