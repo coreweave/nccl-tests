@@ -75,7 +75,7 @@ jobs:
           echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
       - name: Set tag prefix
         run: |
-          echo "TAG_PREFIX=${{ inputs.base-tag }}-nccl${{ inputs.nccl-version}}-" >> $GITHUB_ENV
+          echo "TAG_PREFIX=${{ inputs.base-tag }}-nccl${{ inputs.nccl-version}}-testing-" >> $GITHUB_ENV
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5.5.1

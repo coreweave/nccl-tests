@@ -144,7 +144,7 @@ RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
 FROM builder-base AS hpcx
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.26-gcc-doca_ofed-ubuntu24.04-cuda12"
+ARG HPCX_DISTRIBUTION="hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda12"
 RUN cd /tmp && \
     DIST_NAME="${HPCX_DISTRIBUTION}-$(uname -m)" && \
     HPCX_DIR="/opt/hpcx" && \
