@@ -145,23 +145,21 @@ RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
 FROM builder-base AS hpcx
 # HPC-X
 # grep + sed is used as a workaround to update hardcoded pkg-config / libtools archive / CMake prefixes
-ARG HPCX_DISTRIBUTION="hpcx-v2.26-gcc-doca_ofed-ubuntu24.04-cuda12"
+ARG HPCX_DISTRIBUTION="hpcx-v2.25.1-gcc-doca_ofed-ubuntu24.04-cuda12"
 RUN cd /tmp && \
     DIST_NAME="${HPCX_DISTRIBUTION}-$(uname -m)" && \
     HPCX_DIR="/opt/hpcx" && \
     wget -q -O - "https://ml-dev.cwobject.com/ci/nccl-tests/${DIST_NAME}.tbz" | tar --no-same-owner -xjf - && \
     grep -IrlF "/build-result/${DIST_NAME}" "${DIST_NAME}" | xargs -rd'\n' sed -i -e "s:/build-result/${DIST_NAME}:${HPCX_DIR}:g" && \
     mv "${DIST_NAME}" "${HPCX_DIR}" && \
-    rm -f /opt/hpcx/ompi && \
-    rm -rf /opt/hpcx/ompi4 /opt/hpcx/ompi5 && \
-    sed -i 's:{HPCX_DIR}/ompi[45]:{HPCX_DIR}/ompi:g' /opt/hpcx/hpcx-init.sh
+    rm -r /opt/hpcx/ompi
 
 # Rebuild OpenMPI to support SLURM
 SHELL ["/bin/bash", "-c"]
 RUN source /opt/hpcx/hpcx-init.sh && \
     hpcx_load && \
     cd /opt/hpcx/sources && \
-    tar -xzf openmpi4-gitclone.tar.gz && \
+    tar -xzf openmpi-gitclone.tar.gz && \
     cd openmpi-gitclone && \
     ./configure -C --prefix=/opt/hpcx/ompi \
       --with-hcoll=/opt/hpcx/hcoll --with-ucx=/opt/hpcx/ucx \
