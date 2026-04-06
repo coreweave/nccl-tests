@@ -15,6 +15,7 @@
 export NCCL_SOCKET_IFNAME=eth0
 export NCCL_IB_HCA=ibp
 export UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1
+export NCCL_NET_PLUGIN=none
 
 # Define nccl version we will test
 # See https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests for available tags.

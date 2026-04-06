@@ -31,6 +31,7 @@ spec:
                   -x NCCL_GDRCOPY_ENABLE=1 \
                   -x NCCL_DEBUG=INFO \
                   -x NCCL_DEBUG_SUBSYS=INIT \
+                  -x NCCL_NET_PLUGIN=none \
                   /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
                   ",
                 ]
