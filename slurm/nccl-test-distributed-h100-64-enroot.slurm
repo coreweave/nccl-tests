@@ -26,6 +26,7 @@ export UCX_TLS=tcp
 export UCX_NET_DEVICES=eth0
 export OMPI_MCA_coll_hcoll_enable=0
 export PMIX_MCA_gds='^ds12'
+export NCCL_NET_PLUGIN=none
 
 # Define nccl version we will test
 # See https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests for available tags.

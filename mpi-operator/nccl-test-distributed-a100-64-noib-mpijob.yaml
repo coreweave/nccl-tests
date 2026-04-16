@@ -30,6 +30,7 @@ spec:
                   -x LD_LIBRARY_PATH \
                   -x NCCL_SOCKET_IFNAME=eth0 \
                   -x NCCL_IB_HCA=eth0 \
+                  -x NCCL_NET_PLUGIN=none \
                   /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
                   ",
                 ]

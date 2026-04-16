@@ -30,6 +30,7 @@ export UCX_TLS=tcp
 export UCX_NET_DEVICES=eth0
 export OMPI_MCA_coll_hcoll_enable=0
 export PMIX_MCA_gds='^ds12'
+export NCCL_NET_PLUGIN=none
 
 # Log the assigned nodes
 echo "Using nodes: $SLURM_JOB_NODELIST"
