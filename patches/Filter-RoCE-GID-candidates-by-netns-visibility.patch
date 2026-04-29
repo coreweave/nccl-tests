@@ -1,24 +1,26 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: CoreWeave <>
-Date: Tue, 28 Apr 2026 19:21:41 -0500
-Subject: [PATCH] Filter RoCE GID candidates by netdev visibility
+Date: Tue, 28 Apr 2026 21:09:07 -0500
+Subject: [PATCH] Filter RoCE GID candidates by netns visibility
 
 Problem: In containerized deployments where /dev/infiniband is
 bind-mounted from the host while the pod retains its own network
 namespace, the libibverbs GID table can expose entries whose backing
 netdev belongs to a different netns. NCCL's auto-scan in
 ncclIbGetGidIndex previously filtered candidates only by address
-family, subnet, validity, and RoCE version - none of which detect this
-case. The selected GID survived selection and then failed at QP
+family, subnet, validity, and RoCE version - none of which detect
+this case. The selected GID survived selection and then failed at QP
 INIT->RTR with ENODEV ("ibv_modify_qp failed with 19 No such device"),
 because the kernel cannot resolve a source MAC for a GID whose netdev
 is not in the caller's netns.
 
 Solution: Read /sys/class/infiniband/<dev>/ports/<port>/gid_attrs/
-ndevs/<idx> to recover the netdev name, then verify visibility via
-/sys/class/net, which is netns-scoped. Filter both the seed and the
-candidate side of the scan. Abort with a descriptive WARN if no GID
-has a visible ndev.
+ndevs/<idx> to recover the netdev name, then call if_nametoindex()
+to resolve it through a socket in the caller's netns - the same
+lookup the kernel performs at QP RTR. A zero return (ENODEV) means
+the netdev is not in this netns and the GID is rejected. Filter both
+the seed and the candidate side of the scan. Abort with a descriptive
+WARN if no GID has a visible netdev.
 
 Gated behind NCCL_IB_GID_VISIBILITY_CHECK (default 1). The explicit
 NCCL_IB_GID_INDEX path is unchanged.
@@ -29,11 +31,11 @@ the GID as visible to preserve compatibility - so the check is
 best-effort, not strict. The IB (non-RoCE) selection path is also
 unchanged, since IB GIDs are not ndev-backed.
 ---
- src/transport/net_ib/connect.cc | 85 +++++++++++++++++++++++++++++++--
- 1 file changed, 80 insertions(+), 5 deletions(-)
+ src/transport/net_ib/connect.cc | 91 +++++++++++++++++++++++++++++++--
+ 1 file changed, 86 insertions(+), 5 deletions(-)
 
 diff --git a/src/transport/net_ib/connect.cc b/src/transport/net_ib/connect.cc
-index 8c61b67..cd71b2b 100644
+index 8c61b67..b70ff77 100644
 --- a/src/transport/net_ib/connect.cc
 +++ b/src/transport/net_ib/connect.cc
 @@ -12,6 +12,7 @@
@@ -44,16 +46,22 @@ index 8c61b67..cd71b2b 100644
  NCCL_PARAM(IbTimeout, "IB_TIMEOUT", 20);
  NCCL_PARAM(IbRetryCnt, "IB_RETRY_CNT", 7);
  NCCL_PARAM(IbPkey, "IB_PKEY", 0);
-@@ -255,6 +256,52 @@ static ncclResult_t ncclIbRoceGetVersionNum(const char* deviceName, int portNum,
+@@ -255,6 +256,59 @@ static ncclResult_t ncclIbRoceGetVersionNum(const char* deviceName, int portNum,
    return ncclSuccess;
  }
  
-+// Reports whether the netdev backing a given RoCE GID is visible in the
-+// caller's network namespace. /sys/class/infiniband/.../gid_attrs/ndevs/<idx>
-+// names the netdev; /sys/class/net is netns-scoped, so its presence there is
-+// the right visibility test from inside a container. If the kernel does not
-+// expose the ndev attribute file at all (older kernels, non-RoCE), we
-+// conservatively report visible to preserve compatibility.
++// Reports whether the netdev backing a given RoCE GID is in the caller's
++// network namespace. The netdev name is read from
++// /sys/class/infiniband/<dev>/ports/<port>/gid_attrs/ndevs/<idx>;
++// if_nametoindex() then resolves the name through a socket in the caller's
++// netns - the same lookup the kernel performs when transitioning a RoCE
++// QP to RTR. A zero return (ENODEV) means the netdev is not in this netns.
++//
++// When the kernel does not expose the ndev attribute file (older kernels,
++// non-RoCE), the GID is reported visible so bare-metal selection is
++// unaffected. Other I/O errors mark the GID invisible and log at INFO:
++// a single bad slot does not abort the scan, and if every slot is
++// invisible the caller raises a clear error.
 +static ncclResult_t ncclIbGetGidNdevVisible(const char* deviceName, int portNum, int gidIndex, int* visible) {
 +  *visible = 1;
 +  char ndevPath[PATH_MAX] = { 0 };
@@ -62,18 +70,21 @@ index 8c61b67..cd71b2b 100644
 +  int fd = open(ndevPath, O_RDONLY);
 +  if (fd == -1) {
 +    if (errno == ENOENT) return ncclSuccess;
-+    WARN("NET/IB: open failed in ncclIbGetGidNdevVisible: %s (%s)", strerror(errno), ndevPath);
-+    return ncclSystemError;
++    INFO(NCCL_NET, "NET/IB: open of %s failed (%s); treating GID %d as invisible",
++         ndevPath, strerror(errno), gidIndex);
++    *visible = 0;
++    return ncclSuccess;
 +  }
 +
-+  char ndevName[64] = { 0 };
++  char ndevName[IFNAMSIZ + 1] = { 0 };
 +  int ret = read(fd, ndevName, sizeof(ndevName) - 1);
 +  close(fd);
 +
 +  if (ret == -1) {
-+    if (errno == EINVAL) { *visible = 0; return ncclSuccess; }
-+    WARN("NET/IB: read failed in ncclIbGetGidNdevVisible: %s", strerror(errno));
-+    return ncclSystemError;
++    INFO(NCCL_NET, "NET/IB: read of %s failed (%s); treating GID %d as invisible",
++         ndevPath, strerror(errno), gidIndex);
++    *visible = 0;
++    return ncclSuccess;
 +  }
 +
 +  for (int i = 0; i < (int)sizeof(ndevName); i++) {
@@ -85,9 +96,7 @@ index 8c61b67..cd71b2b 100644
 +    return ncclSuccess;
 +  }
 +
-+  char netPath[PATH_MAX] = { 0 };
-+  snprintf(netPath, sizeof(netPath), "/sys/class/net/%s", ndevName);
-+  if (access(netPath, F_OK) != 0) {
++  if (if_nametoindex(ndevName) == 0) {
 +    *visible = 0;
 +  }
 +
@@ -97,7 +106,7 @@ index 8c61b67..cd71b2b 100644
  static ncclResult_t ncclUpdateGidIndex(struct ibv_context* context, uint8_t portNum, sa_family_t af, void* prefix, int prefixlen, int roceVer, int gidIndexCandidate, int* gidIndex) {
    union ibv_gid gid, gidCandidate;
    NCCLCHECK(wrap_ibv_query_gid(context, portNum, *gidIndex, &gid));
-@@ -264,16 +311,21 @@ static ncclResult_t ncclUpdateGidIndex(struct ibv_context* context, uint8_t port
+@@ -264,16 +318,21 @@ static ncclResult_t ncclUpdateGidIndex(struct ibv_context* context, uint8_t port
    sa_family_t gidFam = getGidAddrFamily(&gid);
    sa_family_t gidCandidateFam = getGidAddrFamily(&gidCandidate);
    bool gidCandidateMatchSubnet = matchGidAddrPrefix(usrFam, prefix, prefixlen, &gidCandidate);
@@ -122,17 +131,16 @@ index 8c61b67..cd71b2b 100644
      NCCLCHECK(ncclIbRoceGetVersionNum(deviceName, portNum, *gidIndex, &gidRoceVerNum));
      NCCLCHECK(ncclIbRoceGetVersionNum(deviceName, portNum, gidIndexCandidate, &gidRoceVerNumCandidate));
      if ((gidRoceVerNum != gidRoceVerNumCandidate || !validGid(&gid)) && gidRoceVerNumCandidate == usrRoceVer) {
-@@ -313,8 +365,31 @@ ncclResult_t ncclIbGetGidIndex(struct ibv_context *context, uint8_t portNum, str
+@@ -313,8 +372,30 @@ ncclResult_t ncclIbGetGidIndex(struct ibv_context *context, uint8_t portNum, str
    int prefixlen;
    void *prefix = envIbAddrRange(userAddrFamily, &prefixlen);
  
 -  *gidIndex = 0;
 -  for (int gidIndexNext = 1; gidIndexNext < gidTblLen; ++gidIndexNext) {
-+  // Seed gidIndex with the lowest index whose backing netdev is visible in
-+  // our network namespace. In containerized environments the verbs GID table
-+  // can include entries whose netdev lives in another netns; promoting such
-+  // a GID through the scan would survive selection and then fail later with
-+  // ENODEV at QP INIT->RTR. Filtering here prevents that.
++  // Choose a seed GID whose backing netdev lives in the caller's netns.
++  // The kernel rejects other GIDs at QP RTR with ENODEV. The promotion
++  // loop below only upgrades to a "better" candidate, so the seed itself
++  // must satisfy this constraint.
 +  int seed = 0;
 +  if (ncclParamIbGidVisibilityCheck()) {
 +    const char* deviceName = wrap_ibv_get_device_name(context->device);
