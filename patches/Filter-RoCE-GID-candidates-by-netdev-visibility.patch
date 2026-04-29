@@ -1,0 +1,161 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: CoreWeave <>
+Date: Tue, 28 Apr 2026 19:21:41 -0500
+Subject: [PATCH] Filter RoCE GID candidates by netdev visibility
+
+Problem: In containerized deployments where /dev/infiniband is
+bind-mounted from the host while the pod retains its own network
+namespace, the libibverbs GID table can expose entries whose backing
+netdev belongs to a different netns. NCCL's auto-scan in
+ncclIbGetGidIndex previously filtered candidates only by address
+family, subnet, validity, and RoCE version - none of which detect this
+case. The selected GID survived selection and then failed at QP
+INIT->RTR with ENODEV ("ibv_modify_qp failed with 19 No such device"),
+because the kernel cannot resolve a source MAC for a GID whose netdev
+is not in the caller's netns.
+
+Solution: Read /sys/class/infiniband/<dev>/ports/<port>/gid_attrs/
+ndevs/<idx> to recover the netdev name, then verify visibility via
+/sys/class/net, which is netns-scoped. Filter both the seed and the
+candidate side of the scan. Abort with a descriptive WARN if no GID
+has a visible ndev.
+
+Gated behind NCCL_IB_GID_VISIBILITY_CHECK (default 1). The explicit
+NCCL_IB_GID_INDEX path is unchanged.
+
+Limitations: When the kernel does not expose the ndev attribute file
+at all (older kernels, non-RoCE), the helper conservatively reports
+the GID as visible to preserve compatibility - so the check is
+best-effort, not strict. The IB (non-RoCE) selection path is also
+unchanged, since IB GIDs are not ndev-backed.
+---
+ src/transport/net_ib/connect.cc | 85 +++++++++++++++++++++++++++++++--
+ 1 file changed, 80 insertions(+), 5 deletions(-)
+
+diff --git a/src/transport/net_ib/connect.cc b/src/transport/net_ib/connect.cc
+index 8c61b67..cd71b2b 100644
+--- a/src/transport/net_ib/connect.cc
++++ b/src/transport/net_ib/connect.cc
+@@ -12,6 +12,7 @@
+ NCCL_PARAM(IbGidIndex, "IB_GID_INDEX", -1);
+ NCCL_PARAM(IbRoutableFlidIbGidIndex, "IB_ROUTABLE_FLID_GID_INDEX", 1);
+ NCCL_PARAM(IbRoceVersionNum, "IB_ROCE_VERSION_NUM", 2);
++NCCL_PARAM(IbGidVisibilityCheck, "IB_GID_VISIBILITY_CHECK", 1);
+ NCCL_PARAM(IbTimeout, "IB_TIMEOUT", 20);
+ NCCL_PARAM(IbRetryCnt, "IB_RETRY_CNT", 7);
+ NCCL_PARAM(IbPkey, "IB_PKEY", 0);
+@@ -255,6 +256,52 @@ static ncclResult_t ncclIbRoceGetVersionNum(const char* deviceName, int portNum,
+   return ncclSuccess;
+ }
+ 
++// Reports whether the netdev backing a given RoCE GID is visible in the
++// caller's network namespace. /sys/class/infiniband/.../gid_attrs/ndevs/<idx>
++// names the netdev; /sys/class/net is netns-scoped, so its presence there is
++// the right visibility test from inside a container. If the kernel does not
++// expose the ndev attribute file at all (older kernels, non-RoCE), we
++// conservatively report visible to preserve compatibility.
++static ncclResult_t ncclIbGetGidNdevVisible(const char* deviceName, int portNum, int gidIndex, int* visible) {
++  *visible = 1;
++  char ndevPath[PATH_MAX] = { 0 };
++  snprintf(ndevPath, sizeof(ndevPath), "/sys/class/infiniband/%s/ports/%d/gid_attrs/ndevs/%d", deviceName, portNum, gidIndex);
++
++  int fd = open(ndevPath, O_RDONLY);
++  if (fd == -1) {
++    if (errno == ENOENT) return ncclSuccess;
++    WARN("NET/IB: open failed in ncclIbGetGidNdevVisible: %s (%s)", strerror(errno), ndevPath);
++    return ncclSystemError;
++  }
++
++  char ndevName[64] = { 0 };
++  int ret = read(fd, ndevName, sizeof(ndevName) - 1);
++  close(fd);
++
++  if (ret == -1) {
++    if (errno == EINVAL) { *visible = 0; return ncclSuccess; }
++    WARN("NET/IB: read failed in ncclIbGetGidNdevVisible: %s", strerror(errno));
++    return ncclSystemError;
++  }
++
++  for (int i = 0; i < (int)sizeof(ndevName); i++) {
++    if (ndevName[i] == '\n' || ndevName[i] == '\r') { ndevName[i] = '\0'; break; }
++  }
++
++  if (strlen(ndevName) == 0) {
++    *visible = 0;
++    return ncclSuccess;
++  }
++
++  char netPath[PATH_MAX] = { 0 };
++  snprintf(netPath, sizeof(netPath), "/sys/class/net/%s", ndevName);
++  if (access(netPath, F_OK) != 0) {
++    *visible = 0;
++  }
++
++  return ncclSuccess;
++}
++
+ static ncclResult_t ncclUpdateGidIndex(struct ibv_context* context, uint8_t portNum, sa_family_t af, void* prefix, int prefixlen, int roceVer, int gidIndexCandidate, int* gidIndex) {
+   union ibv_gid gid, gidCandidate;
+   NCCLCHECK(wrap_ibv_query_gid(context, portNum, *gidIndex, &gid));
+@@ -264,16 +311,21 @@ static ncclResult_t ncclUpdateGidIndex(struct ibv_context* context, uint8_t port
+   sa_family_t gidFam = getGidAddrFamily(&gid);
+   sa_family_t gidCandidateFam = getGidAddrFamily(&gidCandidate);
+   bool gidCandidateMatchSubnet = matchGidAddrPrefix(usrFam, prefix, prefixlen, &gidCandidate);
++  const char* deviceName = wrap_ibv_get_device_name(context->device);
++
++  int candidateVisible = 1;
++  if (ncclParamIbGidVisibilityCheck()) {
++    NCCLCHECK(ncclIbGetGidNdevVisible(deviceName, portNum, gidIndexCandidate, &candidateVisible));
++  }
+ 
+-  if (gidCandidateFam != gidFam && gidCandidateFam == usrFam && gidCandidateMatchSubnet) {
++  if (gidCandidateFam != gidFam && gidCandidateFam == usrFam && gidCandidateMatchSubnet && candidateVisible) {
+     *gidIndex = gidIndexCandidate;
+   } else {
+-    if (gidCandidateFam != usrFam || !validGid(&gidCandidate) || !gidCandidateMatchSubnet) {
++    if (gidCandidateFam != usrFam || !validGid(&gidCandidate) || !gidCandidateMatchSubnet || !candidateVisible) {
+       return ncclSuccess;
+     }
+     int usrRoceVer = roceVer;
+     int gidRoceVerNum, gidRoceVerNumCandidate = -1;
+-    const char* deviceName = wrap_ibv_get_device_name(context->device);
+     NCCLCHECK(ncclIbRoceGetVersionNum(deviceName, portNum, *gidIndex, &gidRoceVerNum));
+     NCCLCHECK(ncclIbRoceGetVersionNum(deviceName, portNum, gidIndexCandidate, &gidRoceVerNumCandidate));
+     if ((gidRoceVerNum != gidRoceVerNumCandidate || !validGid(&gid)) && gidRoceVerNumCandidate == usrRoceVer) {
+@@ -313,8 +365,31 @@ ncclResult_t ncclIbGetGidIndex(struct ibv_context *context, uint8_t portNum, str
+   int prefixlen;
+   void *prefix = envIbAddrRange(userAddrFamily, &prefixlen);
+ 
+-  *gidIndex = 0;
+-  for (int gidIndexNext = 1; gidIndexNext < gidTblLen; ++gidIndexNext) {
++  // Seed gidIndex with the lowest index whose backing netdev is visible in
++  // our network namespace. In containerized environments the verbs GID table
++  // can include entries whose netdev lives in another netns; promoting such
++  // a GID through the scan would survive selection and then fail later with
++  // ENODEV at QP INIT->RTR. Filtering here prevents that.
++  int seed = 0;
++  if (ncclParamIbGidVisibilityCheck()) {
++    const char* deviceName = wrap_ibv_get_device_name(context->device);
++    seed = -1;
++    for (int idx = 0; idx < gidTblLen; ++idx) {
++      int visible = 1;
++      NCCLCHECK(ncclIbGetGidNdevVisible(deviceName, portNum, idx, &visible));
++      if (visible) { seed = idx; break; }
++    }
++    if (seed < 0) {
++      WARN("NET/IB: no GID with a visible backing netdev found on %s port %d (gid_tbl_len=%d). "
++           "If running in a container, ensure the RoCE netdev is exposed to the pod, "
++           "or set NCCL_IB_GID_INDEX explicitly, or set NCCL_IB_GID_VISIBILITY_CHECK=0 to disable this check.",
++           wrap_ibv_get_device_name(context->device), portNum, gidTblLen);
++      return ncclSystemError;
++    }
++  }
++
++  *gidIndex = seed;
++  for (int gidIndexNext = seed + 1; gidIndexNext < gidTblLen; ++gidIndexNext) {
+     NCCLCHECK(ncclUpdateGidIndex(context, portNum, userAddrFamily, prefix, prefixlen, userRoceVersion, gidIndexNext, gidIndex));
+   }
+ 
+-- 
+2.34.1
+

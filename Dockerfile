@@ -66,7 +66,8 @@ FROM builder-base AS libnccl2
 ARG TARGET_NCCL_VERSION='2.30.4-1'
 ARG CUDA_ARCH_LIST='80 89 90 100 120'
 # Converts CUDA_ARCH_LIST to '-gencode=arch=compute_XX,code=sm_XX -gencode=...' format with PTX for the last listed arch
-RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
+RUN --mount=type=bind,source=patches,target=/tmp/patches \
+    case "${CUDA_VERSION}" in 12.[0-7].*) \
       CUDA_ARCH_LIST="${CUDA_ARCH_LIST% 100 120}" ;; \
     esac && \
     NVCC_GENCODE="$( \
@@ -78,6 +79,7 @@ RUN case "${CUDA_VERSION}" in 12.[0-7].*) \
     cd /tmp/build && \
     wget -qO- "https://github.com/NVIDIA/nccl/archive/refs/tags/v${TARGET_NCCL_VERSION}.tar.gz" \
     | tar --strip-components=1 -xzf - && \
+    for p in /tmp/patches/*.patch; do git apply --verbose "$p"; done && \
     NVCC_APPEND_FLAGS="--threads=${BUILD_THREADS}" \
       make -j20 pkg.debian.build NVCC_GENCODE="${NVCC_GENCODE}" && \
     cd build/pkg/deb && \
