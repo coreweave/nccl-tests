@@ -1,7 +1,13 @@
+# NCCL all_reduce_perf on a standard 8-GPU HGX SKU over InfiniBand,
+# using SHARP in-network collectives.
+#
+# Applies to any non-NVL HGX node with 8 GPUs + IB on the backend on a
+# SHARP-enabled fabric. Replace the nodeSelector value with the SKU you
+# want to target, e.g. gd-8xh100ib-i128, gd-8xh200ib-i128, gd-8xb200ib-i128.
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-64-h100-8n
+  name: nccl-test-hgx-ib-sharp
 spec:
   slotsPerWorker: 8
   runPolicy:
@@ -12,17 +18,18 @@ spec:
       template:
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
                   value: "1"
                 - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
                   value: "1"
-              # Uncomment to be able to exec in to launcher pod for interactive testing
-              # command: [ 'sleep', '86400' ]
+              # Uncomment to be able to exec in to launcher pod for interactive testing.
+              # command: ['sleep', '86400']
               command: ["/bin/bash", "-c"]
-              # Can also try setting '-x NCCL_ALGO=NVLSTREE'
+              # NCCL_NET_PLUGIN is intentionally left unset here so NCCL
+              # picks up the SHARP plugin shipped in the image.
               args: [
                   "mpirun \
                   -np 64 \
@@ -30,11 +37,13 @@ spec:
                   -x LD_LIBRARY_PATH \
                   -x NCCL_SOCKET_IFNAME=eth0 \
                   -x NCCL_IB_HCA=ibp \
-                  -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1,ibp4:1,ibp5:1,ibp6:1,ibp7:1 \
+                  -x UCX_TLS=tcp \
+                  -x UCX_NET_DEVICES=eth0 \
+                  -x OMPI_MCA_coll_hcoll_enable=0 \
                   -x SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1 \
-                  -x NCCL_COLLNET_ENABLE=0 \
-                  -x NCCL_NET_PLUGIN=none \
-                  /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1 #-n 200 #-w 2 -n 20
+                  -x NCCL_ALGO=COLLNETCHAIN \
+                  -x NCCL_COLLNET_ENABLE=1 \
+                  /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
                   ",
                 ]
               resources:
@@ -49,7 +58,7 @@ spec:
             metadata.coreweave.cloud/job: nccl-test
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a
               name: nccl
               resources:
                 requests:
@@ -72,6 +81,7 @@ spec:
                       - key: node.coreweave.cloud/type
                         operator: In
                         values:
+                          # Replace with the SKU you want to target.
                           - gd-8xh100ib-i128
           volumes:
             - emptyDir:

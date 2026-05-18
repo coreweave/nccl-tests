@@ -104,17 +104,33 @@ CoreWeave provides a managed instance of the
 MPI Jobs in a container native fashion. No installation is required by the
 user, simply execute an MPIJob manifest in your namespace.
 
-Example manifests are provided in the `mpi-operator/` directory. There you'll
-find the following examples of 64 GPU (8 node) runs:
+Example manifests are provided in the `mpi-operator/` directory. They are
+grouped by the SKU family they apply to rather than a specific GPU model,
+so the same manifest works across the SKUs in each category. Replace the
+`node.coreweave.cloud/type` value with the SKU you want to target.
 
-- [A40](./mpi-operator/nccl-test-distributed-a40-64-mpijob.yaml)
-- [A100](./mpi-operator/nccl-test-distributed-a100-64-mpijob.yaml)
-- [A100 with GDRCopy](./mpi-operator/nccl-test-distributed-a100-64-gdrcopy-mpijob.yaml)
-- [A100 without Infiniband](./mpi-operator/nccl-test-distributed-a100-64-noib-mpijob.yaml)
-- [A100 with SHARP](./mpi-operator/nccl-test-distributed-a100-64-sharp-mpijob.yaml)
-- [H100](./mpi-operator/nccl-test-distributed-h100-64-mpijob.yaml)
-- [H100 with SHARP](./mpi-operator/nccl-test-distributed-h100-64-sharp-mpijob.yaml)
-- [GB200 NVL72](./mpi-operator/nccl-test-distributed-gb200-nvl72-mpijob.yaml)
+**HGX with InfiniBand** — standard 8-GPU HGX SKUs (e.g. gd-8xh100ib-i128,
+gd-8xh200ib-i128, gd-8xb200ib-i128). 64 GPU (8 node) runs.
+
+- [HGX with IB](./mpi-operator/nccl-test-hgx-ib-mpijob.yaml)
+- [HGX with IB and SHARP](./mpi-operator/nccl-test-hgx-ib-sharp-mpijob.yaml)
+
+**NVL with InfiniBand** — rack-scale NVL72-style SKUs (e.g. gb200-4x).
+72 GPU single-rack and 128 GPU multi-rack runs.
+
+- [NVL with IB (single rack)](./mpi-operator/nccl-test-nvl-ib-mpijob.yaml)
+- [NVL with IB (multi-rack)](./mpi-operator/nccl-test-nvl-ib-multirack-mpijob.yaml)
+
+**NVL with RoCE (Spectrum-X)** — rack-scale NVL72-style SKUs on RoCE
+(e.g. gb300-4x). 72 GPU single-rack and 128 GPU multi-rack runs.
+
+- [NVL with RoCE (single rack)](./mpi-operator/nccl-test-nvl-roce-mpijob.yaml)
+- [NVL with RoCE (single rack, DRA)](./mpi-operator/nccl-test-nvl-roce-dra-mpijob.yaml)
+- [NVL with RoCE (multi-rack)](./mpi-operator/nccl-test-nvl-roce-multirack-mpijob.yaml)
+- [NVL with RoCE (multi-rack, DRA)](./mpi-operator/nccl-test-nvl-roce-multirack-dra-mpijob.yaml)
+
+The `-dra` variants use Kubernetes DynamicResourceAllocation to allocate
+IMEX channels and require the DRA Driver for NVIDIA GPUs.
 
 #### Running Jobs
 
@@ -122,12 +138,12 @@ To start the NCCL test, apply the sample manifest into your namespace with
 `kubectl`:
 
 ```bash
-$ kubectl apply -f nccl-test-distributed-h100-64-sharp-mpijob.yaml
+$ kubectl apply -f nccl-test-hgx-ib-sharp-mpijob.yaml
 $ kubectl get pods
-nccl-test-64-launcher-lnnrw   1/1     Running   0          14s
-nccl-test-64-worker-0         1/1     Running   0          16s
-nccl-test-64-worker-1         1/1     Running   0          16s
-nccl-test-64-worker-10        1/1     Running   0          15s
+nccl-test-hgx-ib-sharp-launcher-lnnrw   1/1     Running   0          14s
+nccl-test-hgx-ib-sharp-worker-0         1/1     Running   0          16s
+nccl-test-hgx-ib-sharp-worker-1         1/1     Running   0          16s
+nccl-test-hgx-ib-sharp-worker-2         1/1     Running   0          15s
 ...
 $ kubectl logs -f -l=training.kubeflow.org/job-role=launcher
 # nThread 1 nGpus 1 minBytes 4 maxBytes 2147483648 step: 2(factor) warmup iters: 50 iters: 50 validation: 1 
@@ -156,15 +172,21 @@ terminating before starting a new job with the same name.
 CoreWeave provides a way to deploy a slurm cluster on top of our managed
 Kubernetes cluster using a tool called `sunk`.
 
-Example `SBATCH` scripts are provided in the `slurm/` directory. There you'll
-find the following examples of 64 GPU (8 node) runs:
+Example `SBATCH` scripts are provided in the `slurm/` directory. They are
+grouped by the SKU family they apply to rather than a specific GPU model,
+so the same script works across the SKUs in each category.
 
-- [A100 without enroot](./slurm/nccl-test-distributed-a100-64.slurm)
-- [A100 with enroot](./slurm/nccl-test-distributed-a100-64-enroot.slurm)
-- [H100 without enroot](./slurm/nccl-test-distributed-h100-64.slurm)
-- [H100 with enroot](./slurm/nccl-test-distributed-h100-64-enroot.slurm)
-- [H100 with enroot and SHARP](./slurm/nccl-test-distributed-h100-64-enroot-sharp.slurm)
-- [GB200 with enroot](./slurm/nccl-test-distributed-gb200-nvl72-enroot.slurm)
+**HGX with InfiniBand** — standard 8-GPU HGX SKUs (e.g. gd-8xh100ib-i128,
+gd-8xh200ib-i128, gd-8xb200ib-i128). 64 GPU (8 node) runs.
+
+- [HGX with IB](./slurm/nccl-test-hgx-ib.slurm) — uses bare-metal nccl-tests via `module load image-defaults`
+- [HGX with IB (enroot)](./slurm/nccl-test-hgx-ib-enroot.slurm) — runs the published container image via pyxis/enroot
+- [HGX with IB and SHARP (enroot)](./slurm/nccl-test-hgx-ib-enroot-sharp.slurm)
+
+**NVL** — rack-scale NVL72-style SKUs. 72 GPU single-rack runs.
+
+- [NVL with IB (enroot)](./slurm/nccl-test-nvl-ib-enroot.slurm) — gb200-4x and similar
+- [NVL with RoCE (enroot)](./slurm/nccl-test-nvl-roce-enroot.slurm) — gb300-4x and similar
 
 #### Running Jobs
 
@@ -178,14 +200,14 @@ To start the NCCL test, submit the job via `sbatch`:
 
 ```bash
 export PARTITION=<enter partition>
-sbatch --partition="$PARTITION" nccl-test-distributed-h100-64.slurm
+sbatch --partition="$PARTITION" nccl-test-hgx-ib.slurm
 ```
 
 You can also easily override the number of nodes the test will use. The following will use 4 nodes
 instead of 8:
 
 ```bash
-sbatch --partition="$PARTITION" -N 4 nccl-test-distributed-h100-64.slurm
+sbatch --partition="$PARTITION" -N 4 nccl-test-hgx-ib.slurm
 ```
 
 The logs will be written to `./nccl_test_jobID.out`.

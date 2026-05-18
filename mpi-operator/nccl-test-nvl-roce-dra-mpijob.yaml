@@ -1,10 +1,27 @@
-# This assumes you have a single NVL72 rack in your cluster.
-# If you have multiple, add an affinity to the workers for a specific rack/nvlink domain.
-# This variant uses RoCE networking with the Spectrum-X NCCL plugin.
+# NCCL all_reduce_perf on a rack-scale NVL system over RoCE (Spectrum-X),
+# using Kubernetes DynamicResourceAllocation (DRA) for IMEX channels.
+#
+# Assumes a single NVL72 rack. Requires the DRA Driver for NVIDIA GPUs
+# and a correctly provisioned GPU Operator. Applies to NVL72-style nodes
+# with 4 GPUs per node connected by an external NVLink switch and RoCE
+# on the backend (e.g., gb300-4x, gb300-4x-e). Use the non-DRA variant
+# if your cluster does not yet have the DRA driver.
+---
+apiVersion: resource.nvidia.com/v1beta1
+kind: ComputeDomain
+metadata:
+  name: nccl-test-nvl-roce-dra
+  namespace: default
+spec:
+  numNodes: 0
+  channel:
+    resourceClaimTemplate:
+      name: nccl-test-nvl-roce-dra-cd-channel
+---
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-72-gb300-18n
+  name: nccl-test-nvl-roce-dra
 spec:
   slotsPerWorker: 4
   runPolicy:
@@ -15,18 +32,18 @@ spec:
       template:
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:13.1.0-devel-ubuntu22.04-nccl2.29.2-1-0bf62c2
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
                   value: "1"
                 - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
                   value: "1"
-              # Uncomment to be able to exec in to launcher pod for interactive testing
+              # Uncomment to be able to exec in to launcher pod for interactive testing.
               # command: [ 'sleep', '86400' ]
               command: ["/bin/bash", "-c"]
-              # NCCL_NET_PLUGIN: set to "spcx" for very large jobs (10k+ GPUs),
-              # "none" provides better performance for smaller jobs.
+              # NCCL_NET_PLUGIN: switch to "spcx" for very large jobs (10k+ GPUs);
+              # "none" is the better choice for smaller jobs.
               # https://docs.nvidia.com/networking/display/hpcvx225/spectrum-x-nccl-plugin
               args: [
                   "mpirun \
@@ -113,7 +130,7 @@ spec:
               }]
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:13.1.0-devel-ubuntu22.04-nccl2.29.2-1-0bf62c2
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a
               name: nccl
               resources:
                 requests:
@@ -125,12 +142,25 @@ spec:
                   memory: 900Gi
                   nvidia.com/gpu: 4
                   rdma/ib: 1
+                claims:
+                  - name: compute-domain-channel
               volumeMounts:
                 - mountPath: /dev/shm
                   name: dshm
+          resourceClaims:
+            - name: compute-domain-channel
+              resourceClaimTemplateName: nccl-test-nvl-roce-dra-cd-channel
           affinity:
             podAffinity:
-              # This gives workers a preference to cluster together on the same rack
+              requiredDuringSchedulingIgnoredDuringExecution:
+                # Requires gpu-feature-discovery to set the label.
+                - topologyKey: nvidia.com/gpu.clique
+                  labelSelector:
+                    matchExpressions:
+                      - key: metadata.coreweave.cloud/job
+                        operator: In
+                        values: [nccl-test]
+              # Prefer to cluster all workers together on the same rack.
               preferredDuringSchedulingIgnoredDuringExecution:
                 - weight: 100
                   podAffinityTerm:
@@ -145,8 +175,10 @@ spec:
                       - key: node.coreweave.cloud/type
                         operator: In
                         values:
+                          # Replace with the SKU you want to target.
                           - gb300-4x
-                      # Uncomment and add a value if you want to target a specific NVL72 rack
+                          - gb300-4x-e
+                      # Uncomment and add a value if you want to target a specific NVL72 rack.
                       # - key: ds.coreweave.com/nvlink.domain
                       #   operator: In
                       #   values:

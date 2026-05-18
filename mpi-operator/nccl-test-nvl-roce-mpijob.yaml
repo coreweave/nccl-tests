@@ -1,13 +1,15 @@
-# This job spans 32 workers across 2 NVL72 racks with only 16 workers per rack.
-# Topology spread constraints encourage even distribution across exactly 2 zones.
-# To modify this for an even larger number of racks, increase the number of replicas, and set:
-# .spec.mpiReplicaSpecs.Worker.template.spec.topologySpreadConstraints[0].minDomains
-# To match the number of racks to use.
-# This variant uses RoCE networking with the Spectrum-X NCCL plugin.
+# NCCL all_reduce_perf on a rack-scale NVL system over RoCE (Spectrum-X).
+#
+# Assumes a single NVL72 rack. For multi-rack runs see the `-multirack`
+# variant; for the DRA-driven variant (Kubernetes DynamicResourceAllocation
+# for IMEX channels) see the `-dra` variant. Applies to NVL72-style nodes
+# with 4 GPUs per node connected by an external NVLink switch and RoCE on
+# the backend (e.g., gb300-4x). Use the `-ib` variant for the IB-backed
+# NVL SKUs.
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-128-gb300-32n
+  name: nccl-test-nvl-roce
 spec:
   slotsPerWorker: 4
   runPolicy:
@@ -18,18 +20,18 @@ spec:
       template:
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:13.1.0-devel-ubuntu22.04-nccl2.29.2-1-0bf62c2
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
                   value: "1"
                 - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
                   value: "1"
-              # Uncomment to be able to exec in to launcher pod for interactive testing
+              # Uncomment to be able to exec in to launcher pod for interactive testing.
               # command: [ 'sleep', '86400' ]
               command: ["/bin/bash", "-c"]
-              # NCCL_NET_PLUGIN: set to "spcx" for very large jobs (10k+ GPUs),
-              # "none" provides better performance for smaller jobs.
+              # NCCL_NET_PLUGIN: switch to "spcx" for very large jobs (10k+ GPUs);
+              # "none" is the better choice for smaller jobs.
               # https://docs.nvidia.com/networking/display/hpcvx225/spectrum-x-nccl-plugin
               args: [
                   "mpirun \
@@ -58,7 +60,7 @@ spec:
                   cpu: 2
                   memory: 128Mi
     Worker:
-      replicas: 32
+      replicas: 18
       template:
         metadata:
           labels:
@@ -115,20 +117,8 @@ spec:
                 "namespace": "cw-multus"
               }]
         spec:
-          topologySpreadConstraints:
-            # maxSkew 1 prevents uneven splits (like 18 nodes on one rack and 14 on the other)
-            # minDomains isn't strictly necessary here, but would be at larger scales
-            # to give a minimum desired rack count if an even split might be feasible
-            # on fewer racks (e.g., 144 replicas could be packed on 8 NVL72 racks instead of 9)
-            - maxSkew: 1
-              minDomains: 2
-              topologyKey: topology.kubernetes.io/zone
-              whenUnsatisfiable: DoNotSchedule
-              labelSelector:
-                matchLabels:
-                  metadata.coreweave.cloud/job: nccl-test
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:13.1.0-devel-ubuntu22.04-nccl2.29.2-1-0bf62c2
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a
               name: nccl
               resources:
                 requests:
@@ -145,9 +135,8 @@ spec:
                   name: dshm
           affinity:
             podAffinity:
+              # Prefer to cluster all workers together on the same rack.
               preferredDuringSchedulingIgnoredDuringExecution:
-                # This clusters workers onto the minimum number of racks possible,
-                # subject to the topologySpreadConstraints specified earlier
                 - weight: 100
                   podAffinityTerm:
                     labelSelector:
@@ -161,12 +150,12 @@ spec:
                       - key: node.coreweave.cloud/type
                         operator: In
                         values:
+                          # Replace with the SKU you want to target.
                           - gb300-4x
-                      # Uncomment and add values if you want to target a specific set of NVL72 racks
+                      # Uncomment and add a value if you want to target a specific NVL72 rack.
                       # - key: ds.coreweave.com/nvlink.domain
                       #   operator: In
                       #   values:
-                      #     - <NVLINK_DOMAIN>
                       #     - <NVLINK_DOMAIN>
           volumes:
             - emptyDir:

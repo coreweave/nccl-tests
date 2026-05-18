@@ -1,9 +1,17 @@
-# This assumes you have a single NVL72 rack in your cluster.
-# If you have multiple, add an affinity to the workers for a specific rack/nvlink domain.
+# NCCL all_reduce_perf spanning multiple NVL72 racks over InfiniBand.
+#
+# As written, this spans 32 workers across 2 NVL72 racks (16 per rack).
+# To grow the test, increase Worker.replicas and set
+# .spec.mpiReplicaSpecs.Worker.template.spec.topologySpreadConstraints[0].minDomains
+# to the number of racks you want to use.
+#
+# Applies to NVL72-style nodes with 4 GPUs per node connected by an
+# external NVLink switch and IB on the backend (e.g., gb200-4x).
+# Use the `-roce` variant for the RoCE-backed NVL SKUs.
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-72-gb200-18n
+  name: nccl-test-nvl-ib-multirack
 spec:
   slotsPerWorker: 4
   runPolicy:
@@ -14,17 +22,16 @@ spec:
       template:
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
                   value: "1"
                 - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
                   value: "1"
-              # Uncomment to be able to exec in to launcher pod for interactive testing
+              # Uncomment to be able to exec in to launcher pod for interactive testing.
               # command: [ 'sleep', '86400' ]
               command: ["/bin/bash", "-c"]
-              # Can also try setting '-x NCCL_ALGO=NVLSTREE'
               args: [
                   "mpirun \
                   -bind-to none \
@@ -48,14 +55,25 @@ spec:
                   cpu: 2
                   memory: 128Mi
     Worker:
-      replicas: 18
+      replicas: 32
       template:
         metadata:
           labels:
             metadata.coreweave.cloud/job: nccl-test
         spec:
+          topologySpreadConstraints:
+            # maxSkew 1 prevents uneven splits (e.g. 18 nodes on one rack and 14 on the other).
+            # minDomains pins the minimum desired rack count: bump it as you grow
+            # the replica count to keep workers spread across the intended racks.
+            - maxSkew: 1
+              minDomains: 2
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  metadata.coreweave.cloud/job: nccl-test
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a
               name: nccl
               resources:
                 requests:
@@ -72,8 +90,9 @@ spec:
                   name: dshm
           affinity:
             podAffinity:
-              # This gives workers a preference to cluster together on the same rack
               preferredDuringSchedulingIgnoredDuringExecution:
+                # Cluster workers onto the minimum number of racks possible,
+                # subject to the topologySpreadConstraints above.
                 - weight: 100
                   podAffinityTerm:
                     labelSelector:
@@ -87,11 +106,13 @@ spec:
                       - key: node.coreweave.cloud/type
                         operator: In
                         values:
+                          # Replace with the SKU you want to target.
                           - gb200-4x
-                      # Uncomment and add a value if you want to target a specific NVL72 rack
+                      # Uncomment and add values to target a specific set of NVL72 racks.
                       # - key: ds.coreweave.com/nvlink.domain
                       #   operator: In
                       #   values:
+                      #     - <NVLINK_DOMAIN>
                       #     - <NVLINK_DOMAIN>
           volumes:
             - emptyDir:

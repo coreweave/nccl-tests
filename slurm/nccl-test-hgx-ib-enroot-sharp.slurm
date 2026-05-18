@@ -1,41 +1,47 @@
 #!/bin/bash
 ###
-#SBATCH --job-name=nccl_test_allreduce
+# NCCL all_reduce_perf on a standard 8-GPU HGX SKU over InfiniBand,
+# using SHARP in-network collectives. Runs inside the published
+# nccl-tests container via pyxis/enroot.
+#
+# Applies to any non-NVL HGX node with 8 GPUs + IB on the backend
+# (e.g., gd-8xh100ib-i128, gd-8xh200ib-i128, gd-8xb200ib-i128) on a
+# SHARP-enabled fabric.
+###
+#SBATCH --job-name=nccl_test_allreduce_sharp
 #SBATCH --nodes=8
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128GB
 #SBATCH --time=20:00
-#SBATCH --output="%x_%j.out" # Use %x for job name and %j for slurm job ID in output file name
-#SBATCH --distribution=block:block # Better align ranks with numa affinities ( rank0-3 = numa0, rank4-7 = numa1 )
-#SBATCH --exclusive # Use --exclusive to ensure no other jobs run on the same nodes
+#SBATCH --output="%x_%j.out"
+#SBATCH --distribution=block:block # Align ranks with numa: rank0-3 = numa0, rank4-7 = numa1
+#SBATCH --exclusive
 
 # NCCL environment variables are documented at:
 # https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html
 # Out Of Band is set to run over front-end ethernet.
-# Backend is restricted to use ibp* interfaces to ensure it doesn't try to use any RoCE interfaces from the frontend.
-
+# Backend is restricted to ibp* to avoid the frontend's RoCE interfaces.
 export NCCL_SOCKET_IFNAME=eth0
 export NCCL_IB_HCA=ibp
 
-# Disable UCX
-# Restrict the transport layer for UCX, it tries to use all transports by default, this forces it on TCP. NCCL does not use UCX at all.
-# We explictly deactivate it to avoid initializing UCX by mistake as it can lead to crashes.
+# SHARP in-network collectives. NCCL_NET_PLUGIN is intentionally left
+# unset here so NCCL picks up the SHARP plugin shipped in the image.
+export NCCL_COLLNET_ENABLE=1
+export SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1
+
+# Disable UCX. NCCL does not use UCX; we restrict its transport to TCP
+# and point it at the frontend so a stray UCX init can't crash the job.
 export UCX_TLS=tcp
 export UCX_NET_DEVICES=eth0
 export OMPI_MCA_coll_hcoll_enable=0
 export PMIX_MCA_gds='^ds12'
-export NCCL_NET_PLUGIN=none
 
-# Define nccl version we will test
 # See https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests for available tags.
+nccl_version="12.9.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a"
 
-nccl_version="12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957"
-
-# Create a directory to store container images. You can change this
-# or use an existing directory below.
-
+# Container image cache on shared storage so we don't re-import per node.
 CONTAINER_DIR="$(realpath -s images)"
 mkdir -p "$CONTAINER_DIR"
 fstype="$(stat '-fc%T' "$CONTAINER_DIR")"
@@ -43,10 +49,6 @@ if [ "$fstype" != "nfs" ] ; then
   echo 'You must specify a container directory that is mounted on all cluster nodes.' >&2
   exit 1
 fi
-
-# Pull the container image, if not already pulled. For large parallel jobs, this
-# will save time by not hitting the repository from each task. This will
-# be executed once on the head node of the allocation.
 
 CONTAINER_IMAGE="${CONTAINER_DIR}/nccl_${nccl_version}.sqsh"
 if [ -f "$CONTAINER_IMAGE" ]; then
@@ -59,20 +61,15 @@ else
    fi
 fi
 
-# Log the assigned nodes
 echo "Using nodes: $SLURM_JOB_NODELIST"
 
-# When launching a pyxis job as a non-root user you need to use --no-container-remap-root and when launching as root
-# you need to use --container-remap-root. This is because the container is built with Ubuntu 22.04+ and is built to use PMIx.
-
+# The images are built with Ubuntu 22.04+ and use PMIx, so non-root users
+# need --no-container-remap-root and root users need --container-remap-root.
 if [ "$(whoami)" = "root" ]; then
   cflag="--container-remap-root"
 else
   cflag="--no-container-remap-root"
 fi
-
-# The srun command inherits the SBATCH flags set above
-# and will be launched once for each task (8 tasks on each of 8 nodes).
 
 srun --container-image="$CONTAINER_IMAGE" \
      --mpi=pmix "$cflag" --no-container-mount-home --kill-on-bad-exit=1 \

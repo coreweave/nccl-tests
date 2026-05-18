@@ -1,5 +1,16 @@
 #!/bin/bash
 ###
+# NCCL all_reduce_perf on a rack-scale NVL system over InfiniBand,
+# running inside the published nccl-tests container via pyxis/enroot.
+#
+# Applies to NVL72-style nodes with 4 GPUs per node connected by an
+# external NVLink switch and IB on the backend (e.g., gb200-4x).
+# Use the `-roce` variant for the RoCE-backed NVL SKUs.
+#
+# `--segment=16` keeps all ranks within a single NVLink domain so the
+# MNNVL transport stays inside one rack. Increase --nodes / --segment
+# proportionally for multi-rack tests.
+###
 #SBATCH --job-name=nccl_test_allreduce
 #SBATCH --nodes=16
 #SBATCH --segment=16
@@ -8,45 +19,37 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128GB
 #SBATCH --time=20:00
-#SBATCH --output="%x_%j.out" # Use %x for job name and %j for slurm job ID in output file name
-#SBATCH --distribution=block:block # Better align ranks with numa affinities ( rank0-1 = numa0, rank2-3 = numa1 )
-#SBATCH --exclusive # Use --exclusive to ensure no other jobs run on the same nodes
+#SBATCH --output="%x_%j.out"
+#SBATCH --distribution=block:block # Align ranks with numa: rank0-1 = numa0, rank2-3 = numa1
+#SBATCH --exclusive
 
 # NCCL environment variables are documented at:
 # https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html
 # Out Of Band is set to run over front-end ethernet.
-# Backend is restricted to use ibp* interfaces to ensure it doesn't try to use any RoCE interfaces from the frontend.
-
+# Backend is restricted to ibp* to avoid the frontend's RoCE interfaces.
 export NCCL_SOCKET_IFNAME=eth0
 export NCCL_IB_HCA=ibp
 
-# GB200 Specific Settings
-# Enforce GB200 best practices to fail clearly if GB200 is not correctly functioning
-# Do not fall back to shared memory transport if NVLINK is down.
-# Enforce CUMEM functionality for faster buffer registrations.
+# NVL rack-scale settings: fail fast if NVLink is down (no shared-memory
+# fallback) and enable CUMEM + MNNVL for the external NVSwitch path.
 export NVIDIA_IMEX_CHANNELS=0
 export NCCL_NET_GDR_C2C=1
 export NCCL_MNNVL_ENABLE=1
 export NCCL_CUMEM_ENABLE=1
 export NCCL_SHM_DISABLE=0
 
-# Disable UCX
-# Restrict the transport layer for UCX, it tries to use all transports by default, this forces it on TCP. NCCL does not use UCX at all.
-# We explictly deactivate it to avoid initializing UCX by mistake as it can lead to crashes.
+# Disable UCX. NCCL does not use UCX; we restrict its transport to TCP
+# and point it at the frontend so a stray UCX init can't crash the job.
 export UCX_TLS=tcp
 export UCX_NET_DEVICES=eth0
 export OMPI_MCA_coll_hcoll_enable=0
 export PMIX_MCA_gds='^ds12'
 export NCCL_NET_PLUGIN=none
 
-# Define nccl version we will test
 # See https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests for available tags.
+nccl_version="12.9.1-devel-ubuntu22.04-nccl2.30.4-1-111c25a"
 
-nccl_version="12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957"
-
-# Create a directory to store container images. You can change this
-# or use an existing directory below.
-
+# Container image cache on shared storage so we don't re-import per node.
 CONTAINER_DIR="$(realpath -s images)"
 mkdir -p "$CONTAINER_DIR"
 fstype="$(stat '-fc%T' "$CONTAINER_DIR")"
@@ -54,10 +57,6 @@ if [ "$fstype" != "nfs" ] ; then
   echo 'You must specify a container directory that is mounted on all cluster nodes.' >&2
   exit 1
 fi
-
-# Pull the container image, if not already pulled. For large parallel jobs, this
-# will save time by not hitting the repository from each task. This will
-# be executed once on the head node of the allocation.
 
 CONTAINER_IMAGE="${CONTAINER_DIR}/nccl_${nccl_version}.sqsh"
 if [ -f "$CONTAINER_IMAGE" ]; then
@@ -70,20 +69,15 @@ else
    fi
 fi
 
-# Log the assigned nodes
 echo "Using nodes: $SLURM_JOB_NODELIST"
 
-# When launching a pyxis job as a non-root user you need to use --no-container-remap-root and when launching as root
-# you need to use --container-remap-root. This is because the container is built with Ubuntu 22.04+ and is built to use PMIx.
-
+# The images are built with Ubuntu 22.04+ and use PMIx, so non-root users
+# need --no-container-remap-root and root users need --container-remap-root.
 if [ "$(whoami)" = "root" ]; then
   cflag="--container-remap-root"
 else
   cflag="--no-container-remap-root"
 fi
-
-# The srun command inherits the SBATCH flags set above
-# and will be launched once for each task.
 
 srun --container-image="$CONTAINER_IMAGE" \
      --mpi=pmix "$cflag" --no-container-mount-home --kill-on-bad-exit=1 \
