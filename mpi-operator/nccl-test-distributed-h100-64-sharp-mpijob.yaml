@@ -1,7 +1,7 @@
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-64-h100
+  name: nccl-test-64-h100-sharp-8n
 spec:
   slotsPerWorker: 8
   runPolicy:
