@@ -114,7 +114,17 @@ find the following examples of 64 GPU (8 node) runs:
 - [A100 with SHARP](./mpi-operator/nccl-test-distributed-a100-64-sharp-mpijob.yaml)
 - [H100](./mpi-operator/nccl-test-distributed-h100-64-mpijob.yaml)
 - [H100 with SHARP](./mpi-operator/nccl-test-distributed-h100-64-sharp-mpijob.yaml)
+- [B200](./mpi-operator/nccl-test-distributed-b200-64-mpijob.yaml)
+- [B200 with SHARP](./mpi-operator/nccl-test-distributed-b200-64-sharp-mpijob.yaml)
+- [B300](./mpi-operator/nccl-test-distributed-b300-64-mpijob.yaml)
+- [B300 with SHARP](./mpi-operator/nccl-test-distributed-b300-64-sharp-mpijob.yaml)
 - [GB200 NVL72](./mpi-operator/nccl-test-distributed-gb200-nvl72-mpijob.yaml)
+- [GB200 128 GPU multi-rack](./mpi-operator/nccl-test-distributed-gb200-128-multirack-mpijob.yaml)
+- [GB300 NVL72 (InfiniBand)](./mpi-operator/nccl-test-distributed-gb300-nvl72-mpijob.yaml)
+- [GB300 NVL72 (RoCE)](./mpi-operator/nccl-test-distributed-gb300-roce-nvl72-mpijob.yaml)
+- [GB300 NVL72 (RoCE, DRA)](./mpi-operator/nccl-test-distributed-gb300-roce-nvl72-mpijob-dra.yaml)
+- [GB300 128 GPU multi-rack (RoCE)](./mpi-operator/nccl-test-distributed-gb300-roce-128-multirack-mpijob.yaml)
+- [GB300 128 GPU multi-rack (RoCE, DRA)](./mpi-operator/nccl-test-distributed-gb300-roce-128-multirack-mpijob-dra.yaml)
 
 #### Running Jobs
 
@@ -164,7 +174,15 @@ find the following examples of 64 GPU (8 node) runs:
 - [H100 without enroot](./slurm/nccl-test-distributed-h100-64.slurm)
 - [H100 with enroot](./slurm/nccl-test-distributed-h100-64-enroot.slurm)
 - [H100 with enroot and SHARP](./slurm/nccl-test-distributed-h100-64-enroot-sharp.slurm)
-- [GB200 with enroot](./slurm/nccl-test-distributed-gb200-nvl72-enroot.slurm)
+- [B200 without enroot](./slurm/nccl-test-distributed-b200-64.slurm)
+- [B200 with enroot](./slurm/nccl-test-distributed-b200-64-enroot.slurm)
+- [B200 with enroot and SHARP](./slurm/nccl-test-distributed-b200-64-enroot-sharp.slurm)
+- [B300 without enroot](./slurm/nccl-test-distributed-b300-64.slurm)
+- [B300 with enroot](./slurm/nccl-test-distributed-b300-64-enroot.slurm)
+- [B300 with enroot and SHARP](./slurm/nccl-test-distributed-b300-64-enroot-sharp.slurm)
+- [GB200 NVL72 with enroot](./slurm/nccl-test-distributed-gb200-nvl72-enroot.slurm)
+- [GB300 NVL72 (InfiniBand) with enroot](./slurm/nccl-test-distributed-gb300-nvl72-enroot.slurm)
+- [GB300 NVL72 (RoCE) with enroot](./slurm/nccl-test-distributed-gb300-roce-nvl72-enroot.slurm)
 
 #### Running Jobs
 
