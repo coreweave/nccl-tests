@@ -41,6 +41,8 @@ jobs:
     name: Building ${{ inputs.dockerfile }}
     runs-on: [cw]
     container: 'ghcr.io/coreweave/github-actions-images/github-base-runner:v1.6.0'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
     defaults:
       run:
         shell: bash
@@ -125,3 +127,54 @@ jobs:
             ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
             Image: `${{ steps.meta.outputs.tags }}`
+  test:
+    name: Testing ${{ inputs.dockerfile }}
+    needs: build
+    # GPU-labeled node in the same self-hosted pool as `build`.
+    # TODO: confirm this matches the actual 8xH200 runner label.
+    runs-on: [cw]
+    container:
+      image: ${{ needs.build.outputs.image-tag }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      # --gpus all: expose all GPUs. NCCL's intra-node SHM transport needs more
+      # than Docker's default 64MB /dev/shm, and pinned-memory registration
+      # needs an unlimited memlock ulimit.
+      options: --gpus all --shm-size=1g --ulimit memlock=-1:-1
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # TODO: Add some checker for cuda version to install (or verify we want 12.9)
+      - uses: actions/checkout@v4
+        name: Run NCCL test harness
+        with:
+         fetch-depth: 1
+         repository: coreweave/nccl_ci_harness
+         run: |
+          # install git, python and pip, no-op'ing if already installed
+          apt update -qq && apt install -y -qq python3-pip git
+          
+          # pip install pytest and torch to run the tests
+          python3 -m pip install pytest
+          
+          pip install torch --index-url https://download.pytorch.org/whl/cu129
+ 
+          python3 -m pytest test_plugin.py::test_plugin \
+            -s \
+            -v \
+            --cpus-per-task=16 \
+            --nodes=1 \
+            --gpus-per-node=8
+          
+          python3 -m pytest test_nccl_perf.py::test_nccl_perf \
+            -s \
+            -v \
+            --cpus-per-task=16 \
+            --nodes=1 \
+            --gpus-per-node=8 
+           
+          
+          
+          
