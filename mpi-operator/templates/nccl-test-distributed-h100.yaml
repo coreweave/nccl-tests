@@ -1,0 +1,118 @@
+apiVersion: kubeflow.org/v2beta1
+kind: MPIJob
+metadata:
+  name: nccl-test-hgx
+spec:
+  slotsPerWorker: &gpus-per-worker 8
+  runPolicy:
+    cleanPodPolicy: Running
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+        spec:
+          serviceAccountName: hpc-verification-hpc-sa
+          initContainers:
+            - name: wait-for-workers
+              image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+              env:
+                - name: WORKERS
+                  value: &worker-count 8
+                - name: THREADS
+                  value: "16"
+              command:
+                - bash
+                - -c
+                - |
+                  timeout 300 python3 /opt/nccl-tests/wait_for_workers.py \
+                    || { echo "job timed out"; exit 1; } \
+                    && { echo "all pods are ready"; exit 0; }
+              volumeMounts:
+                - mountPath: /etc/mpi
+                  name: mpi-job-config
+                - mountPath: /root/.ssh
+                  name: ssh-auth
+          tolerations:
+            - effect: NoSchedule
+              operator: Exists
+              key: node.coreweave.cloud/reserved
+          containers:
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+              name: nccl
+              env:
+                - name: OMPI_ALLOW_RUN_AS_ROOT
+                  value: "1"
+                - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
+                  value: "1"
+                - name: WORKERS
+                  value: *worker-count
+                - name: GPUS
+                  value: *gpus-per-worker
+                - name: NAMESPACE # this is used to look up the pods
+                  valueFrom:
+                    fieldRef:
+                      apiVersion: v1
+                      fieldPath: metadata.namespace
+              # Uncomment to be able to exec in to launcher pod for interactive testing
+              # command: [ 'sleep', '86400' ]
+              command: ["/bin/bash", "-c"]
+              # Run manually from the launcher pod:
+              #   python3 /opt/nccl-tests/run_test.py --profile h100-ib
+              #   python3 /opt/nccl-tests/run_test.py --profile h100-sharp
+              args: [
+                  "sleep 86400",
+                ]
+              resources:
+                requests:
+                  cpu: 16
+                  memory: 16Gi
+    Worker:
+      replicas: *worker-count
+      template:
+        metadata:
+          labels:
+            metadata.coreweave.cloud/job: nccl-test
+          annotations:
+            "k8s.v1.cni.cncf.io/networks": "[{\n  \"name\": \"ibs0p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n}]"
+        spec:
+          containers:
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+              name: nccl
+              securityContext:
+                privileged: true
+              resources:
+                requests:
+                  cpu: 110
+                  memory: 960Gi
+                  nvidia.com/gpu: *gpus-per-worker
+                  rdma/ib: 1
+                limits:
+                  memory: 960Gi
+                  nvidia.com/gpu: *gpus-per-worker
+                  rdma/ib: 1
+              volumeMounts:
+                - mountPath: /dev/shm
+                  name: dshm
+                - name: ib-counters
+                  mountPath: /sys/class/infiniband
+                  readOnly: true
+                - name: sys-devices
+                  mountPath: /sys/devices
+                  readOnly: true
+          tolerations:
+            - key: is_gpu
+              operator: Exists
+            - effect: NoExecute
+              operator: Exists
+#            - effect: NoSchedule
+#              operator: Exists
+          volumes:
+            - emptyDir:
+                medium: Memory
+              name: dshm
+            - name: ib-counters
+              hostPath:
+                path: /sys/class/infiniband
+            - name: sys-devices
+              hostPath:
+                path: /sys/devices

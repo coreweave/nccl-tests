@@ -282,6 +282,10 @@ RUN wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMI
     make -j20 MPI=1 && \
     ln -s /opt/nccl-tests /opt/nccl_tests
 
+ADD run_test.py /opt/nccl-tests/run_test.py
+ADD wait_for_workers.py /opt/nccl-tests/wait_for_workers.py
+RUN chmod 755 /opt/nccl-tests/run_test.py /opt/nccl-tests/wait_for_workers.py
+
 RUN ldconfig
 
 # SSH dependencies for MPI
