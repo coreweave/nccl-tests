@@ -35,6 +35,8 @@ on:
         required: true
       BUILDKIT_CONSUMER_ARM64_ENDPOINT:
         required: true
+      NCCL_CI_HARNESS_READ_TOKEN:
+        required: true
 
 jobs:
   build:
