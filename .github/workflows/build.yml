@@ -155,14 +155,13 @@ jobs:
          fetch-depth: 1
          repository: coreweave/nccl_ci_harness
          ref: dev
+         token: ${{ secrets.GITHUB_TOKEN }}
          run: |
           # install git, python and pip, no-op'ing if already installed
           apt update -qq && apt install -y -qq python3-pip git
            
           _cuda_vers=$(nvidia-smi | sed -En 's#.*CUDA Version: ([0-9.]+).*#\1#p')
           cuda_vers=${_cuda_vers//./}
-          # TODO: Don't do this here. Have nccl_ci_harness's setup.py handle this or something
-          cd /mnt/home/ssteel/nccl_ci_harness
            
           pip install pytest
           pip install torch --index-url "https://download.pytorch.org/whl/cu${cuda_vers}"
