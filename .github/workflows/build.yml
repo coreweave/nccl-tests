@@ -155,7 +155,7 @@ jobs:
          fetch-depth: 1
          repository: coreweave/nccl_ci_harness
          ref: dev
-         token: ${{ secrets.GITHUB_TOKEN }}
+         token: ${{ secrets.NCCL_CI_HARNESS_READ_TOKEN }}
          run: |
           # install git, python and pip, no-op'ing if already installed
           apt update -qq && apt install -y -qq python3-pip git
