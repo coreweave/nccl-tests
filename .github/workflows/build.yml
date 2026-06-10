@@ -149,37 +149,34 @@ jobs:
       # TODO: Add some checker for cuda version to install (or verify we want 12.9)
       # TODO: Install pytest and torch from the repo's requirements.txt file once the correct version is formalized
       # TODO: Need to ensure the equivalent of --cpus-per-task=16 applies to the runner here to pass these tests
-      - uses: actions/checkout@v4
-        name: Run NCCL test harness
+      - name: Check out NCCL test harness
+        uses: actions/checkout@v4
         with:
-         fetch-depth: 1
-         repository: coreweave/nccl_ci_harness
-         ref: dev
-         token: ${{ secrets.NCCL_CI_HARNESS_READ_TOKEN }}
-         run: |
+          fetch-depth: 1
+          repository: coreweave/nccl_ci_harness
+          ref: dev
+          token: ${{ secrets.NCCL_CI_HARNESS_READ_TOKEN }}
+      - name: Run NCCL test harness
+        run: |
           # install git, python and pip, no-op'ing if already installed
           apt update -qq && apt install -y -qq python3-pip git
-           
+
           _cuda_vers=$(nvidia-smi | sed -En 's#.*CUDA Version: ([0-9.]+).*#\1#p')
           cuda_vers=${_cuda_vers//./}
-           
+
           pip install pytest
           pip install torch --index-url "https://download.pytorch.org/whl/cu${cuda_vers}"
-           
+
           python3 -m pytest test_plugin.py \
             -s \
             -v \
             --cpus-per-task=16 \
             --nodes=1 \
             --gpus-per-node=8
-          
+
           python3 -m pytest test_nccl_perf.py \
             -s \
             -v \
             --cpus-per-task=16 \
             --nodes=1 \
-            --gpus-per-node=8 
-           
-          
-          
-          
+            --gpus-per-node=8
