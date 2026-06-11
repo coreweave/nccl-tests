@@ -160,6 +160,22 @@ jobs:
           repository: coreweave/nccl_ci_harness
           ref: dev
           token: ${{ secrets.NCCL_CI_HARNESS_READ_TOKEN }}
+      - name: Prepare remote GHCR creds
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ssh nccl-gha-runner@166.19.50.5 "bash -s" <<EOF
+          set -euo pipefail
+          install -d -m 700 /mnt/home/nccl-gha-runner/.config/enroot
+          cat > /mnt/home/nccl-gha-runner/.config/enroot/.credentials <<CREDS
+          machine ghcr.io
+          login ${GHCR_USER}
+          password ${GHCR_TOKEN}
+          CREDS
+          chmod 600 /mnt/home/nccl-gha-runner/.config/enroot/.credentials
+          EOF
       - name: Run NCCL test harness
         env:
           # Pass the secret via env (NOT inline ${{ }}): keeps the multi-line key
@@ -207,3 +223,9 @@ jobs:
             --nodes=1 \
             --break-system-packages \
             --gpus-per-node=8
+      - name: Clear remote GHCR creds
+        if: always()
+        run: |
+          ssh nccl-gha-runner@166.19.50.5 '
+            rm -f /mnt/home/nccl-gha-runner/.config/enroot/.credentials
+          '
