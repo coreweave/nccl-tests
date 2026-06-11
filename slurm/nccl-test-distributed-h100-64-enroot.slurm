@@ -31,7 +31,7 @@ export NCCL_NET_PLUGIN=none
 # Define nccl version we will test
 # See https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests for available tags.
 
-nccl_version="12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957"
+nccl_version="13.2.1-devel-ubuntu22.04-nccl2.30.4-1-2eedd7c"
 
 # Create a directory to store container images. You can change this
 # or use an existing directory below.
