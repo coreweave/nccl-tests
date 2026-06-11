@@ -37,6 +37,8 @@ on:
         required: true
       NCCL_CI_HARNESS_READ_TOKEN:
         required: true
+      RUNNER_MLDEV_SSH_KEY:
+        required: true
 
 jobs:
   build:
@@ -159,26 +161,46 @@ jobs:
           ref: dev
           token: ${{ secrets.NCCL_CI_HARNESS_READ_TOKEN }}
       - name: Run NCCL test harness
+        env:
+          # Pass the secret via env (NOT inline ${{ }}): keeps the multi-line key
+          # out of the script body and lets GitHub mask it in logs.
+          RUNNER_MLDEV_SSH_KEY: ${{ secrets.RUNNER_MLDEV_SSH_KEY }}
         run: |
-          # install git, python and pip, no-op'ing if already installed
-          apt update -qq && apt install -y -qq python3-pip git
-
-          _cuda_vers=$(nvidia-smi | sed -En 's#.*CUDA Version: ([0-9.]+).*#\1#p')
-          cuda_vers=${_cuda_vers//./}
+          # install git, python, pip and ssh client, no-op'ing if already installed
+          apt update -qq && apt install -y -qq python3-pip git openssh-client
 
           pip install pytest
-          pip install torch --index-url "https://download.pytorch.org/whl/cu${cuda_vers}"
+
+          # --- load the SSH key into an agent so `ssh -A` can forward it ---
+          # The key is read from stdin straight into the agent: never written to
+          # disk, never echoed. Output is suppressed so the key's comment isn't logged.
+          eval "$(ssh-agent -s)" >/dev/null
+          printf '%s\n' "$RUNNER_MLDEV_SSH_KEY" | ssh-add - >/dev/null 2>&1
 
           python3 -m pytest test_plugin.py \
             -s \
             -v \
+            --slurm \
+            --ssh-hostname=166.19.50.5 \
+            --ssh-user=nccl-gha-runner \
+            --container-mounts=/mnt/home/ssteel:/mnt/home/ssteel \
+            --container-image=/mnt/home/ssteel/pytorch212-cuda126-cudnn9-devel.sqsh \
+            --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
+            --break-system-packages \
             --gpus-per-node=8
 
           python3 -m pytest test_nccl_perf.py \
             -s \
             -v \
+            --slurm \
+            --ssh-hostname=166.19.50.5 \
+            --ssh-user=nccl-gha-runner \
+            --container-mounts=/mnt/home/ssteel:/mnt/home/ssteel \
+            --container-image=/mnt/home/ssteel/pytorch212-cuda126-cudnn9-devel.sqsh \
+            --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
+            --break-system-packages \
             --gpus-per-node=8
