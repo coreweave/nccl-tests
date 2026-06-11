@@ -176,23 +176,20 @@ jobs:
           install -m 600 /dev/null ~/.ssh/nccl_gha_runner_key
           printf '%s\n' "$RUNNER_MLDEV_SSH_KEY" > ~/.ssh/nccl_gha_runner_key
           trap 'rm -f ~/.ssh/nccl_gha_runner_key' EXIT
-
-          export GIT_SSH_COMMAND='ssh -i ~/.ssh/nccl_gha_runner_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes'
       
           ssh -i ~/.ssh/nccl_gha_runner_key \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new \
             -o BatchMode=yes \
-            nccl-gha-runner@166.19.50.5 "bash -s" <<EOF
-set -euo pipefail
-install -d -m 700 /mnt/home/nccl-gha-runner/.config/enroot
-cat > /mnt/home/nccl-gha-runner/.config/enroot/.credentials <<CREDS
-machine ghcr.io
-login ${GHCR_USER}
-password ${GHCR_TOKEN}
-CREDS
-chmod 600 /mnt/home/nccl-gha-runner/.config/enroot/.credentials
-EOF
+            nccl-gha-runner@166.19.50.5 \
+            "set -euo pipefail; \
+             install -d -m 700 /mnt/home/nccl-gha-runner/.config/enroot; \
+             printf '%s\n' \
+               'machine ghcr.io' \
+               'login ${GHCR_USER}' \
+               'password ${GHCR_TOKEN}' \
+               > /mnt/home/nccl-gha-runner/.config/enroot/.credentials; \
+             chmod 600 /mnt/home/nccl-gha-runner/.config/enroot/.credentials"
       
           python3 -m pytest test_plugin.py \
             -s \
