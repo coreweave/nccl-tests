@@ -137,6 +137,15 @@ jobs:
     # GPU-labeled node in the same self-hosted pool as `build`.
     # TODO: confirm this matches the actual 8xH200 runner label.
     runs-on: [cw]
+    container:
+      image: ${{ needs.build.outputs.image-tag }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      # --gpus all: expose all GPUs. NCCL's intra-node SHM transport needs more
+      # than Docker's default 64MB /dev/shm, and pinned-memory registration
+      # needs an unlimited memlock ulimit.
+      options: --gpus all --shm-size=1g --ulimit memlock=-1:-1
     defaults:
       run:
         shell: bash
