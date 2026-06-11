@@ -42,9 +42,15 @@ RUN apt-get -qq update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Mellanox OFED (latest)
+# Mellanox OFED
+# Pinned to 24.10-4.1.4.0 (NOT `latest`): as of 24.10-5.1.6.1 NVIDIA re-signed
+# the repo with key DC726C5E41B9CC50, which is not published in
+# RPM-GPG-KEY-Mellanox or on public keyservers, breaking `apt-get update`.
+# 24.10-4.1.4.0 is signed by the published v3 key (A024F6F0E6D6A281), so the
+# key import below still verifies it. Revert to `latest` once NVIDIA publishes
+# the new signing key.
 RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
-RUN cd /etc/apt/sources.list.d/ && . /etc/os-release && wget "https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu${VERSION_ID:?}/mellanox_mlnx_ofed.list"
+RUN cd /etc/apt/sources.list.d/ && . /etc/os-release && wget "https://linux.mellanox.com/public/repo/mlnx_ofed/24.10-4.1.4.0/ubuntu${VERSION_ID:?}/mellanox_mlnx_ofed.list"
 
 RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
