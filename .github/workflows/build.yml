@@ -160,42 +160,40 @@ jobs:
           repository: coreweave/nccl_ci_harness
           ref: dev
           token: ${{ secrets.NCCL_CI_HARNESS_READ_TOKEN }}
-      - name: Prepare remote GHCR creds
-        env:
-          GHCR_USER: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          ssh nccl-gha-runner@166.19.50.5 "bash -s" <<EOF
-          set -euo pipefail
-          install -d -m 700 /mnt/home/nccl-gha-runner/.config/enroot
-          cat > /mnt/home/nccl-gha-runner/.config/enroot/.credentials <<CREDS
-          machine ghcr.io
-          login ${GHCR_USER}
-          password ${GHCR_TOKEN}
-          CREDS
-          chmod 600 /mnt/home/nccl-gha-runner/.config/enroot/.credentials
-          EOF
       - name: Run NCCL test harness
         env:
-          # Pass the secret via env (NOT inline ${{ }}): keeps the multi-line key
-          # out of the script body and lets GitHub mask it in logs.
           RUNNER_MLDEV_SSH_KEY: ${{ secrets.RUNNER_MLDEV_SSH_KEY }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_URI: ${{ needs.build.outputs.image-tag }}
         run: |
-          # install git, python, pip and ssh client, no-op'ing if already installed
+          set -euo pipefail
+      
           apt update -qq && apt install -y -qq python3-pip git openssh-client rsync
-
           pip install pytest
-          
-          # --- load the SSH key into an agent so `ssh -A` can forward it ---
-          # The key is read from stdin straight into the agent: never written to
-          # disk, never echoed. Output is suppressed so the key's comment isn't logged.
-          eval "$(ssh-agent -s)" >/dev/null
-          printf '%s\n' "$RUNNER_MLDEV_SSH_KEY" | ssh-add - >/dev/null 2>&1
-          
+      
+          install -d -m 700 ~/.ssh
+          install -m 600 /dev/null ~/.ssh/nccl_gha_runner_key
+          printf '%s\n' "$RUNNER_MLDEV_SSH_KEY" > ~/.ssh/nccl_gha_runner_key
+          trap 'rm -f ~/.ssh/nccl_gha_runner_key' EXIT
+
+          export GIT_SSH_COMMAND='ssh -i ~/.ssh/nccl_gha_runner_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes'
+      
+          ssh -i ~/.ssh/nccl_gha_runner_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o BatchMode=yes \
+            nccl-gha-runner@166.19.50.5 "bash -s" <<EOF
+set -euo pipefail
+install -d -m 700 /mnt/home/nccl-gha-runner/.config/enroot
+cat > /mnt/home/nccl-gha-runner/.config/enroot/.credentials <<CREDS
+machine ghcr.io
+login ${GHCR_USER}
+password ${GHCR_TOKEN}
+CREDS
+chmod 600 /mnt/home/nccl-gha-runner/.config/enroot/.credentials
+EOF
+      
           python3 -m pytest test_plugin.py \
             -s \
             -v \
@@ -209,7 +207,7 @@ jobs:
             --nodes=1 \
             --break-system-packages \
             --gpus-per-node=8
-
+      
           python3 -m pytest test_nccl_perf.py \
             -s \
             -v \
@@ -225,7 +223,22 @@ jobs:
             --gpus-per-node=8
       - name: Clear remote GHCR creds
         if: always()
+        env:
+          RUNNER_MLDEV_SSH_KEY: ${{ secrets.RUNNER_MLDEV_SSH_KEY }}
         run: |
-          ssh nccl-gha-runner@166.19.50.5 '
-            rm -f /mnt/home/nccl-gha-runner/.config/enroot/.credentials
-          '
+          set -euo pipefail
+      
+          apt update -qq && apt install -y -qq openssh-client
+      
+          install -d -m 700 ~/.ssh
+          install -m 600 /dev/null ~/.ssh/nccl_gha_runner_key
+          printf '%s\n' "$RUNNER_MLDEV_SSH_KEY" > ~/.ssh/nccl_gha_runner_key
+      
+          ssh -i ~/.ssh/nccl_gha_runner_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o BatchMode=yes \
+            nccl-gha-runner@166.19.50.5 \
+            'rm -f /mnt/home/nccl-gha-runner/.config/enroot/.credentials'
+      
+          rm -f ~/.ssh/nccl_gha_runner_key
