@@ -167,7 +167,7 @@ jobs:
           RUNNER_MLDEV_SSH_KEY: ${{ secrets.RUNNER_MLDEV_SSH_KEY }}
         run: |
           # install git, python, pip and ssh client, no-op'ing if already installed
-          apt update -qq && apt install -y -qq python3-pip git openssh-client
+          apt update -qq && apt install -y -qq python3-pip git openssh-client rsync
 
           pip install pytest
 
