@@ -1,4 +1,4 @@
-apiVersion: kubeflow.org/v2beta1
+apiVersion: hpc.coreweave.com/v2beta1
 kind: MPIJob
 metadata:
   name: nccl-test-hgx
@@ -17,7 +17,7 @@ spec:
               image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-94347e7
               env:
                 - name: WORKERS
-                  value: 8
+                  value: "8"
                 - name: THREADS
                   value: "16"
               command:
@@ -37,7 +37,7 @@ spec:
               operator: Exists
               key: node.coreweave.cloud/reserved
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-94347e7
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-51dfc8c
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -45,9 +45,9 @@ spec:
                 - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
                   value: "1"
                 - name: WORKERS
-                  value: 8
+                  value: "8"
                 - name: GPUS
-                  value: 8
+                  value: "8"
                 - name: NAMESPACE # this is used to look up the pods
                   valueFrom:
                     fieldRef:
@@ -67,7 +67,7 @@ spec:
                   cpu: 16
                   memory: 16Gi
     Worker:
-      replicas: *worker-count
+      replicas: 8
       template:
         metadata:
           labels:
@@ -76,7 +76,7 @@ spec:
             "k8s.v1.cni.cncf.io/networks": "[{\n  \"name\": \"ibs0p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n}]"
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-94347e7
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-51dfc8c
               name: nccl
               securityContext:
                 privileged: true
