@@ -183,8 +183,8 @@ jobs:
             --slurm \
             --ssh-hostname=166.19.50.5 \
             --ssh-user=nccl-gha-runner \
-            --container-mounts=/mnt/home/ssteel:/mnt/home/ssteel \
-            --container-image=/mnt/home/ssteel/pytorch212-cuda126-cudnn9-devel.sqsh \
+            --container-mounts=/mnt/home/nccl-gha-runner:/mnt/home/nccl-gha-runner \
+            --container-image=/mnt/home/nccl-gha-runner/pytorch212-cuda126-cudnn9-devel.sqsh \
             --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
@@ -197,8 +197,8 @@ jobs:
             --slurm \
             --ssh-hostname=166.19.50.5 \
             --ssh-user=nccl-gha-runner \
-            --container-mounts=/mnt/home/ssteel:/mnt/home/ssteel \
-            --container-image=/mnt/home/ssteel/pytorch212-cuda126-cudnn9-devel.sqsh \
+            --container-mounts=/mnt/home/nccl-gha-runner:/mnt/home/nccl-gha-runner \
+            --container-image=/mnt/home/nccl-gha-runner/pytorch212-cuda126-cudnn9-devel.sqsh \
             --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
