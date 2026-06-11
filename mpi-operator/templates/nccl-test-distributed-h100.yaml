@@ -3,7 +3,7 @@ kind: MPIJob
 metadata:
   name: nccl-test-hgx
 spec:
-  slotsPerWorker: &gpus-per-worker 8
+  slotsPerWorker: 8
   runPolicy:
     cleanPodPolicy: Running
   mpiReplicaSpecs:
@@ -14,10 +14,10 @@ spec:
           serviceAccountName: hpc-verification-hpc-sa
           initContainers:
             - name: wait-for-workers
-              image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+              image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-94347e7
               env:
                 - name: WORKERS
-                  value: &worker-count 8
+                  value: 8
                 - name: THREADS
                   value: "16"
               command:
@@ -37,7 +37,7 @@ spec:
               operator: Exists
               key: node.coreweave.cloud/reserved
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-94347e7
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -45,9 +45,9 @@ spec:
                 - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
                   value: "1"
                 - name: WORKERS
-                  value: *worker-count
+                  value: 8
                 - name: GPUS
-                  value: *gpus-per-worker
+                  value: 8
                 - name: NAMESPACE # this is used to look up the pods
                   valueFrom:
                     fieldRef:
@@ -76,7 +76,7 @@ spec:
             "k8s.v1.cni.cncf.io/networks": "[{\n  \"name\": \"ibs0p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n}]"
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.28.3-1-8b67957
+            - image: ghcr.io/coreweave/nccl-tests:12.9.1-devel-ubuntu22.04-nccl2.30.4-1-94347e7
               name: nccl
               securityContext:
                 privileged: true
@@ -84,11 +84,11 @@ spec:
                 requests:
                   cpu: 110
                   memory: 960Gi
-                  nvidia.com/gpu: *gpus-per-worker
+                  nvidia.com/gpu: 8
                   rdma/ib: 1
                 limits:
                   memory: 960Gi
-                  nvidia.com/gpu: *gpus-per-worker
+                  nvidia.com/gpu: 8
                   rdma/ib: 1
               volumeMounts:
                 - mountPath: /dev/shm
