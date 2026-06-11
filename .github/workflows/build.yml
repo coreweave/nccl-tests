@@ -137,15 +137,6 @@ jobs:
     # GPU-labeled node in the same self-hosted pool as `build`.
     # TODO: confirm this matches the actual 8xH200 runner label.
     runs-on: [cw]
-    container:
-      image: ${{ needs.build.outputs.image-tag }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-      # --gpus all: expose all GPUs. NCCL's intra-node SHM transport needs more
-      # than Docker's default 64MB /dev/shm, and pinned-memory registration
-      # needs an unlimited memlock ulimit.
-      options: --gpus all --shm-size=1g --ulimit memlock=-1:-1
     defaults:
       run:
         shell: bash
@@ -165,18 +156,21 @@ jobs:
           # Pass the secret via env (NOT inline ${{ }}): keeps the multi-line key
           # out of the script body and lets GitHub mask it in logs.
           RUNNER_MLDEV_SSH_KEY: ${{ secrets.RUNNER_MLDEV_SSH_KEY }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_URI: ${{ needs.build.outputs.image-tag }}
         run: |
           # install git, python, pip and ssh client, no-op'ing if already installed
           apt update -qq && apt install -y -qq python3-pip git openssh-client rsync
 
           pip install pytest
-
+          
           # --- load the SSH key into an agent so `ssh -A` can forward it ---
           # The key is read from stdin straight into the agent: never written to
           # disk, never echoed. Output is suppressed so the key's comment isn't logged.
           eval "$(ssh-agent -s)" >/dev/null
           printf '%s\n' "$RUNNER_MLDEV_SSH_KEY" | ssh-add - >/dev/null 2>&1
-
+          
           python3 -m pytest test_plugin.py \
             -s \
             -v \
@@ -184,7 +178,7 @@ jobs:
             --ssh-hostname=166.19.50.5 \
             --ssh-user=nccl-gha-runner \
             --container-mounts=/mnt/home/nccl-gha-runner:/mnt/home/nccl-gha-runner \
-            --container-image=/mnt/home/nccl-gha-runner/pytorch212-cuda126-cudnn9-devel.sqsh \
+            --container-image="${IMAGE_URI/\//#}" \
             --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
@@ -198,7 +192,7 @@ jobs:
             --ssh-hostname=166.19.50.5 \
             --ssh-user=nccl-gha-runner \
             --container-mounts=/mnt/home/nccl-gha-runner:/mnt/home/nccl-gha-runner \
-            --container-image=/mnt/home/nccl-gha-runner/pytorch212-cuda126-cudnn9-devel.sqsh \
+            --container-image="${IMAGE_URI/\//#}" \
             --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
