@@ -150,8 +150,6 @@ jobs:
       run:
         shell: bash
     steps:
-      # TODO: Add some checker for cuda version to install (or verify we want 12.9)
-      # TODO: Install pytest and torch from the repo's requirements.txt file once the correct version is formalized
       # TODO: Need to ensure the equivalent of --cpus-per-task=16 applies to the runner here to pass these tests
       - name: Check out NCCL test harness
         uses: actions/checkout@v4
@@ -216,7 +214,6 @@ jobs:
             --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
-            --break-system-packages \
             --gpus-per-node=8
       
           python3 -m pytest test_nccl_perf.py \
@@ -230,7 +227,6 @@ jobs:
             --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
-            --break-system-packages \
             --gpus-per-node=8
 
       - name: Clear remote GHCR creds
