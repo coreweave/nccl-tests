@@ -216,6 +216,7 @@ jobs:
             --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
+            --break-system-packages \
             --gpus-per-node=8
       
           python3 -m pytest test_nccl_perf.py \
@@ -229,7 +230,9 @@ jobs:
             --partition=h200 \
             --cpus-per-task=16 \
             --nodes=1 \
+            --break-system-packages \
             --gpus-per-node=8
+
       - name: Clear remote GHCR creds
         if: always()
         env:
