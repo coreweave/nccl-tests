@@ -1,7 +1,7 @@
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: nccl-test-64-a100-noib-8n
+  name: nccl-test-64-b200-8n
 spec:
   slotsPerWorker: 8
   runPolicy:
@@ -20,7 +20,7 @@ spec:
                 - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
                   value: "1"
               # Uncomment to be able to exec in to launcher pod for interactive testing
-              # command: ['sleep', '86400']
+              # command: [ 'sleep', '86400' ]
               command: ["/bin/bash", "-c"]
               # Can also try setting '-x NCCL_ALGO=NVLSTREE'
               args: [
@@ -29,12 +29,14 @@ spec:
                   -bind-to none \
                   -x LD_LIBRARY_PATH \
                   -x NCCL_SOCKET_IFNAME=eth0 \
-                  -x NCCL_IB_HCA=eth0 \
+                  -x NCCL_IB_HCA=ibp \
+                  -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1,ibp4:1,ibp5:1,ibp6:1,ibp7:1 \
+                  -x SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1 \
+                  -x NCCL_COLLNET_ENABLE=0 \
                   -x NCCL_NET_PLUGIN=none \
-                  /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
+                  /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1 #-n 200 #-w 2 -n 20
                   ",
                 ]
-
               resources:
                 requests:
                   cpu: 2
@@ -51,12 +53,14 @@ spec:
               name: nccl
               resources:
                 requests:
-                  cpu: 112
-                  memory: 1000Gi
+                  cpu: 110
+                  memory: 960Gi
                   nvidia.com/gpu: 8
+                  rdma/ib: 1
                 limits:
-                  memory: 1000Gi
+                  memory: 960Gi
                   nvidia.com/gpu: 8
+                  rdma/ib: 1
               volumeMounts:
                 - mountPath: /dev/shm
                   name: dshm
@@ -65,10 +69,10 @@ spec:
               requiredDuringSchedulingIgnoredDuringExecution:
                 nodeSelectorTerms:
                   - matchExpressions:
-                    - key: node.coreweave.cloud/type
-                      operator: In
-                      values:
-                        - gd-8xa100-i128
+                      - key: node.coreweave.cloud/type
+                        operator: In
+                        values:
+                          - b200-8x
           volumes:
             - emptyDir:
                 medium: Memory

@@ -274,7 +274,7 @@ ENV UCX_VFS_ENABLE=no
 #     rm -r /tmp/*
 
 # NCCL Tests
-ENV NCCL_TESTS_COMMITISH=5db290cddaf595ae18fdd5f46931b3a7f0d6a4d1
+ENV NCCL_TESTS_COMMITISH=f727aa2a540fef911de9d7bfd8852bc5d2c69815
 WORKDIR /opt/nccl-tests
 RUN wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
     make -j20 MPI=1 && \

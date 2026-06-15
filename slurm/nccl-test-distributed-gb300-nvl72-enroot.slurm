@@ -14,14 +14,16 @@
 
 # NCCL environment variables are documented at:
 # https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html
+# This variant targets GB300 NVL72 over InfiniBand (gb300-4x SKU).
+# For the Spectrum-X RoCE variant, see nccl-test-distributed-gb300-roce-nvl72-enroot.slurm.
 # Out Of Band is set to run over front-end ethernet.
 # Backend is restricted to use ibp* interfaces to ensure it doesn't try to use any RoCE interfaces from the frontend.
 
 export NCCL_SOCKET_IFNAME=eth0
 export NCCL_IB_HCA=ibp
 
-# GB200 Specific Settings
-# Enforce GB200 best practices to fail clearly if GB200 is not correctly functioning
+# GB300 Specific Settings
+# Enforce GB300 best practices to fail clearly if GB300 is not correctly functioning
 # Do not fall back to shared memory transport if NVLINK is down.
 # Enforce CUMEM functionality for faster buffer registrations.
 export NVIDIA_IMEX_CHANNELS=0
