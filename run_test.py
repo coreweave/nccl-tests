@@ -7,14 +7,30 @@ Invoke manually after workers are ready, e.g.:
     python3 /opt/nccl-tests/run_test.py --profile h100-ib --dry-run
 
 MPI process count (-np) defaults to WORKERS * GPUS from the launcher pod env.
-NCCL / UCX tuning vars use profile defaults unless the same-named env var is set
-on the launcher pod (e.g. NCCL_SOCKET_IFNAME=eth1 overrides the default eth0).
+
+Environment variables for mpirun (-x) are assembled in layers (later wins):
+
+  1. Profile defaults for known NCCL / UCX / SHARP / NVIDIA tuning keys
+  2. Launcher pod env overrides profile keys when the same name is set
+  3. Launcher pod env pass-through for new tuning keys (prefixes: NCCL_, UCX_,
+     SHARP_, NVIDIA_, OMPI_MCA_) not already in the profile
+  4. EXTRA_MPI_ENV launcher env (space/comma-separated KEY=VAL tokens)
+
+Examples:
+
+    # Launcher pod env in MPIJob YAML
+    - name: NCCL_ALGO
+      value: NVLSTREE
+
+    - name: EXTRA_MPI_ENV
+      value: "NCCL_DEBUG=INFO NCCL_ALGO=NVLSTREE"
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -24,6 +40,25 @@ from typing import Literal, Mapping
 NCCL_TEST_BIN = "/opt/nccl_tests/build/all_reduce_perf"
 DEFAULT_BENCHMARK_ARGS = ["-b", "512M", "-e", "8G", "-f", "2", "-g", "1"]
 SPECTRUM_X_LD_PATH = "/opt/hpcx/nccl_spectrum-x_plugin/lib"
+
+# Launcher env vars forwarded to workers when not already set by the profile.
+_MPI_ENV_PREFIXES = ("NCCL_", "UCX_", "SHARP_", "NVIDIA_", "OMPI_MCA_")
+
+# Launcher-only vars that must not be exported to MPI ranks.
+_LAUNCHER_ENV_BLOCKLIST = frozenset(
+    {
+        "WORKERS",
+        "GPUS",
+        "NP",
+        "PROFILE",
+        "NAMESPACE",
+        "THREADS",
+        "HOSTFILE",
+        "EXTRA_MPI_ENV",
+        "OMPI_ALLOW_RUN_AS_ROOT",
+        "OMPI_ALLOW_RUN_AS_ROOT_CONFIRM",
+    }
+)
 
 
 def _ucx_ib_devices(count: int) -> str:
@@ -145,6 +180,30 @@ PROFILES: dict[str, Profile] = {
     ),
 }
 
+def _parse_env_assignments(raw: str) -> dict[str, str]:
+    """Parse KEY=VAL tokens separated by whitespace or commas."""
+    assignments: dict[str, str] = {}
+    for token in re.split(r"[\s,]+", raw.strip()):
+        if not token or "=" not in token:
+            continue
+        key, _, value = token.partition("=")
+        key = key.strip()
+        if key:
+            assignments[key] = value.strip()
+    return assignments
+
+
+def _launcher_pass_through_env(profile_env: Mapping[str, str | None]) -> dict[str, str]:
+    """Export new tuning vars from launcher env (e.g. NCCL_ALGO for a new NCCL release)."""
+    extra: dict[str, str] = {}
+    for key, value in os.environ.items():
+        if key in _LAUNCHER_ENV_BLOCKLIST or key in profile_env:
+            continue
+        if any(key.startswith(prefix) for prefix in _MPI_ENV_PREFIXES):
+            extra[key] = value
+    return extra
+
+
 def _resolve_mpi_np(profile: Profile, override: int | None) -> int | None:
     if override is not None:
         return override
@@ -166,6 +225,14 @@ def _resolve_env(profile: Profile) -> dict[str, str | None]:
         resolved["LD_LIBRARY_PATH"] = _spectrum_x_ld_library_path()
     else:
         resolved["LD_LIBRARY_PATH"] = None
+
+    for key, value in _launcher_pass_through_env(resolved).items():
+        resolved[key] = value
+
+    extra_mpi_env = os.getenv("EXTRA_MPI_ENV", "")
+    if extra_mpi_env:
+        resolved.update(_parse_env_assignments(extra_mpi_env))
+
     return resolved
 
 
