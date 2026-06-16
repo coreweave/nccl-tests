@@ -210,6 +210,8 @@ jobs:
           exec 9>"$LOCK"
           flock 9
       
+          cp /tmp/enroot.credentials "$FILE"
+          
           n=$(cat "$CNT" 2>/dev/null || echo 0)
           echo $((n+1)) > "$CNT"
       
@@ -218,13 +220,7 @@ jobs:
             rm -f /tmp/enroot.credentials
           fi
           EOF
-                
-          ssh nccl-gha-runner@166.19.50.5 \
-          'echo "HOME=$HOME"; echo "ENROOT_CONFIG_PATH=${ENROOT_CONFIG_PATH:-<unset>}"; \
-           enroot start --help >/dev/null 2>&1; \
-           grep -i config_path /etc/enroot/enroot.conf 2>/dev/null; \
-           ls -la /mnt/home/nccl-gha-runner/.config/enroot/ 2>/dev/null'
-          
+
           
           python3 -m pytest test_plugin.py \
             -s \
