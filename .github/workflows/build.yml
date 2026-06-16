@@ -193,9 +193,7 @@ jobs:
           chmod 600 ~/.ssh/config
       
           cat > /tmp/enroot.credentials <<EOF
-          machine ghcr.io
-          login $GHCR_USER
-          password $GHCR_TOKEN
+          machine ghcr.io login $GHCR_USER password $GHCR_TOKEN
           EOF
           chmod 600 /tmp/enroot.credentials
       
