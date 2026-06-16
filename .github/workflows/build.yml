@@ -190,9 +190,7 @@ jobs:
             StrictHostKeyChecking accept-new
           EOF
           chmod 600 ~/.ssh/config
-      
-          trap 'rm -f ~/.ssh/nccl_gha_runner_key ~/.ssh/config' EXIT
-      
+            
           ssh -o BatchMode=yes nccl-gha-runner@166.19.50.5 \
             "set -euo pipefail; \
              install -d -m 700 /mnt/home/nccl-gha-runner/.config/enroot; \
