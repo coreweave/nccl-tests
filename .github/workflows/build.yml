@@ -191,30 +191,34 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
             
-          ssh -o BatchMode=yes nccl-gha-runner@166.19.50.5 \
-            'set -euo pipefail; \
-             LOCK=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.lock; \
-             FILE=/mnt/home/nccl-gha-runner/.config/enroot/.credentials; \
-             CNT=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.refcount; \
-             install -d -m 700 /mnt/home/nccl-gha-runner/.config/enroot; \
-             exec 9>$LOCK; flock 9; \
-             n=$(cat $CNT 2>/dev/null || echo 0); \
-             echo $((n+1)) > $CNT; \
-             if [[ ! -d $FILE ]]; then \
-                 printf "%s\n" \
-                   "machine ghcr.io" \
-                   "login '"${GHCR_USER}"'" \
-                   "password '"${GHCR_TOKEN}"'" \
-                   > /mnt/home/nccl-gha-runner/.config/enroot/.credentials; \
-                 chmod 600 /mnt/home/nccl-gha-runner/.config/enroot/.credentials; \
-             fi; \
-             exec 9>&-'
-            
-             
-
+          cat > /tmp/enroot.credentials <<EOF
+          machine ghcr.io
+          login $GHCR_USER
+          password $GHCR_TOKEN
+          EOF
           
-          
-          
+          chmod 600 /tmp/enroot.credentials
+      
+          scp /tmp/enroot.credentials nccl-gha-runner@166.19.50.5:/tmp/enroot.credentials
+      
+          ssh -o BatchMode=yes nccl-gha-runner@166.19.50.5 'bash -seuo pipefail' <<'EOF'
+          LOCK=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.lock
+          FILE=/mnt/home/nccl-gha-runner/.config/enroot/.credentials
+          CNT=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.refcount
+      
+          install -d -m 700 /mnt/home/nccl-gha-runner/.config/enroot
+          exec 9>"$LOCK"
+          flock 9
+      
+          n=$(cat "$CNT" 2>/dev/null || echo 0)
+          echo $((n+1)) > "$CNT"
+      
+          if [[ ! -f "$FILE" ]]; then
+            install -m 600 /tmp/enroot.credentials "$FILE"
+            rm -f /tmp/enroot.credentials
+          fi
+          EOF
+                
           ssh nccl-gha-runner@166.19.50.5 \
           'echo "HOME=$HOME"; echo "ENROOT_CONFIG_PATH=${ENROOT_CONFIG_PATH:-<unset>}"; \
            enroot start --help >/dev/null 2>&1; \
@@ -269,7 +273,7 @@ jobs:
              exec 9>$LOCK; flock 9; \
              n=$(cat $CNT 2>/dev/null || echo 0); \
              echo $((n-1)) > $CNT; \
-             if [[ ! -d $FILE && $((n-1)) -le 0 ]]; then \
+             if [[ -f $FILE && $((n-1)) -le 0 ]]; then \
                 rm -rf $FILE $CNT; \
              fi; \
              exec 9>&-'
