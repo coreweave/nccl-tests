@@ -211,6 +211,8 @@ jobs:
           ls -l "$ENROOT_CONFIG_PATH/.credentials"
           EOF
           
+          export ENROOT_CONFIG_PATH=/mnt/home/nccl-gha-runner/.config/enroot
+          
           python3 -m pytest test_plugin.py \
             -s \
             -v \
