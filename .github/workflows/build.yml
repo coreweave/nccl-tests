@@ -189,38 +189,27 @@ jobs:
             IdentitiesOnly yes
             StrictHostKeyChecking accept-new
           EOF
+          
           chmod 600 ~/.ssh/config
-            
+      
           cat > /tmp/enroot.credentials <<EOF
           machine ghcr.io
           login $GHCR_USER
           password $GHCR_TOKEN
           EOF
-          
           chmod 600 /tmp/enroot.credentials
       
           scp /tmp/enroot.credentials nccl-gha-runner@166.19.50.5:/tmp/enroot.credentials
       
           ssh -o BatchMode=yes nccl-gha-runner@166.19.50.5 'bash -seuo pipefail' <<'EOF'
-          LOCK=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.lock
-          FILE=/mnt/home/nccl-gha-runner/.config/enroot/.credentials
-          CNT=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.refcount
+          export ENROOT_CONFIG_PATH=/mnt/home/nccl-gha-runner/.config/enroot
+          install -d -m 700 "$ENROOT_CONFIG_PATH"
+          install -m 600 /tmp/enroot.credentials "$ENROOT_CONFIG_PATH/.credentials"
+          rm -f /tmp/enroot.credentials
       
-          install -d -m 700 /mnt/home/nccl-gha-runner/.config/enroot
-          exec 9>"$LOCK"
-          flock 9
-      
-          cp /tmp/enroot.credentials "$FILE"
-          
-          n=$(cat "$CNT" 2>/dev/null || echo 0)
-          echo $((n+1)) > "$CNT"
-      
-          if [[ ! -f "$FILE" ]]; then
-            install -m 600 /tmp/enroot.credentials "$FILE"
-            rm -f /tmp/enroot.credentials
-          fi
+          test -s "$ENROOT_CONFIG_PATH/.credentials"
+          ls -l "$ENROOT_CONFIG_PATH/.credentials"
           EOF
-
           
           python3 -m pytest test_plugin.py \
             -s \
