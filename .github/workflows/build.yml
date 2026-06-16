@@ -244,24 +244,24 @@ jobs:
         run: |
           set -euo pipefail
       
-          apt update -qq && apt install -y -qq openssh-client
+          # apt update -qq && apt install -y -qq openssh-client
       
-          install -d -m 700 ~/.ssh
-          install -m 600 /dev/null ~/.ssh/nccl_gha_runner_key
-          printf '%s\n' "$RUNNER_MLDEV_SSH_KEY" > ~/.ssh/nccl_gha_runner_key
+          # install -d -m 700 ~/.ssh
+          # install -m 600 /dev/null ~/.ssh/nccl_gha_runner_key
+          # printf '%s\n' "$RUNNER_MLDEV_SSH_KEY" > ~/.ssh/nccl_gha_runner_key
       
-          ssh -o BatchMode=yes nccl-gha-runner@166.19.50.5 \
-            'set -euo pipefail; \
-             LOCK=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.lock; \
-             FILE=/mnt/home/nccl-gha-runner/.config/enroot/.credentials; \
-             CNT=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.refcount; \
-             exec 9>$LOCK; flock 9; \
-             n=$(cat $CNT 2>/dev/null || echo 0); \
-             echo $((n-1)) > $CNT; \
-             if [[ -f $FILE && $((n-1)) -le 0 ]]; then \
-                rm -rf $FILE $CNT; \
-             fi; \
-             exec 9>&-'
+          # ssh -o BatchMode=yes nccl-gha-runner@166.19.50.5 \
+          #   'set -euo pipefail; \
+          #   LOCK=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.lock; \
+          #   FILE=/mnt/home/nccl-gha-runner/.config/enroot/.credentials; \
+          #   CNT=/mnt/home/nccl-gha-runner/.config/enroot/.credentials.refcount; \
+          #   exec 9>$LOCK; flock 9; \
+          #   n=$(cat $CNT 2>/dev/null || echo 0); \
+          #   echo $((n-1)) > $CNT; \
+          #   if [[ -f $FILE && $((n-1)) -le 0 ]]; then \
+          #      rm -rf $FILE $CNT; \
+          #   fi; \
+          #   exec 9>&-'
 
   promote:
     name: Promote tested image to prod
