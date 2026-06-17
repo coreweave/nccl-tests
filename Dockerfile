@@ -42,15 +42,13 @@ RUN apt-get -qq update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Mellanox OFED (latest)
-RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
-RUN cd /etc/apt/sources.list.d/ && . /etc/os-release && wget "https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu${VERSION_ID:?}/mellanox_mlnx_ofed.list"
-
+# Userspace RDMA libs/tools from Ubuntu (host provides mlx5 kernel driver).
+# mlnx_ofed apt repo is skipped: OFED 24.10 signs with key DC726C5E41B9CC50,
+# which is not published alongside the legacy RPM-GPG-KEY-Mellanox bundle.
 RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
-    ibverbs-utils libibverbs-dev libibumad3 libibumad-dev librdmacm-dev rdmacm-utils infiniband-diags ibverbs-utils \
+    ibverbs-utils libibverbs-dev libibumad3 libibumad-dev librdmacm-dev rdmacm-utils infiniband-diags \
     && rm -rf /var/lib/apt/lists/*
-#         mlnx-ofed-hpc-user-only
 
 
 FROM base AS builder-base
@@ -281,6 +279,10 @@ WORKDIR /opt/nccl-tests
 RUN wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
     make -j20 MPI=1 && \
     ln -s /opt/nccl-tests /opt/nccl_tests
+
+ADD run_test.py /opt/nccl-tests/run_test.py
+ADD wait_for_workers.py /opt/nccl-tests/wait_for_workers.py
+RUN chmod 755 /opt/nccl-tests/run_test.py /opt/nccl-tests/wait_for_workers.py
 
 RUN ldconfig
 
