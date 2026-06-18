@@ -57,8 +57,8 @@ spec:
               # command: [ 'sleep', '86400' ]
               command: ["/bin/bash", "-c"]
               # Run manually from the launcher pod:
-              #   python3 /opt/nccl-tests/run_test.py --profile h100-ib
-              #   python3 /opt/nccl-tests/run_test.py --profile h100-sharp
+              #   python3 /opt/nccl-tests/run_test.py --platform hgx --fabric ib --collnet off
+              #   python3 /opt/nccl-tests/run_test.py --platform hgx --fabric ib --collnet sharp
               args: [
                   "sleep 86400",
                 ]
