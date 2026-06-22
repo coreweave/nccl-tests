@@ -1,0 +1,250 @@
+# JobSet equivalent of mpi-operator/nccl-test-distributed-h100-64-mpijob.yaml
+#
+# Unlike the MPIOperator, JobSet has no built-in MPI launcher: it does not
+# generate an SSH keypair, build a hostfile, or wire up launcher->worker SSH.
+# This manifest reproduces that plumbing in a single `kubectl apply`:
+#
+#   * An (initially empty) Secret `nccl-test-ssh` is mounted read-only at
+#     /root/.ssh in every pod. Because it already exists, pods start
+#     immediately instead of blocking in ContainerCreating.
+#   * The launcher (replicas: 1, so it is the single writer) runs an init
+#     container that generates an ed25519 keypair and PATCHes it into the
+#     Secret via the Kubernetes API (curl + ServiceAccount token; the image
+#     has no kubectl). The kubelet then live-updates the mounted Secret in
+#     every running pod -- with a propagation delay of up to ~1 min.
+#   * The launcher waits out that delay with an `ssh ... true` readiness loop
+#     (BatchMode, so it only passes once key auth actually works), then builds
+#     an MPI hostfile from JobSet's stable per-pod DNS names and runs mpirun.
+#   * The image already sets `StrictModes no` in sshd_config and the default
+#     `PermitRootLogin prohibit-password` allows key-based root login, so the
+#     workers need no sshd reconfiguration -- just run sshd.
+#   * When the run finishes the launcher tears the workers down, mimicking the
+#     MPIJob `cleanPodPolicy: Running` behaviour so the JobSet completes cleanly.
+#
+# Requires the JobSet controller (https://jobset.sigs.k8s.io).
+# Apply with `kubectl apply -f`; clean up with `kubectl delete -f`.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nccl-test-ssh-bootstrap
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: nccl-test-ssh-bootstrap
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["nccl-test-ssh"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nccl-test-ssh-bootstrap
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: nccl-test-ssh-bootstrap
+subjects:
+  - kind: ServiceAccount
+    name: nccl-test-ssh-bootstrap
+---
+# Empty placeholder so the volume mount resolves at pod start; the launcher's
+# init container fills in id_ed25519 / id_ed25519.pub / authorized_keys.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nccl-test-ssh
+type: Opaque
+data: {}
+---
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: nccl-test-64-h100-8n
+spec:
+  # Stable, resolvable per-pod DNS names:
+  #   <jobset>-<replicatedJob>-<jobIndex>-<podIndex>.<jobset>
+  # e.g. nccl-test-64-h100-8n-worker-0-0.nccl-test-64-h100-8n
+  network:
+    enableDNSHostnames: true
+  # The JobSet is "done" when the launcher Job succeeds; workers run sshd and
+  # never complete on their own (the launcher kills them at the end).
+  successPolicy:
+    operator: All
+    targetReplicatedJobs:
+      - launcher
+  replicatedJobs:
+    - name: launcher
+      replicas: 1
+      template:
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            spec:
+              restartPolicy: Never
+              serviceAccountName: nccl-test-ssh-bootstrap
+              initContainers:
+                # Single writer: generate the keypair and push it into the
+                # Secret via the API. Runs only here (launcher is replicas: 1).
+                - name: ssh-bootstrap
+                  image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-2eedd7c
+                  command: ["/bin/bash", "-c"]
+                  args:
+                    - |
+                      set -eo pipefail
+                      ssh-keygen -t ed25519 -N "" -f /tmp/id_ed25519
+                      SA=/var/run/secrets/kubernetes.io/serviceaccount
+                      TOKEN="$(cat "$SA/token")"
+                      NS="$(cat "$SA/namespace")"
+                      PRIV="$(base64 -w0 /tmp/id_ed25519)"
+                      PUB="$(base64 -w0 /tmp/id_ed25519.pub)"
+                      curl -sS --fail --cacert "$SA/ca.crt" \
+                        -H "Authorization: Bearer $TOKEN" \
+                        -H "Content-Type: application/strategic-merge-patch+json" \
+                        -X PATCH \
+                        "https://kubernetes.default.svc/api/v1/namespaces/${NS}/secrets/nccl-test-ssh" \
+                        -d "{\"data\":{\"id_ed25519\":\"${PRIV}\",\"id_ed25519.pub\":\"${PUB}\",\"authorized_keys\":\"${PUB}\"}}"
+                      echo "patched secret nccl-test-ssh with a fresh keypair"
+              containers:
+                - name: nccl
+                  image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-2eedd7c
+                  env:
+                    - name: OMPI_ALLOW_RUN_AS_ROOT
+                      value: "1"
+                    - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
+                      value: "1"
+                  command: ["/bin/bash", "-c"]
+                  # Uncomment to exec in to the launcher pod for interactive testing
+                  # command: [ 'sleep', '86400' ]
+                  args:
+                    - |
+                      set -eo pipefail
+
+                      JOBSET="nccl-test-64-h100-8n"
+                      NWORKERS=8
+                      SLOTS=8
+
+                      # Build the MPI hostfile from JobSet's stable pod DNS names.
+                      : > /root/hostfile
+                      HOSTS=()
+                      for i in $(seq 0 $((NWORKERS - 1))); do
+                        h="${JOBSET}-worker-${i}-0.${JOBSET}"
+                        HOSTS+=("$h")
+                        echo "${h} slots=${SLOTS}" >> /root/hostfile
+                      done
+
+                      # Wait until key-based SSH works to every worker. This also
+                      # absorbs the Secret propagation delay: BatchMode only
+                      # succeeds once our private key and the worker's
+                      # authorized_keys have both landed.
+                      for h in "${HOSTS[@]}"; do
+                        echo "Waiting for ssh to ${h} ..."
+                        until ssh -o ConnectTimeout=10 -o BatchMode=yes "root@${h}" true 2>/dev/null; do
+                          sleep 3
+                        done
+                      done
+
+                      # Tear workers down on exit (mimics MPIJob cleanPodPolicy: Running).
+                      cleanup() {
+                        for h in "${HOSTS[@]}"; do
+                          ssh -o ConnectTimeout=10 "root@${h}" "pkill -f 'sshd -D' || true" || true
+                        done
+                      }
+                      trap cleanup EXIT
+
+                      # Can also try setting '-x NCCL_ALGO=NVLSTREE'
+                      # orte_keep_fqdn_hostnames stops OpenMPI shortening the
+                      # hostfile names; the bare pod name isn't resolvable, only
+                      # the full JobSet DNS name is.
+                      mpirun \
+                        --hostfile /root/hostfile \
+                        -np 64 \
+                        -bind-to none \
+                        --mca orte_keep_fqdn_hostnames 1 \
+                        -x LD_LIBRARY_PATH \
+                        -x NCCL_SOCKET_IFNAME=eth0 \
+                        -x NCCL_IB_HCA=ibp \
+                        -x UCX_NET_DEVICES=ibp0:1,ibp1:1,ibp2:1,ibp3:1,ibp4:1,ibp5:1,ibp6:1,ibp7:1 \
+                        -x SHARP_COLL_ENABLE_PCI_RELAXED_ORDERING=1 \
+                        -x NCCL_COLLNET_ENABLE=0 \
+                        -x NCCL_NET_PLUGIN=none \
+                        /opt/nccl_tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1 #-n 200 #-w 2 -n 20
+                  resources:
+                    requests:
+                      cpu: 2
+                      memory: 128Mi
+                  volumeMounts:
+                    - name: ssh-key
+                      mountPath: /root/.ssh
+                      readOnly: true
+              volumes:
+                - name: ssh-key
+                  secret:
+                    secretName: nccl-test-ssh
+                    defaultMode: 0600
+    - name: worker
+      replicas: 8
+      template:
+        spec:
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          template:
+            metadata:
+              labels:
+                metadata.coreweave.cloud/job: nccl-test
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: nccl
+                  image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-2eedd7c
+                  command: ["/bin/bash", "-c"]
+                  args:
+                    - |
+                      set -eo pipefail
+                      mkdir -p /var/run/sshd
+                      ssh-keygen -A  # ensure sshd host keys exist
+                      # Foreground sshd; the launcher kills it after the run,
+                      # which lets the worker Job exit cleanly. sshd re-reads
+                      # authorized_keys per connection, so it picks up the key
+                      # once the Secret propagates -- no restart needed.
+                      /usr/sbin/sshd -D -e || true
+                      echo "sshd exited; worker done"
+                  resources:
+                    requests:
+                      cpu: 110
+                      memory: 960Gi
+                      nvidia.com/gpu: 8
+                      rdma/ib: 1
+                    limits:
+                      memory: 960Gi
+                      nvidia.com/gpu: 8
+                      rdma/ib: 1
+                  volumeMounts:
+                    - mountPath: /dev/shm
+                      name: dshm
+                    - name: ssh-key
+                      mountPath: /root/.ssh
+                      readOnly: true
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                      - matchExpressions:
+                          - key: node.coreweave.cloud/type
+                            operator: In
+                            values:
+                              - gd-8xh100ib-i128
+              volumes:
+                - emptyDir:
+                    medium: Memory
+                  name: dshm
+                - name: ssh-key
+                  secret:
+                    secretName: nccl-test-ssh
+                    defaultMode: 0600
