@@ -42,15 +42,26 @@ RUN apt-get -qq update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Mellanox OFED (latest)
-RUN wget -qO - https://www.mellanox.com/downloads/ofed/RPM-GPG-KEY-Mellanox | apt-key add -
-RUN cd /etc/apt/sources.list.d/ && . /etc/os-release && wget "https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu${VERSION_ID:?}/mellanox_mlnx_ofed.list"
+# DOCA-OFED userspace (RDMA verbs stack)
+# libmlx5 must come from DOCA-OFED, not inbox rdma-core: HPC-X and the NCCL
+# SHARP/RDMA plugin import MLX5_1.25 provider symbols that inbox lacks.
+ARG TARGETARCH
+ARG DOCA_OFED_VERSION=3.4.0
+RUN . /etc/os-release && \
+    case "${TARGETARCH}" in \
+      amd64) DOCA_ARCH=x86_64 ;; \
+      arm64) DOCA_ARCH=arm64-sbsa ;; \
+      *) echo "unsupported TARGETARCH '${TARGETARCH}' for DOCA-OFED" >&2; exit 1 ;; \
+    esac && \
+    DOCA_REPO="https://linux.mellanox.com/public/repo/doca/${DOCA_OFED_VERSION:?}/ubuntu${VERSION_ID:?}/${DOCA_ARCH}" && \
+    wget -qO /usr/share/keyrings/doca_keyring.gpg "${DOCA_REPO}/doca_keyring.gpg" && \
+    echo "deb [signed-by=/usr/share/keyrings/doca_keyring.gpg] ${DOCA_REPO} /" \
+      > /etc/apt/sources.list.d/doca.list
 
 RUN apt-get -qq update \
     && apt-get -qq install -y --no-install-recommends \
-    ibverbs-utils libibverbs-dev libibumad3 libibumad-dev librdmacm-dev rdmacm-utils infiniband-diags ibverbs-utils \
+    ibverbs-utils libibverbs-dev libibumad3 libibumad-dev librdmacm-dev rdmacm-utils infiniband-diags ibverbs-providers \
     && rm -rf /var/lib/apt/lists/*
-#         mlnx-ofed-hpc-user-only
 
 
 FROM base AS builder-base
