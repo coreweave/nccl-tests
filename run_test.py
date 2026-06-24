@@ -6,13 +6,14 @@ Invoke manually after workers are ready, e.g.:
     python3 /opt/nccl-tests/run_test.py --platform hgx --fabric ib --collnet off
 
     With no ``-- …`` benchmark remainder, runs each template in ``BENCHMARK_COMMAND_TEMPLATES``
-    (all_reduce, alltoall, reduce_scatter) in order. Pass ``-- <binary> [args…]`` to run a single benchmark.
+    (all_reduce, all_gather, alltoall, reduce_scatter) in order. Pass ``-- <binary> [args…]`` to run a single benchmark.
 
     python3 /opt/nccl-tests/run_test.py --platform hgx --fabric ib --collnet off \\
         -- alltoall_perf -b 8M -e 64M -f 2 -g 1
 
     Reusable argv tails (binary + flags) live in ``BENCHMARK_TEMPLATE_ALLREDUCE``,
-    ``BENCHMARK_TEMPLATE_ALLTOALL``, and ``BENCHMARK_TEMPLATE_REDUCE_SCATTER``.
+    ``BENCHMARK_TEMPLATE_ALLGATHER``, ``BENCHMARK_TEMPLATE_ALLTOALL``, and
+    ``BENCHMARK_TEMPLATE_REDUCE_SCATTER``.
 
 MPI process count (-np) defaults to WORKERS * GPUS from the launcher pod env.
 
@@ -48,45 +49,47 @@ from typing import Literal, Mapping
 
 NCCL_TESTS_BUILD_DIR = "/opt/nccl_tests/build"
 
+# Shared nccl-tests perf flags (src/common.cu): step factor, GPUs/thread, warmup, timed iters.
+_BENCHMARK_PERF_COMMON_ARGS: tuple[str, ...] = (
+    "-f",
+    "2",
+    "-g",
+    "1",
+    "-w",
+    "2",
+    "-n",
+    "20",
+)
+_BENCHMARK_LARGE_SWEEP_ARGS: tuple[str, ...] = ("-b", "512M", "-e", "8G")
+_BENCHMARK_ALLTOALL_SWEEP_ARGS: tuple[str, ...] = ("-b", "8M", "-e", "64M")
+
 # Full argv tails for `run_test.py … -- <argv>` or for pasting into MPIJob `mpirun` lines.
 # With no `-- …` remainder, main runs every template in BENCHMARK_COMMAND_TEMPLATES in order.
 BENCHMARK_TEMPLATE_ALLREDUCE: tuple[str, ...] = (
     os.path.join(NCCL_TESTS_BUILD_DIR, "all_reduce_perf"),
-    "-b",
-    "512M",
-    "-e",
-    "8G",
-    "-f",
-    "2",
-    "-g",
-    "1",
+    *_BENCHMARK_LARGE_SWEEP_ARGS,
+    *_BENCHMARK_PERF_COMMON_ARGS,
+)
+BENCHMARK_TEMPLATE_ALLGATHER: tuple[str, ...] = (
+    os.path.join(NCCL_TESTS_BUILD_DIR, "all_gather_perf"),
+    *_BENCHMARK_LARGE_SWEEP_ARGS,
+    *_BENCHMARK_PERF_COMMON_ARGS,
 )
 BENCHMARK_TEMPLATE_ALLTOALL: tuple[str, ...] = (
     os.path.join(NCCL_TESTS_BUILD_DIR, "alltoall_perf"),
-    "-b",
-    "8M",
-    "-e",
-    "64M",
-    "-f",
-    "2",
-    "-g",
-    "1",
+    *_BENCHMARK_ALLTOALL_SWEEP_ARGS,
+    *_BENCHMARK_PERF_COMMON_ARGS,
 )
 BENCHMARK_TEMPLATE_REDUCE_SCATTER: tuple[str, ...] = (
     os.path.join(NCCL_TESTS_BUILD_DIR, "reduce_scatter_perf"),
-    "-b",
-    "512M",
-    "-e",
-    "8G",
-    "-f",
-    "2",
-    "-g",
-    "1",
+    *_BENCHMARK_LARGE_SWEEP_ARGS,
+    *_BENCHMARK_PERF_COMMON_ARGS,
 )
 
 # Ordered list of full [binary, …args] templates; used to pick default flags per binary.
 BENCHMARK_COMMAND_TEMPLATES: tuple[tuple[str, ...], ...] = (
     BENCHMARK_TEMPLATE_ALLREDUCE,
+    BENCHMARK_TEMPLATE_ALLGATHER,
     BENCHMARK_TEMPLATE_ALLTOALL,
     BENCHMARK_TEMPLATE_REDUCE_SCATTER,
 )
@@ -117,7 +120,7 @@ _LAUNCHER_ENV_BLOCKLIST = frozenset(
 
 # Server family for --platform (not per-SKU): Hopper/HGX, Grace Blackwell, or VR / passthrough.
 PLATFORMS = frozenset({"hgx", "gb", "vr"})
-FABRICS = frozenset({"ib", "roce", "nvl"})
+FABRICS = frozenset({"ib", "roce", "nvl", "nonvlink"})
 COLLNET_CHOICES = ("off", "sharp")
 
 
@@ -205,6 +208,21 @@ _ENV_ROCE_DEFAULTS: dict[str, str] = {
     "NCCL_IB_ADDR_RANGE": "fd02::/16",
     "NCCL_IB_TC": "96",
 }
+_ENV_NONVLINK_DEFAULTS: dict[str, str] = {
+    "NCCL_IB_NET_LATENCY": "50",
+    "NCCL_IB_ADAPTIVE_ROUTING": "1",
+    "NCCL_NVLS_NCHANNELS": "24",
+    "NCCL_P2P_NET_CHUNKSIZE": "524288",
+    "NCCL_NVLS_CHUNKSIZE": "262144",
+    "NCCL_IB_ADDR_FAMILY": "AF_INET6",
+    "NCCL_IB_TC": "96",
+    "NVIDIA_IMEX_CHANNELS": "0",
+    "NCCL_MNNVL_ENABLE": "1",
+    "NCCL_CUMEM_ENABLE": "1",
+    "NCCL_SHM_DISABLE": "1",
+    "NCCL_P2P_DISABLE": "1",
+    "NCCL_TESTS_SPLIT_MASK": "0x3",
+}
 
 _FABRIC_ENV_BLOCKS: dict[str, tuple[Mapping[str, str], ...]] = {
     "ib": (
@@ -222,6 +240,11 @@ _FABRIC_ENV_BLOCKS: dict[str, tuple[Mapping[str, str], ...]] = {
         _ENV_IB_BASE_DEFAULTS,
         _ENV_UCX_TCP_DEFAULTS,
         _ENV_NCCL_PLUGIN_NONE_DEFAULTS,
+    ),
+    "nonvlink": (
+        _ENV_IB_BASE_DEFAULTS,
+        _ENV_NONVLINK_DEFAULTS,
+        _ENV_UCX_TCP_DEFAULTS,
     ),
 }
 
@@ -431,7 +454,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--fabric",
         choices=sorted(FABRICS),
-        help="network path: ib (HGX IB + UCX), roce (GB Spectrum-X RoCE tuning), nvl (NVLink rack + TCP UCX)",
+        help=(
+            "network path: ib (HGX IB + UCX), roce (GB Spectrum-X RoCE tuning), "
+            "nvl (NVLink rack + TCP UCX), nonvlink (IB + MNNVL without NVLink P2P/SHM)"
+        ),
     )
     parser.add_argument(
         "--collnet",
