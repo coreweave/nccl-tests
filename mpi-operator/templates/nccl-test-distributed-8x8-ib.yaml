@@ -53,8 +53,6 @@ spec:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: metadata.namespace
-              # Uncomment to be able to exec in to launcher pod for interactive testing
-              # command: [ 'sleep', '86400' ]
               command: ["/bin/bash", "-c"]
               # Run manually from the launcher pod:
               #   python3 /opt/nccl-tests/run_test.py --platform hgx --fabric ib --collnet off
