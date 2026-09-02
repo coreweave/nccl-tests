@@ -49,7 +49,7 @@ export PMIX_MCA_gds='^ds12'
 # Define nccl version we will test
 # See https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests for available tags.
 
-nccl_version="13.3.0-devel-ubuntu24.04-nccl2.31.2-1-d08cf2b"
+nccl_version="13.2.1-devel-ubuntu24.04-nccl2.31.2-1-ee0d4d1"
 
 # Create a directory to store container images. You can change this
 # or use an existing directory below.
