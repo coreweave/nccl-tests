@@ -14,7 +14,7 @@ spec:
           serviceAccountName: hpc-verification-hpc-sa
           initContainers:
             - name: wait-for-workers
-              image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-ee0d4d1
+              image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-478d8e5
               env:
                 - name: WORKERS
                   value: "8"
@@ -37,7 +37,7 @@ spec:
               operator: Exists
               key: node.coreweave.cloud/reserved
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-ee0d4d1
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-478d8e5
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -74,7 +74,7 @@ spec:
             "k8s.v1.cni.cncf.io/networks": "[{\n  \"name\": \"ibs0p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs0p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs1p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs2p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p0-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p1-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p2-macvlan\",\n  \"namespace\": \"cw-multus\"\n},{\n  \"name\": \"ibs3p3-macvlan\",\n  \"namespace\": \"cw-multus\"\n}]"
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-ee0d4d1
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-478d8e5
               name: nccl
               securityContext:
                 privileged: true

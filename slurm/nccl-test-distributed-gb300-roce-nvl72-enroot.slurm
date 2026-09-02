@@ -19,7 +19,6 @@
 # Spectrum-X NCCL plugin
 # https://docs.nvidia.com/networking/display/hpcvx225/spectrum-x-nccl-plugin
 # "spcx" enables the Spectrum-X NCCL plugin on RoCE; set to "none" to disable it.
-export LD_LIBRARY_PATH=/opt/hpcx/nccl_spectrum-x_plugin/lib:$LD_LIBRARY_PATH
 export NCCL_NET_PLUGIN=spcx
 
 # RoCE / Spectrum-X tuning
@@ -49,7 +48,7 @@ export PMIX_MCA_gds='^ds12'
 # Define nccl version we will test
 # See https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests for available tags.
 
-nccl_version="13.2.1-devel-ubuntu24.04-nccl2.31.2-1-ee0d4d1"
+nccl_version="13.2.1-devel-ubuntu24.04-nccl2.31.2-1-478d8e5"
 
 # Create a directory to store container images. You can change this
 # or use an existing directory below.
