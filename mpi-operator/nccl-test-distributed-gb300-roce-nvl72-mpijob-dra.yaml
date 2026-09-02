@@ -32,7 +32,7 @@ spec:
       template:
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-2eedd7c
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-ee0d4d1
               name: nccl
               env:
                 - name: OMPI_ALLOW_RUN_AS_ROOT
@@ -42,14 +42,14 @@ spec:
               # Uncomment to be able to exec in to launcher pod for interactive testing
               # command: [ 'sleep', '86400' ]
               command: ["/bin/bash", "-c"]
-              # NCCL_NET_PLUGIN: set to "spcx" for very large jobs (10k+ GPUs),
-              # "none" provides better performance for smaller jobs.
+              # NCCL_NET_PLUGIN: "spcx" enables the Spectrum-X NCCL plugin on RoCE;
+              # set to "none" to disable the plugin.
               # https://docs.nvidia.com/networking/display/hpcvx225/spectrum-x-nccl-plugin
               args: [
                   "mpirun \
                   -bind-to none \
                   -x LD_LIBRARY_PATH=/opt/hpcx/nccl_spectrum-x_plugin/lib:$LD_LIBRARY_PATH \
-                  -x NCCL_NET_PLUGIN=none \
+                  -x NCCL_NET_PLUGIN=spcx \
                   -x NCCL_IB_NET_LATENCY=50 \
                   -x NCCL_IB_ADAPTIVE_ROUTING=1 \
                   -x NCCL_NVLS_NCHANNELS=24 \
@@ -130,7 +130,7 @@ spec:
               }]
         spec:
           containers:
-            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.30.4-1-2eedd7c
+            - image: ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-ee0d4d1
               name: nccl
               resources:
                 requests:
