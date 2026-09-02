@@ -18,10 +18,9 @@
 
 # Spectrum-X NCCL plugin
 # https://docs.nvidia.com/networking/display/hpcvx225/spectrum-x-nccl-plugin
-# Set to "spcx" for very large jobs (10k+ GPUs) where the plugin can improve performance.
-# For smaller jobs, "none" provides better performance.
+# "spcx" enables the Spectrum-X NCCL plugin on RoCE; set to "none" to disable it.
 export LD_LIBRARY_PATH=/opt/hpcx/nccl_spectrum-x_plugin/lib:$LD_LIBRARY_PATH
-export NCCL_NET_PLUGIN=none
+export NCCL_NET_PLUGIN=spcx
 
 # RoCE / Spectrum-X tuning
 export NCCL_IB_NET_LATENCY=50
@@ -50,7 +49,7 @@ export PMIX_MCA_gds='^ds12'
 # Define nccl version we will test
 # See https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests for available tags.
 
-nccl_version="13.2.1-devel-ubuntu22.04-nccl2.30.4-1-2eedd7c"
+nccl_version="13.3.0-devel-ubuntu24.04-nccl2.31.2-1-d08cf2b"
 
 # Create a directory to store container images. You can change this
 # or use an existing directory below.
