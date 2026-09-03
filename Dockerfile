@@ -186,9 +186,7 @@ RUN source /opt/hpcx/hpcx-init.sh && \
 SHELL ["/bin/sh", "-c"]
 
 
-# This stage is mostly shared between amd64 and arm64,
-# but arm64 has a few extra steps appended to it later
-FROM base AS base-amd64
+FROM base
 RUN --mount=type=bind,from=libnccl2,source=/tmp/libnccl2,target=/tmp/install \
     cd /tmp/install && dpkg -i *.deb
 RUN --mount=type=bind,from=gdrcopy,source=/tmp/gdrcopy,target=/tmp/install \
@@ -255,25 +253,19 @@ ENV OSHMEM_HOME=/opt/hpcx/ompi
 ENV OPAL_PREFIX=/opt/hpcx/ompi
 ENV OLD_PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV PATH=/opt/hpcx/sharp/bin:/opt/hpcx/clusterkit/bin:/opt/hpcx/hcoll/bin:/opt/hpcx/ucc/bin:/opt/hpcx/ucx/bin:/opt/hpcx/ompi/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ENV OLD_LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64
-ENV LD_LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ucc/lib/ucc:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib/ucx:/opt/hpcx/ucx/lib:/opt/hpcx/sharp/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
+ENV OLD_LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64
+ENV LD_LIBRARY_PATH=/opt/hpcx/nccl_spectrum-x_plugin/lib:/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ucc/lib/ucc:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib/ucx:/opt/hpcx/ucx/lib:/opt/hpcx/sharp/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64
 ENV OLD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs
-ENV LIBRARY_PATH=/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/ompi/lib:/opt/hpcx/sharp/lib:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/cuda/lib64/stubs
+ENV LIBRARY_PATH=/opt/hpcx/nccl_spectrum-x_plugin/lib:/opt/hpcx/nccl_rdma_sharp_plugin/lib:/opt/hpcx/sharp/lib:/opt/hpcx/ucc/lib:/opt/hpcx/ucx/lib:/opt/hpcx/hcoll/lib:/opt/hpcx/ompi/lib:/usr/local/cuda/lib64/stubs
 ENV OLD_CPATH=""
 ENV CPATH=/opt/hpcx/ompi/include:/opt/hpcx/ucc/include:/opt/hpcx/ucx/include:/opt/hpcx/sharp/include:/opt/hpcx/hcoll/include
 ENV PKG_CONFIG_PATH=/opt/hpcx/hcoll/lib/pkgconfig:/opt/hpcx/sharp/lib/pkgconfig:/opt/hpcx/ucx/lib/pkgconfig:/opt/hpcx/ompi/lib/pkgconfig
 # End of auto-generated paths
 
-FROM base-amd64 AS base-arm64
-# Clusterkit isn't included in HPC-X on ARM64 (as of v2.22)
-ENV HPCX_CLUSTERKIT_DIR=""
-ENV PATH=/opt/hpcx/sharp/bin/bin:/opt/hpcx/hcoll/bin:/opt/hpcx/ucc/bin:/opt/hpcx/ucx/bin:/opt/hpcx/ompi/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-FROM base-${TARGETARCH}
 # Disable UCX VFS to stop errors about fuse mount failure
 ENV UCX_VFS_ENABLE=no
 
-# NCCL SHARP PLugin (master)
+# NCCL SHARP Plugin (master)
 ### Disabled as HPC-X has a recent enough version at this time
 # RUN cd /tmp && \
 #     wget -q https://github.com/Mellanox/nccl-rdma-sharp-plugins/archive/refs/heads/master.zip && \
