@@ -22,7 +22,7 @@ jobs:
       base-tag: 12.9.2-devel-ubuntu24.04
       cuda-version: "12.9.2"
       nccl-version: 2.31.2-1
-      hpcx-distribution: "hpcx-v2.50-gcc-doca_ofed-ubuntu24.04-cuda12"
+      hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu24.04-cuda12"
 
   cu130:
     uses: ./.github/workflows/build.yml
@@ -39,7 +39,7 @@ jobs:
       base-tag: 13.0.3-devel-ubuntu24.04
       cuda-version: "13.0.3"
       nccl-version: 2.31.2-1
-      hpcx-distribution: "hpcx-v2.50-gcc-doca_ofed-ubuntu24.04-cuda13"
+      hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu24.04-cuda13"
 
   cu131:
     uses: ./.github/workflows/build.yml
@@ -56,7 +56,7 @@ jobs:
       base-tag: 13.1.2-devel-ubuntu24.04
       cuda-version: "13.1.2"
       nccl-version: 2.31.2-1
-      hpcx-distribution: "hpcx-v2.50-gcc-doca_ofed-ubuntu24.04-cuda13"
+      hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu24.04-cuda13"
 
   cu132:
     uses: ./.github/workflows/build.yml
@@ -73,7 +73,7 @@ jobs:
       base-tag: 13.2.1-devel-ubuntu24.04
       cuda-version: "13.2.1"
       nccl-version: 2.31.2-1
-      hpcx-distribution: "hpcx-v2.50-gcc-doca_ofed-ubuntu24.04-cuda13"
+      hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu24.04-cuda13"
 
   cu133:
     uses: ./.github/workflows/build.yml
@@ -90,4 +90,4 @@ jobs:
       base-tag: 13.3.0-devel-ubuntu24.04
       cuda-version: "13.3.0"
       nccl-version: 2.31.2-1
-      hpcx-distribution: "hpcx-v2.50-gcc-doca_ofed-ubuntu24.04-cuda13"
+      hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu24.04-cuda13"
