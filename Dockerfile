@@ -4,7 +4,7 @@ ARG CUDA_VERSION=13.3.0
 ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04
 FROM ${BASE_IMAGE} AS base
 
-ENV NV_CUDNN_VERSION='9.20.0.48-1'
+ENV NV_CUDNN_VERSION='9.26.0.51-1'
 ENV NV_CUDNN_PACKAGE_NAME="libcudnn9-cuda-${CUDA_VERSION%%.*}"
 ENV NV_CUDNN_PACKAGE="libcudnn9-cuda-${CUDA_VERSION%%.*}=${NV_CUDNN_VERSION}"
 ENV NV_CUDNN_PACKAGE_DEV="libcudnn9-dev-cuda-${CUDA_VERSION%%.*}=${NV_CUDNN_VERSION}"
@@ -53,9 +53,12 @@ RUN . /etc/os-release && \
       arm64) DOCA_ARCH=arm64-sbsa ;; \
       *) echo "unsupported TARGETARCH '${TARGETARCH}' for DOCA-OFED" >&2; exit 1 ;; \
     esac && \
-    DOCA_REPO="https://linux.mellanox.com/public/repo/doca/${DOCA_OFED_VERSION:?}/ubuntu${VERSION_ID:?}/${DOCA_ARCH}" && \
-    wget -qO /usr/share/keyrings/doca_keyring.gpg "${DOCA_REPO}/doca_keyring.gpg" && \
-    echo "deb [signed-by=/usr/share/keyrings/doca_keyring.gpg] ${DOCA_REPO} /" \
+    DOCA_REPO="linux.mellanox.com/public/repo/doca/${DOCA_OFED_VERSION:?}/ubuntu${VERSION_ID:?}/${DOCA_ARCH}" && \
+    wget -qO /usr/share/keyrings/doca_keyring.gpg "https://${DOCA_REPO}/doca_keyring.gpg" && \
+    # apt reaches this repository over HTTP rather than HTTPS because linux.mellanox.com
+    # closes TLS connections without a close_notify frame, which OpenSSL on Ubuntu
+    # 26.04 treats as a truncated transfer. signed-by keeps the contents verified.
+    echo "deb [signed-by=/usr/share/keyrings/doca_keyring.gpg] http://${DOCA_REPO} /" \
       > /etc/apt/sources.list.d/doca.list
 
 RUN apt-get -qq update \
