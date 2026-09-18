@@ -21,5 +21,5 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 13.3.1-devel-ubuntu26.04
       cuda-version: "13.3.1"
-      nccl-version: 2.31.2-1
+      nccl-version: 2.32.3-1
       hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu26.04-cuda13"
