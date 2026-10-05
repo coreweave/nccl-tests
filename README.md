@@ -73,12 +73,14 @@ Compute capabilities up to Blackwell (10.0 & 12.0) are supported.
 
 | **Image Tag**                                                              | **CUDA** |
 |----------------------------------------------------------------------------|----------|
+| ghcr.io/coreweave/nccl-tests:13.4.2-devel-ubuntu26.04-nccl2.32.3-1-3a4c507 | 13.4.2   |
 | ghcr.io/coreweave/nccl-tests:13.3.1-devel-ubuntu26.04-nccl2.32.3-1-284c44a | 13.3.1   |
 
 ### Ubuntu 24.04
 
 | **Image Tag**                                                              | **CUDA** |
 |----------------------------------------------------------------------------|----------|
+| ghcr.io/coreweave/nccl-tests:13.4.2-devel-ubuntu24.04-nccl2.32.3-1-3a4c507 | 13.4.2   |
 | ghcr.io/coreweave/nccl-tests:13.3.1-devel-ubuntu24.04-nccl2.32.3-1-284c44a | 13.3.1   |
 | ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.32.3-1-284c44a | 13.2.1   |
 | ghcr.io/coreweave/nccl-tests:13.1.2-devel-ubuntu24.04-nccl2.32.3-1-284c44a | 13.1.2   |
@@ -89,6 +91,7 @@ Compute capabilities up to Blackwell (10.0 & 12.0) are supported.
 
 | **Image Tag**                                                              | **CUDA** |
 |----------------------------------------------------------------------------|----------|
+| ghcr.io/coreweave/nccl-tests:13.4.2-devel-ubuntu22.04-nccl2.32.3-1-3a4c507 | 13.4.2   |
 | ghcr.io/coreweave/nccl-tests:13.3.1-devel-ubuntu22.04-nccl2.32.3-1-284c44a | 13.3.1   |
 | ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu22.04-nccl2.32.3-1-284c44a | 13.2.1   |
 | ghcr.io/coreweave/nccl-tests:13.1.2-devel-ubuntu22.04-nccl2.32.3-1-284c44a | 13.1.2   |
