@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG CUDA_VERSION=13.3.1
+ARG CUDA_VERSION=13.4.2
 ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04
 FROM ${BASE_IMAGE} AS base
 
