@@ -103,9 +103,10 @@ jobs:
     with:
       folder: .
       dockerfile: Dockerfile
-      base-image: nvidia/cuda
-      base-tag: 13.2.1-devel-ubuntu22.04
-      cuda-version: "13.2.1"
+      base-image: ghcr.io/coreweave/ml-containers/cuda
+      base-tag: 19759b8-13.2.2-devel-ubuntu22.04
+      output-tag: 13.2.2-devel-ubuntu22.04
+      cuda-version: "13.2.2"
       nccl-version: 2.32.3-1
       hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu22.04-cuda13"
 
