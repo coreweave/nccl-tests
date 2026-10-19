@@ -275,11 +275,18 @@ ENV UCX_VFS_ENABLE=no
 #     rm /opt/hpcx/nccl_rdma_sharp_plugin/lib/* && \
 #     rm -r /tmp/*
 
-# NCCL Tests
-ENV NCCL_TESTS_COMMITISH=f727aa2a540fef911de9d7bfd8852bc5d2c69815
+# NCCL Tests, built from the CoreWeave fork. The fork carries the GPU-serial JSON fields
+# and generic hook points for a build-time extension. The reporter in ./reporter plugs
+# into those hook points and sends each run's results to a configured endpoint. It is
+# inactive unless NCCL_TESTS_REPORT_URL or /etc/perf-telemetry/url is set. See
+# reporter/README.md.
+ENV NCCL_TESTS_REPO=coreweave/nccl-tests-json
+ENV NCCL_TESTS_COMMITISH=62808b33995c2ba96fa1b4818ea083ce42bde6ad
+COPY reporter /opt/nccl-tests-reporter
+RUN make -C /opt/nccl-tests-reporter lib
 WORKDIR /opt/nccl-tests
-RUN wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
-    make -j20 MPI=1 && \
+RUN wget -q -O - https://github.com/${NCCL_TESTS_REPO}/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
+    make -j20 MPI=1 EXT_DIR=/opt/nccl-tests-reporter && \
     ln -s /opt/nccl-tests /opt/nccl_tests
 
 RUN ldconfig
