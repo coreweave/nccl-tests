@@ -11,7 +11,7 @@ inside the official nccl-tests devel image. The fork branch builds with and with
 with MPI on and off, and adds no compiler warnings. Hook symbols appear only in the `EXT_DIR`
 binaries. Without a GPU, the stock and extension binaries are identical in stdout, stderr and
 exit code apart from the PID, and the extension still reaches finalize on the CUDA-error exit
-path. Nothing has run on hardware yet. See the follow-ups at the end.
+path. First GPU run on 2026-10-19 on one GB300 node with 4 GPUs, inside the nccl-tests container. Stock and extension built in 35 s each. `all_reduce_perf` ran with no measurable overhead and identical stdout structure, one PUT of 108 rows passed the API rules, and the error path still reached finalize. See the follow-ups at the end.
 
 ## Layout
 
@@ -116,10 +116,10 @@ parsed JSON.
 
 ## Follow-ups
 
-1. Run on one GPU node, comparing stdout with a stock build and sending rows to a mock, then
-   with MPI across nodes.
-2. Device UUID. The gathered device record carries the serial only. Adding the NVML UUID needs
-   a change to the record format in the fork.
+1. Multi-node run with MPI, then the real collector. The single-node GPU run is done.
+2. Device UUID. The gathered device record carries the serial only, and on GB300 the NVML serial is per
+   module, so two GPUs share one serial. Per-GPU identity needs the UUID, which means a change to the record
+   format in the fork.
 3. `--no-report` as a command-line flag. Today the opt-out is `NCCL_TESTS_REPORT=0`.
 4. The mTLS path against the real collector, and which clusters have which endpoint.
 5. Exclude or dedupe `hpc-verification` runs, which Gamble already reports.
