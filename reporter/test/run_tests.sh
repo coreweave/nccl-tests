@@ -135,6 +135,48 @@ check "debug: logs to stderr"                   'grep -q "\[nccl-tests-ext\] del
 check "debug: stdout still identical"           'cmp -s $WORK/t1.out $WORK/t14.out'
 check "auth header forwarded"                   'grep -q "auth=secret" $WORK/m.meta'
 
+echo "# default-on: detection by resolving a collector host, only inside a cluster"
+printf 'nameserver 10.0.0.10
+search tenant-slurm.svc.cluster.local svc.cluster.local cluster.local
+' > "$WORK/resolv.k8s"
+printf 'nameserver 192.168.1.1
+search home.lan
+' > "$WORK/resolv.laptop"
+printf 'nameserver 10.0.0.10
+search hpc-verification.svc.cluster.local svc.cluster.local cluster.local
+' > "$WORK/resolv.hpcv"
+reset_mock
+run d1 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT"
+check "default-on: in a cluster, host resolves, request sent"   '[[ $RC -eq 0 && $(npaths) -eq 1 ]]'
+check "default-on: default path and run id used"                'grep -Eq "^/v2/runs/[0-9a-f-]{36}/results$" $WORK/m.paths'
+check "default-on: rows pass the API rules"                      '[[ $(validation) == PASS ]]'
+check "default-on: stdout still identical"                       'cmp -s $WORK/t1.out $WORK/d1.out'
+reset_mock
+run d2 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS="no-such-host.invalid,127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT"
+check "default-on: first candidate fails, second resolves"       '[[ $(npaths) -eq 1 ]]'
+reset_mock
+run d3 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.laptop" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT"
+check "default-on: outside a cluster, no request"                '[[ $(npaths) -eq 0 && $RC -eq 0 ]]'
+run d4 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS="no-such-host.invalid" NCCL_TESTS_REPORT_PORT="$PORT"
+check "default-on: no candidate resolves, no request, exit unchanged" '[[ $(npaths) -eq 0 && $RC -eq 0 ]]'
+check "default-on: unresolved lookup stays quick (<5 s)"         'python3 -c "import sys; sys.exit(0 if $ELAPSED < 5 else 1)"'
+run d5 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s"
+check "default-on: no candidate hosts configured, no request"    '[[ $(npaths) -eq 0 ]]'
+echo "# skip list"
+run d6 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_TESTS_REPORT_NAMESPACE="cw-hpc-verification" NCCL_TESTS_REPORT_SKIP_NAMESPACES="cw-hpc-verification,hpc-verification"
+check "skip list: namespace from env is skipped"                 '[[ $(npaths) -eq 0 ]]'
+run d7 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.hpcv" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_TESTS_REPORT_SKIP_NAMESPACES="cw-hpc-verification,hpc-verification"
+check "skip list: namespace from resolv.conf search domain is skipped" '[[ $(npaths) -eq 0 ]]'
+run d8 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.hpcv" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_TESTS_REPORT_SKIP_NAMESPACES="cw-hpc-verification,hpc-verification" NCCL_TESTS_REPORT=1
+check "skip list: NCCL_TESTS_REPORT=1 overrides the skip"        '[[ $(npaths) -eq 1 ]]'
+reset_mock
+run d9 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.laptop" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_TESTS_REPORT=1
+check "forced: NCCL_TESTS_REPORT=1 reports outside a cluster"    '[[ $(npaths) -eq 1 ]]'
+run d10 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_TESTS_REPORT_DEBUG=1
+check "debug: reason and resolved endpoint logged"               'grep -q "in a cluster, endpoint resolved at finalize" $WORK/d10.err && grep -q "endpoint http://127.0.0.1:$PORT/v2/runs/" $WORK/d10.err'
+run d11 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.laptop" NCCL_TESTS_REPORT_DEBUG=1
+check "debug: inactive reason logged"                            'grep -q "inactive, no endpoint configured and no candidate hosts" $WORK/d11.err'
+
 echo
 echo "passed $PASS, failed $FAIL"
 [[ $FAIL -eq 0 ]]

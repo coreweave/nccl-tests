@@ -6,6 +6,7 @@
 #include "nccl_tests_ext.h"
 
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <cmath>
@@ -231,11 +232,17 @@ void nccl_tests_ext_init(int argc, char **argv, char **envp) {
   if (s.initialized) return;
   s.initialized = true;
   s.cfg = load_config(envp);
-  if (!s.cfg.active) return;
+  if (!s.cfg.active) {
+    // load_config returned before it read the debug switch, so read it here for the one line.
+    const char *d = getenv("NCCL_TESTS_REPORT_DEBUG");
+    if (d && strcmp(d, "1") == 0) fprintf(stderr, "[nccl-tests-ext] inactive, %s\n", s.cfg.reason.c_str());
+    return;
+  }
   s.t0 = now_realtime();
   s.node = hostname();
   for (int i = 0; i < argc && argv && argv[i]; ++i) s.argv.push_back(argv[i]);
-  dbg("active; endpoint %s", s.cfg.url.c_str());
+  if (s.cfg.pending) dbg("active, %s", s.cfg.reason.c_str());
+  else dbg("active, %s, %s", s.cfg.reason.c_str(), s.cfg.url.c_str());
 }
 
 void nccl_tests_ext_identify_writer(int is_writer) {
@@ -311,6 +318,11 @@ void nccl_tests_ext_finalize(int result_code) {
   if (!s.initialized || !s.cfg.active || s.finalized) return;
   s.finalized = true;
   if (!s.writer) { dbg("not the writer rank; nothing sent"); return; }
+  if (s.cfg.pending) {
+    bool ok = resolve_default_endpoint(s.cfg);
+    dbg("%s%s", ok ? "endpoint " : "not sent, ", ok ? s.cfg.url.c_str() : s.cfg.reason.c_str());
+    if (!ok) return;
+  }
   try {
     timespec t1 = now_realtime();
     std::vector<Row> rows = build_rows(s, result_code, t1);

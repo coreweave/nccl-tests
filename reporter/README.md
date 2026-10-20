@@ -4,7 +4,7 @@ The reporter that nccl-tests calls when it is built with an extension. It turns 
 nccl-tests run into columnar rows of name, value, kind, version and context, in the NCCL
 vocabulary of Gamble, the HPC verification suite, and PUTs them once to a configured results
 endpoint. nccl-tests here means CoreWeave's fork of NVIDIA nccl-tests, `coreweave/nccl-tests-json`,
-which carries the hook points. The design document lives outside this repository.
+which carries the hook points. The design document is `deliverables/nccl-tests-native-export-design.md`.
 
 Status as of 2026-10-19. The library compiles and passes its GPU-free tests, on the host and
 inside the official nccl-tests devel image. The fork branch builds with and without `EXT_DIR`,
@@ -75,15 +75,36 @@ when `write_json || NCCL_TESTS_EXT_ENABLED`, while JSON output is still written 
 `write_json`. The run uuid is generated before the `write_json` test in the footer so that
 JSON and the extension share one id.
 
+## Activation
+
+In order of precedence. `NCCL_TESTS_REPORT=0` turns the reporter off. `NCCL_TESTS_REPORT=1` forces it
+on. A configured URL turns it on. A pod namespace on the skip list turns it off. Inside a cluster,
+which means `resolv.conf` has a `cluster.local` search domain, the reporter tries the candidate
+collector hosts in order and uses the first that resolves, on the plain `:4318` listener. Otherwise
+it is off. Resolution happens at finalize, on the writer rank only, so the measured run is untouched
+and a large MPI job does not query DNS from every rank. A build without candidate hosts never reports
+unless the environment configures an endpoint.
+
+The candidate hosts and the skip list are build-time defaults, `make lib DEFAULT_HOSTS=a,b
+SKIP_NAMESPACES=x,y`. The image build sets them. The pod namespace comes from the service account
+namespace file, else from the first `resolv.conf` search domain, which is `<namespace>.svc.cluster.local`
+in every Kubernetes pod.
+
 ## Configuration
 
-Everything comes from the environment. Nothing is compiled in.
+Environment variables override the build-time defaults.
 
 | Variable | Purpose |
 |---|---|
 | `NCCL_TESTS_REPORT_URL` | Endpoint URL, may contain `{run_id}`. Set but empty means disabled. |
 | `NCCL_TESTS_REPORT_URL_FILE` | File to read the URL from when the variable is unset. Default `/etc/perf-telemetry/url`. |
 | `NCCL_TESTS_REPORT=0` | Opt out. |
+| `NCCL_TESTS_REPORT=1` | Force on, even outside a cluster or in a skipped namespace. |
+| `NCCL_TESTS_REPORT_HOSTS` | Candidate collector hosts, comma separated, tried in order. |
+| `NCCL_TESTS_REPORT_PORT` | Port for the candidate hosts. Default 4318. |
+| `NCCL_TESTS_REPORT_SKIP_NAMESPACES` | Pod namespaces that never report, comma separated. |
+| `NCCL_TESTS_REPORT_NAMESPACE` | Override the discovered pod namespace. |
+| `NCCL_TESTS_REPORT_NAMESPACE_FILE`, `_RESOLV_CONF` | Alternate paths for the namespace file and `resolv.conf`, for tests. |
 | `NCCL_TESTS_REPORT_RUN_ID` | Override the run id. The default is a new UUIDv7 per run. Cascade, the collector, keeps only the last write per run id and kind. |
 | `NCCL_TESTS_REPORT_AUTH_HEADER` | One header line, sent verbatim. |
 | `NCCL_TESTS_REPORT_CERT`, `_KEY`, `_CA` | Client certificate, key and CA bundle for the mTLS endpoint. |
@@ -121,5 +142,6 @@ parsed JSON.
    module, so two GPUs share one serial. Per-GPU identity needs the UUID, which means a change to the record
    format in the fork.
 3. `--no-report` as a command-line flag. Today the opt-out is `NCCL_TESTS_REPORT=0`.
+4. Confirm from a customer namespace that the plain `:4318` listener is reachable, and that the namespace discovery picks the right name there.
 4. The mTLS path against the real collector, and which clusters have which endpoint.
 5. Exclude or dedupe `hpc-verification` runs, which Gamble already reports.

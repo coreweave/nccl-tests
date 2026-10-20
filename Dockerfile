@@ -277,13 +277,18 @@ ENV UCX_VFS_ENABLE=no
 
 # NCCL Tests, built from the CoreWeave fork. The fork carries the GPU-serial JSON fields
 # and generic hook points for a build-time extension. The reporter in ./reporter plugs
-# into those hook points and sends each run's results to a configured endpoint. It is
-# inactive unless NCCL_TESTS_REPORT_URL or /etc/perf-telemetry/url is set. See
-# reporter/README.md.
+# into those hook points and sends each run's results to the Cascade results endpoint.
+# On a CoreWeave cluster, where one of the collector service names below resolves, it
+# reports by default on the plain :4318 listener. Elsewhere it stays off unless
+# NCCL_TESTS_REPORT=1 or NCCL_TESTS_REPORT_URL is set. NCCL_TESTS_REPORT=0 turns it
+# off. Runs in the hpc-verification namespaces do not report, because Gamble already
+# reports them. See reporter/README.md.
 ENV NCCL_TESTS_REPO=coreweave/nccl-tests-json
 ENV NCCL_TESTS_COMMITISH=62808b33995c2ba96fa1b4818ea083ce42bde6ad
 COPY reporter /opt/nccl-tests-reporter
-RUN make -C /opt/nccl-tests-reporter lib
+RUN make -C /opt/nccl-tests-reporter lib \
+        DEFAULT_HOSTS=csrp.cw-hpcv-collector.svc.cluster.local,csrp.hpcv-collector.svc.cluster.local \
+        SKIP_NAMESPACES=cw-hpc-verification,hpc-verification
 WORKDIR /opt/nccl-tests
 RUN wget -q -O - https://github.com/${NCCL_TESTS_REPO}/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
     make -j20 MPI=1 EXT_DIR=/opt/nccl-tests-reporter && \

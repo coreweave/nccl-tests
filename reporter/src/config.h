@@ -1,5 +1,6 @@
 // Runtime configuration of the reporter. Everything comes from the environment or a
-// mounted file. Nothing is compiled in. An empty url means the reporter is inactive.
+// mounted file, plus two build-time defaults, the candidate collector hosts and the namespaces that
+// never report. With neither a configured url nor a resolvable candidate host the reporter is inactive.
 #pragma once
 #include <string>
 #include <utility>
@@ -9,6 +10,15 @@ namespace ext {
 
 struct Config {
   bool active = false;          // when false, every hook is a no-op with no files and no network
+  bool pending = false;         // active, but the endpoint is decided at finalize by resolving candidate hosts
+  bool forced = false;          // NCCL_TESTS_REPORT=1
+  std::string reason;           // why the reporter is active or not, for the debug log
+  std::vector<std::string> candidate_hosts;  // tried in order when pending, from the build default or NCCL_TESTS_REPORT_HOSTS
+  int default_port = 4318;      // plain listener of the collector, NCCL_TESTS_REPORT_PORT
+  std::string default_path = "/v2/runs/{run_id}/results";
+  std::vector<std::string> skip_namespaces;  // pod namespaces that never report, from the build default or NCCL_TESTS_REPORT_SKIP_NAMESPACES
+  std::string pod_namespace;    // from the service account file, else the first resolv.conf search domain
+  bool in_cluster = false;      // resolv.conf has a cluster.local search domain
   std::string url;              // may contain {run_id}
   std::string run_id_override;  // NCCL_TESTS_REPORT_RUN_ID
   std::string auth_header;      // NCCL_TESTS_REPORT_AUTH_HEADER, sent verbatim as one header line
@@ -24,6 +34,15 @@ struct Config {
 };
 
 // envp may be NULL. getenv is used for single lookups either way.
+//
+// Activation, in order of precedence. NCCL_TESTS_REPORT=0 turns the reporter off.
+// NCCL_TESTS_REPORT=1 forces it on. A configured URL turns it on. A pod namespace on the
+// skip list turns it off. Inside a cluster with candidate hosts the decision stays pending
+// and resolve_default_endpoint picks the first host that resolves. Otherwise it is off.
 Config load_config(char **envp);
+
+// Settle a pending configuration. Returns true and fills url when a candidate host
+// resolves, or when forced, in which case the first candidate is used unresolved.
+bool resolve_default_endpoint(Config &c);
 
 }  // namespace ext

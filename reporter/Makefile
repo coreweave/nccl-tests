@@ -5,6 +5,11 @@ CXX      ?= g++
 AR       ?= ar
 CXXFLAGS ?= -O2 -g
 CXXFLAGS += -std=c++17 -Wall -Wextra -Wno-unused-parameter -fPIC -Iinclude -Isrc
+# Build-time defaults for the default-on path. Empty here on purpose. The image build passes
+# the collector hosts to try, in order, and the pod namespaces that never report.
+DEFAULT_HOSTS ?=
+SKIP_NAMESPACES ?=
+CXXFLAGS += -DNCCL_TESTS_EXT_DEFAULT_HOSTS='"$(DEFAULT_HOSTS)"' -DNCCL_TESTS_EXT_SKIP_NAMESPACES='"$(SKIP_NAMESPACES)"'
 BUILDDIR ?= build
 
 SRCS := $(wildcard src/*.cc)
