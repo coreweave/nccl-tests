@@ -109,7 +109,7 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   const RunConfig &rc = s.rc;
   std::string lib = dotted_nccl_version(rc.library);
 
-  // Context shared by metric rows, in the Gamble NCCL vocabulary.
+  // Context shared by metric rows, in the collector's NCCL vocabulary.
   Context common;
   ctx_put(common, "node", s.node);
   ctx_put(common, "test_name", rc.program.empty() ? (s.argv.empty() ? "" : basename_of(s.argv[0])) : rc.program);
@@ -126,8 +126,8 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   ctx_put(common, "ended_at", iso_utc_ms(t1));
   for (const auto &t : s.cfg.tags) ctx_put(common, "tag_" + t.first, t.second);
 
-  // Per message size, the out-of-place half, as Gamble's per-size rows. alg_bw, cpu time and
-  // the in-place half are not emitted because Gamble does not carry them.
+  // Per message size, the out-of-place half, as the collector's per-size rows. alg_bw, cpu time
+  // and the in-place half are not emitted because the collector does not carry them.
   for (const SizeRec &z : s.sizes) {
     Context shape;
     ctx_put(shape, "message_size", humanize_size(z.nbytes));
@@ -197,7 +197,7 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   for (size_t i = 0; i < s.errors.size() && i < 8; ++i)
     add_row(rows, kKindConfig, "error_message", Value::text(clip_utf8(s.errors[i], 200)), cfg_base, src("errors"));
 
-  // One facts row per GPU, in the gamble-node-facts shape. The value is the device UUID, else
+  // One facts row per GPU, in the collector's node-facts shape. The value is the device UUID, else
   // the serial, else the PCI bus id. The serial alone is not enough, because some boards report
   // one serial for the GPUs of a module.
   Context facts_base;

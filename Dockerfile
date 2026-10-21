@@ -275,14 +275,14 @@ ENV UCX_VFS_ENABLE=no
 #     rm /opt/hpcx/nccl_rdma_sharp_plugin/lib/* && \
 #     rm -r /tmp/*
 
-# NCCL Tests, built from the CoreWeave fork. The fork carries the GPU-serial JSON fields
-# and generic hook points for a build-time extension. The reporter in ./reporter plugs
-# into those hook points and sends each run's results to the Cascade results endpoint.
-# On a CoreWeave cluster, where one of the collector service names below resolves, it
-# reports by default on the plain :4318 listener. Elsewhere it stays off unless
-# NCCL_TESTS_REPORT=1 or NCCL_TESTS_REPORT_URL is set. NCCL_TESTS_REPORT=0 turns it
-# off. Runs in the hpc-verification namespaces do not report, because Gamble already
-# reports them. See reporter/README.md.
+# NCCL Tests, built from the CoreWeave fork. The fork carries per-GPU identity fields in
+# the JSON output and generic hook points for a build-time extension. The reporter in
+# ./reporter plugs into those hook points and sends each run's results to the results
+# collector. On a CoreWeave cluster, where one of the collector service names below
+# resolves, it reports by default on the plain :4318 listener. Elsewhere it stays off
+# unless NCCL_TESTS_REPORT=1 or NCCL_TESTS_REPORT_URL is set. NCCL_TESTS_REPORT=0 turns
+# it off. Runs in the fleet verification namespaces do not report, because that suite
+# reports its own runs. See reporter/README.md.
 ENV NCCL_TESTS_REPO=coreweave/nccl-tests-json
 ENV NCCL_TESTS_COMMITISH=a8cae1bd7c6b90999857491ecd38204188d77773
 COPY reporter /opt/nccl-tests-reporter

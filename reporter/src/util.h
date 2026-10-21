@@ -17,7 +17,7 @@ std::string uuid_v7();
 
 std::string hostname();
 
-// Gamble-style nominal size label. 8 -> "8", 33554432 -> "32M", 1.5 GiB -> "1.5G".
+// Nominal size label in the collector's style. 8 -> "8", 33554432 -> "32M", 1.5 GiB -> "1.5G".
 std::string humanize_size(unsigned long long n);
 
 // NCCL version code such as 22104 -> "2.21.4". Empty if the code is not plausible.

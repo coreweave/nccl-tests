@@ -1,17 +1,17 @@
 # nccl-tests-ext
 
 The reporter that nccl-tests calls when it is built with an extension. It turns one
-nccl-tests run into columnar rows of name, value, kind, version and context, in the NCCL
-vocabulary of Gamble, the HPC verification suite, and PUTs them once to a configured results
-endpoint. nccl-tests here means CoreWeave's fork of NVIDIA nccl-tests, `coreweave/nccl-tests-json`,
-which carries the hook points. The design document is `deliverables/nccl-tests-native-export-design.md`.
+nccl-tests run into columnar rows of name, value, kind, version and context, in the vocabulary
+the results collector uses for NCCL runs, and PUTs them once to the collector. nccl-tests here
+means CoreWeave's fork of NVIDIA nccl-tests, `coreweave/nccl-tests-json`, which carries the hook
+points.
 
-Status as of 2026-10-19. The library compiles and passes its GPU-free tests, on the host and
-inside the official nccl-tests devel image. The fork branch builds with and without `EXT_DIR`,
-with MPI on and off, and adds no compiler warnings. Hook symbols appear only in the `EXT_DIR`
-binaries. Without a GPU, the stock and extension binaries are identical in stdout, stderr and
-exit code apart from the PID, and the extension still reaches finalize on the CUDA-error exit
-path. First GPU run on 2026-10-19 on one GB300 node with 4 GPUs, inside the nccl-tests container. Stock and extension built in 35 s each. `all_reduce_perf` ran with no measurable overhead and identical stdout structure, one PUT of 108 rows passed the API rules, and the error path still reached finalize. See the follow-ups at the end.
+The library compiles and passes its GPU-free tests on the host and inside the official
+nccl-tests devel image. The fork builds with and without `EXT_DIR`, with MPI on and off, and adds
+no compiler warnings. Hook symbols appear only in the `EXT_DIR` binaries. Without a GPU, the stock
+and extension binaries are identical in stdout, stderr and exit code apart from the PID, and the
+extension still reaches finalize on the CUDA-error exit path. On a GPU node the extension adds no
+measurable overhead and leaves the stdout structure unchanged.
 
 ## Layout
 
@@ -105,7 +105,7 @@ Environment variables override the build-time defaults.
 | `NCCL_TESTS_REPORT_SKIP_NAMESPACES` | Pod namespaces that never report, comma separated. |
 | `NCCL_TESTS_REPORT_NAMESPACE` | Override the discovered pod namespace. |
 | `NCCL_TESTS_REPORT_NAMESPACE_FILE`, `_RESOLV_CONF` | Alternate paths for the namespace file and `resolv.conf`, for tests. |
-| `NCCL_TESTS_REPORT_RUN_ID` | Override the run id. The default is a new UUIDv7 per run. Cascade, the collector, keeps only the last write per run id and kind. |
+| `NCCL_TESTS_REPORT_RUN_ID` | Override the run id. The default is a new UUIDv7 per run. The collector keeps only the last write per run id and kind. |
 | `NCCL_TESTS_REPORT_AUTH_HEADER` | One header line, sent verbatim. |
 | `NCCL_TESTS_REPORT_CERT`, `_KEY`, `_CA` | Client certificate, key and CA bundle for the mTLS endpoint. |
 | `NCCL_TESTS_REPORT_IMAGE` | Image name or tag to record. |
@@ -128,22 +128,7 @@ with short timeouts and no retries. Only the writer rank sends. No URL means no 
 - `nccl-test-config` has every `NCCL_*` variable with `source=environment`, the test's settings
   with `source=test_config`, `argv` with `source=command_line` and `error_message` with
   `source=errors`.
-- `nccl-test-node-facts` has one `gpu` row per GPU. The value is the serial, else the PCI bus
-  id. Context carries `node`, `gpu`, `serial`, `pci_bus_id`, `device_name`, `rank` and `group`.
-
-Two differences from the shim script that preceded this reporter. `nccl_headers_version` is
-available natively and is emitted. `verdict` comes from the run's result code rather than from
-parsed JSON.
-
-## Follow-ups
-
-1. Multi-node run with MPI, then the real collector. The single-node GPU run is done.
-2. `--no-report` as a command-line flag. Today the opt-out is `NCCL_TESTS_REPORT=0`.
-3. Confirm from a customer namespace that the plain `:4318` listener is reachable, and that the namespace discovery picks the right name there.
-4. The mTLS path against the real collector, and which clusters have which endpoint.
-5. Exclude or dedupe `hpc-verification` runs, which Gamble already reports.
-
-Done on 2026-10-21: device UUID. On GB300 the NVML serial is per module, so two GPUs share one serial. The
-fork now gathers the NVML device UUID for every GPU in an extension-only buffer beside the printed device
-lines, so stdout and the JSON are unchanged, and `nccl_tests_ext_device` carries it as its last argument.
-The node-facts value is the UUID, then the serial, then the PCI bus id.
+- `nccl-test-node-facts` has one `gpu` row per GPU. The value is the device UUID, else the
+  serial, else the PCI bus id. Context carries `node`, `gpu`, `uuid`, `serial`, `pci_bus_id`,
+  `device_name`, `rank` and `group`. The UUID is the identity because some boards report one
+  NVML serial for the GPUs of a module.
