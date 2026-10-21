@@ -23,7 +23,12 @@ int main(int argc, char **argv, char **envp) {
                             1, ndev, 8, 1ULL << 30, 0, 2, 5, 20, 1, 1, 0, 0, 0);
   for (int i = 0; i < ndev; ++i) {
     char pci[32]; snprintf(pci, sizeof(pci), "0000:%02x:00", 0x1b + i);
-    nccl_tests_ext_device(i, 0, 4242, "fakehost-01", i, pci, "NVIDIA GB300 ", (i % 2) ? "1650123456789" : "unknown");
+    // Device 0 has a uuid only, 1 a serial only, 2 neither, 3 both. Devices 1 and 3 share a
+    // serial, as two GPUs of one GB300 module do.
+    char uuid[48]; snprintf(uuid, sizeof(uuid), "GPU-663051f8-43a9-e63c-6886-da4b882cd7%02x", i);
+    nccl_tests_ext_device(i, 0, 4242, "fakehost-01", i, pci, "NVIDIA GB300 ",
+                          (i % 2) ? "1650123456789" : "unknown",
+                          (i == 0 || i == 3) ? uuid : "unknown");
   }
   unsigned long long size = 8;
   for (int i = 0; i < nsizes; ++i, size *= 2) {

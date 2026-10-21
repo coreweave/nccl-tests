@@ -39,10 +39,12 @@ void nccl_tests_ext_run_config(const char *program_name,
                                int datacheck, int cuda_graph_launches,
                                int blocking_coll, int parallel_init);
 
-/* One participating GPU, as gathered to rank 0. serial may be "unknown". */
+/* One participating GPU, as gathered to rank 0. serial and uuid may be "unknown". The uuid
+ * is the NVML device UUID, which is unique per GPU where the serial is shared per module. */
 void nccl_tests_ext_device(int rank, int group, int pid, const char *hostname,
                            int device, const char *pci_bus_id,
-                           const char *device_name, const char *serial);
+                           const char *device_name, const char *serial,
+                           const char *uuid);
 
 /* Start of one result line, which covers one message size. */
 void nccl_tests_ext_size_begin(size_t nbytes, size_t nelem,

@@ -284,7 +284,7 @@ ENV UCX_VFS_ENABLE=no
 # off. Runs in the hpc-verification namespaces do not report, because Gamble already
 # reports them. See reporter/README.md.
 ENV NCCL_TESTS_REPO=coreweave/nccl-tests-json
-ENV NCCL_TESTS_COMMITISH=62808b33995c2ba96fa1b4818ea083ce42bde6ad
+ENV NCCL_TESTS_COMMITISH=a8cae1bd7c6b90999857491ecd38204188d77773
 COPY reporter /opt/nccl-tests-reporter
 RUN make -C /opt/nccl-tests-reporter lib \
         DEFAULT_HOSTS=csrp.cw-hpcv-collector.svc.cluster.local,csrp.hpcv-collector.svc.cluster.local \

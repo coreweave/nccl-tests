@@ -41,7 +41,7 @@ struct SizeRec {
 };
 struct Device {
   int rank = 0, group = 0, pid = 0, device = 0;
-  std::string hostname, pci, name, serial;
+  std::string hostname, pci, name, serial, uuid;
 };
 struct RunConfig {
   bool present = false;
@@ -197,17 +197,20 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   for (size_t i = 0; i < s.errors.size() && i < 8; ++i)
     add_row(rows, kKindConfig, "error_message", Value::text(clip_utf8(s.errors[i], 200)), cfg_base, src("errors"));
 
-  // One facts row per GPU, in the gamble-node-facts shape. The value is the serial, else the
-  // PCI bus id. A device UUID is not in the gathered record yet. See the README follow-ups.
+  // One facts row per GPU, in the gamble-node-facts shape. The value is the device UUID, else
+  // the serial, else the PCI bus id. The serial alone is not enough, because some boards report
+  // one serial for the GPUs of a module.
   Context facts_base;
   for (const char *k : {"node", "nccl_version", "nccl_library_version", "cuda_version"})
     for (const auto &kv : common) if (kv.first == k) facts_base.push_back(kv);
   for (const Device &d : s.devices) {
     bool serial_known = !d.serial.empty() && d.serial != "unknown";
-    std::string id = serial_known ? d.serial : d.pci;
+    bool uuid_known = !d.uuid.empty() && d.uuid != "unknown";
+    std::string id = uuid_known ? d.uuid : (serial_known ? d.serial : d.pci);
     Context c;
     ctx_put(c, "node", d.hostname.empty() ? s.node : d.hostname);
     ctx_put(c, "gpu", (double)d.device);
+    if (uuid_known) ctx_put(c, "uuid", d.uuid);
     if (serial_known) ctx_put(c, "serial", d.serial);
     ctx_put(c, "pci_bus_id", d.pci);
     ctx_put(c, "device_name", trim(d.name));
@@ -271,12 +274,14 @@ void nccl_tests_ext_run_config(const char *program_name, const char *nccl_tests_
 }
 
 void nccl_tests_ext_device(int rank, int group, int pid, const char *hostname, int device,
-                           const char *pci_bus_id, const char *device_name, const char *serial) {
+                           const char *pci_bus_id, const char *device_name, const char *serial,
+                           const char *uuid) {
   State &s = S();
   if (!s.cfg.active) return;
   Device d;
   d.rank = rank; d.group = group; d.pid = pid; d.device = device;
   d.hostname = str(hostname); d.pci = str(pci_bus_id); d.name = str(device_name); d.serial = trim(str(serial));
+  d.uuid = trim(str(uuid));
   s.devices.push_back(std::move(d));
 }
 

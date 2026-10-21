@@ -64,7 +64,7 @@ The fork's `src/ext_hooks.h` defines the macros that wrap each call.
 | `nccl_tests_ext_init` | `main()`, after `MPI_Init` | argv, env, start time |
 | `nccl_tests_ext_identify_writer` | `run()`, where `is_main_thread` is set | the rank 0 main thread is the writer |
 | `nccl_tests_ext_run_config` | `writeDeviceReport` | versions, nThreads, nGpus, sizes, iterations, flags |
-| `nccl_tests_ext_device` | the device record loop, which now runs with or without `-J` | rank, host, device, PCI id, name, serial |
+| `nccl_tests_ext_device` | the device record loop, which now runs with or without `-J` | rank, host, device, PCI id, name, serial, device UUID |
 | `nccl_tests_ext_size_begin` and `_size_result` | `writeBenchmarkLinePreamble` and `writeBenchmarkLineBody` | size, count, type, op, root, then time, alg and bus bandwidth, wrong elements |
 | `nccl_tests_ext_footer` | `writeResultFooter` | out-of-bounds count, average bus bandwidth, minimum-bandwidth check, run uuid |
 | `nccl_tests_ext_error` | `writeErrors` | last NCCL error text |
@@ -138,10 +138,12 @@ parsed JSON.
 ## Follow-ups
 
 1. Multi-node run with MPI, then the real collector. The single-node GPU run is done.
-2. Device UUID. The gathered device record carries the serial only, and on GB300 the NVML serial is per
-   module, so two GPUs share one serial. Per-GPU identity needs the UUID, which means a change to the record
-   format in the fork.
-3. `--no-report` as a command-line flag. Today the opt-out is `NCCL_TESTS_REPORT=0`.
-4. Confirm from a customer namespace that the plain `:4318` listener is reachable, and that the namespace discovery picks the right name there.
+2. `--no-report` as a command-line flag. Today the opt-out is `NCCL_TESTS_REPORT=0`.
+3. Confirm from a customer namespace that the plain `:4318` listener is reachable, and that the namespace discovery picks the right name there.
 4. The mTLS path against the real collector, and which clusters have which endpoint.
 5. Exclude or dedupe `hpc-verification` runs, which Gamble already reports.
+
+Done on 2026-10-21: device UUID. On GB300 the NVML serial is per module, so two GPUs share one serial. The
+fork now gathers the NVML device UUID for every GPU in an extension-only buffer beside the printed device
+lines, so stdout and the JSON are unchanged, and `nccl_tests_ext_device` carries it as its last argument.
+The node-facts value is the UUID, then the serial, then the PCI bus id.

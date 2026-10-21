@@ -77,8 +77,11 @@ check "config: NCCL_DEBUG from environment"     '[[ $(rows value nccl-test-confi
 check "config: reporter's own variables excluded" '! rows names nccl-test-config | grep -q NCCL_TESTS_REPORT'
 check "config: step_factor, not step_bytes"     '[[ $(rows value nccl-test-config step_factor) == 2 ]] && ! rows names nccl-test-config | grep -q step_bytes'
 check "config: argv recorded"                   '[[ "$(rows value nccl-test-config argv)" == *"all_reduce_perf -b 8 -e 1G -g 4"* ]]'
-check "facts: serial when known"                '[[ $(rows value nccl-test-node-facts gpu gpu=1) == 1650123456789 ]]'
-check "facts: PCI bus id when serial unknown"   '[[ $(rows value nccl-test-node-facts gpu gpu=0) == 0000:1b:00 ]]'
+check "facts: serial when no uuid"              '[[ $(rows value nccl-test-node-facts gpu gpu=1) == 1650123456789 ]]'
+check "facts: PCI bus id when neither"          '[[ $(rows value nccl-test-node-facts gpu gpu=2) == 0000:1d:00 ]]'
+check "facts: uuid when known"                  '[[ $(rows value nccl-test-node-facts gpu gpu=0) == GPU-663051f8-43a9-e63c-6886-da4b882cd700 ]]'
+check "facts: uuid wins over a shared serial"   '[[ $(rows value nccl-test-node-facts gpu gpu=3) == GPU-663051f8-43a9-e63c-6886-da4b882cd703 && $(rows ctx nccl-test-node-facts gpu serial gpu=3) == 1650123456789 ]]'
+check "facts: no uuid context when unknown"     '[[ $(rows ctx nccl-test-node-facts gpu uuid gpu=1) == None ]]'
 check "facts: device node wins, name trimmed"   '[[ $(rows ctx nccl-test-node-facts gpu node gpu=0) == fakehost-01 && "$(rows ctx nccl-test-node-facts gpu device_name gpu=0)" == "NVIDIA GB300" ]]'
 
 echo "# only the writer rank sends"
