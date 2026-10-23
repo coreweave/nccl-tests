@@ -39,12 +39,22 @@ void nccl_tests_ext_run_config(const char *program_name,
                                int datacheck, int cuda_graph_launches,
                                int blocking_coll, int parallel_init);
 
-/* One participating GPU, as gathered to rank 0. serial and uuid may be "unknown". The uuid
- * is the NVML device UUID, which is unique per GPU where the serial is shared per module. */
+/* Called on every process before the device records are gathered. The extension may write
+ * up to len - 1 bytes of single-line text about this process's node into out. The text is
+ * handed back to rank 0 with each device record of that process as local_info. */
+void nccl_tests_ext_local_info(char *out, size_t len);
+
+/* One participating GPU, as gathered to rank 0. serial, uuid and vbios may be "unknown" and
+ * gpu_numa_node may be -1. The uuid is the NVML device UUID, which is unique per GPU where the
+ * serial is shared per module. cpu_affinity and cpu_numa_nodes describe the process that
+ * drives the GPU, as CPU and node lists such as "0-71" and "0". local_info is the text the
+ * extension wrote for that process in nccl_tests_ext_local_info. */
 void nccl_tests_ext_device(int rank, int group, int pid, const char *hostname,
                            int device, const char *pci_bus_id,
                            const char *device_name, const char *serial,
-                           const char *uuid);
+                           const char *uuid, const char *vbios, int gpu_numa_node,
+                           const char *cpu_affinity, const char *cpu_numa_nodes,
+                           const char *local_info);
 
 /* Start of one result line, which covers one message size. */
 void nccl_tests_ext_size_begin(size_t nbytes, size_t nelem,
