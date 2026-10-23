@@ -4,7 +4,7 @@
 CXX      ?= g++
 AR       ?= ar
 CXXFLAGS ?= -O2 -g
-CXXFLAGS += -std=c++17 -Wall -Wextra -Wno-unused-parameter -fPIC -Iinclude -Isrc
+CXXFLAGS += -std=c++17 -pthread -Wall -Wextra -Wno-unused-parameter -fPIC -Iinclude -Isrc
 # Build-time defaults for the default-on path. Empty here on purpose. The image build passes
 # the collector hosts to try, in order, and the pod namespaces that never report.
 DEFAULT_HOSTS ?=
@@ -30,7 +30,7 @@ $(LIB): $(OBJS)
 > $(AR) rcs $@ $^
 
 $(BUILDDIR)/fake_run: test/fake_run.cc $(LIB)
-> $(CXX) $(CXXFLAGS) $< $(LIB) -ldl -o $@
+> $(CXX) $(CXXFLAGS) $< $(LIB) -ldl -pthread -o $@
 
 test: $(BUILDDIR)/fake_run
 > bash test/run_tests.sh

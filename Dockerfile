@@ -288,9 +288,9 @@ ENV UCX_VFS_ENABLE=no
 ARG REPORTER_DEFAULT_HOSTS=""
 ARG REPORTER_SKIP_NAMESPACES=""
 ENV NCCL_TESTS_REPO=coreweave/nccl-tests-json
-ENV NCCL_TESTS_COMMITISH=a8cae1bd7c6b90999857491ecd38204188d77773
+ENV NCCL_TESTS_COMMITISH=5e107b5ab3335f25f5e49c4d015410412d5fd6fc
 COPY reporter /opt/nccl-tests-reporter
-RUN make -C /opt/nccl-tests-reporter lib \
+RUN make -C /opt/nccl-tests-reporter clean lib \
         DEFAULT_HOSTS="${REPORTER_DEFAULT_HOSTS}" \
         SKIP_NAMESPACES="${REPORTER_SKIP_NAMESPACES}"
 WORKDIR /opt/nccl-tests

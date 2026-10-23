@@ -20,6 +20,7 @@ docker run --rm -i \
   -e GENCODE="${NVCC_GENCODE:--gencode=arch=compute_90,code=sm_90}" \
   "$IMAGE" bash -s <<'IN'
 set -uo pipefail
+fail=0
 echo "== toolchain"; nvcc --version | tail -1; gcc --version | head -1
 NCCL_H=$(find / -name nccl.h -path '*include*' 2>/dev/null | head -1)
 MPI_H=$(find /opt /usr -name mpi.h -path '*include*' 2>/dev/null | head -1)
@@ -28,7 +29,7 @@ CUDA_HOME=${CUDA_HOME:-/usr/local/cuda}
 echo "NCCL_HOME=$NCCL_HOME MPI_HOME=$MPI_HOME CUDA_HOME=$CUDA_HOME"
 cp -r /src/fork /work-fork && cp -r /src/ext /work-ext && rm -rf /work-ext/build
 echo "== extension library and tests, built with the image's compiler"
-make -s -C /work-ext lib && make -s -C /work-ext build/fake_run && (cd /work-ext && bash test/run_tests.sh | tail -1)
+if make -s -C /work-ext lib && make -s -C /work-ext build/fake_run && (cd /work-ext && bash test/run_tests.sh | tail -1); then :; else echo "   library or tests FAILED"; fail=1; fi
 for mode in stock ext; do for mpi in 0 1; do
   echo "== fork build: $mode MPI=$mpi"
   rm -rf /work-fork/build
@@ -36,13 +37,25 @@ for mode in stock ext; do for mpi in 0 1; do
   [[ $mpi == 1 ]] && args+=(MPI_HOME="$MPI_HOME" NAME_SUFFIX=_mpi)
   [[ $mode == ext ]] && args+=(EXT_DIR=/work-ext)
   log=/out/build-$mode-mpi$mpi.log
-  if make -C /work-fork/src -j"$(nproc)" "${args[@]}" >"$log" 2>&1; then echo "   OK"; else echo "   FAILED"; grep -nE 'error|Error' "$log" | head -20; fi
+  if make -C /work-fork/src -j"$(nproc)" "${args[@]}" >"$log" 2>&1; then echo "   OK"; else echo "   FAILED"; grep -nE 'error|Error' "$log" | head -20; fail=1; fi
   echo "   warnings: $(grep -ci 'warning' "$log")"
   b=/work-fork/build/all_reduce_perf; [[ $mpi == 1 ]] && b=${b}_mpi
-  if [[ -f $b ]]; then echo "   hook symbols in binary: $(nm -C "$b" 2>/dev/null | grep -c 'nccl_tests_ext_')"; cp "$b" "/out/all_reduce_perf-$mode-mpi$mpi"; fi
+  if [[ -f $b ]]; then echo "   hook symbols in binary: $(nm -C "$b" 2>/dev/null | grep -c 'nccl_tests_ext_')"; cp "$b" "/out/all_reduce_perf-$mode-mpi$mpi"; else echo "   binary missing"; fail=1; fi
 done; done
 echo "== smoke, ext MPI=0 binary, no GPU present. Expect a CUDA error exit and no crash"
-NCCL_TESTS_REPORT_URL=http://127.0.0.1:9/x NCCL_TESTS_REPORT_DEBUG=1 /out/all_reduce_perf-ext-mpi0 -b 8 -e 16 -g 1; echo "   exit=$?"
+# A test failure exit is expected without a GPU. A missing binary or a signal, exit 126 or more,
+# is a real failure. A binary that needs a driver library the image lacks is skipped.
+smoke() {
+  local b=$1; shift
+  if [[ ! -x $b ]]; then echo "   $b missing"; fail=1; return; fi
+  local missing; missing=$(ldd "$b" 2>/dev/null | awk '/not found/ {print $1}' | tr '\n' ' ')
+  if [[ -n $missing ]]; then echo "   skipped, the image lacks ${missing% }, which needs a GPU driver"; return; fi
+  "$@" "$b" -b 8 -e 16 -g 1; local rc=$?
+  echo "   exit=$rc"
+  if (( rc >= 126 )); then echo "   crashed"; fail=1; fi
+}
+smoke /out/all_reduce_perf-ext-mpi0 env NCCL_TESTS_REPORT_URL=http://127.0.0.1:9/x NCCL_TESTS_REPORT_DEBUG=1
 echo "== smoke, stock MPI=0 binary, same"
-/out/all_reduce_perf-stock-mpi0 -b 8 -e 16 -g 1; echo "   exit=$?"
+smoke /out/all_reduce_perf-stock-mpi0 env
+exit $fail
 IN
