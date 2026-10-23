@@ -59,7 +59,12 @@ check "active: rows pass the API rules"         '[[ $(validation) == PASS ]]'
 check "active: run id is a UUIDv7 in the path"  'grep -Eq "^/v2/runs/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/results$" $WORK/m.paths'
 check "active: stdout identical to inactive"    'cmp -s $WORK/t1.out $WORK/t2.out'
 check "active: stderr empty"                    '[[ ! -s $WORK/t2.err ]]'
-check "metric rows: 10 sizes x 3 + 3 run rows"  '[[ $(rows count nccl-test-metric) -eq 33 ]]'
+check "metric rows: 10 sizes x 7 + 4 run rows"  '[[ $(rows count nccl-test-metric) -eq 74 ]]'
+check "in-place: bus and algorithm bandwidth and latency" '[[ $(rows count nccl-test-metric bandwidth_in_place) -eq 10 && $(rows count nccl-test-metric alg_bandwidth_in_place) -eq 10 && $(rows count nccl-test-metric latency_in_place) -eq 10 ]]'
+check "out-of-place: algorithm bandwidth"        '[[ $(rows count nccl-test-metric alg_bandwidth) -eq 10 ]]'
+check "out_of_bounds row from the footer"        '[[ $(rows value nccl-test-metric out_of_bounds) == 0.0 || $(rows value nccl-test-metric out_of_bounds) == 0 ]]'
+check "no min_bandwidth_check row without -a"    '[[ $(rows count nccl-test-metric min_bandwidth_check) -eq 0 ]]'
+check "no cycle key on a single cycle"           '[[ "$(rows ctx nccl-test-metric latency cycle message_size=4K)" == None ]]'
 check "config rows: 3 NCCL_* + 12 settings + argv" '[[ $(rows count_except_source nccl-test-config library) -eq 16 ]]'
 check "library: kernel and OS release recorded"  '[[ -n "$(rows value nccl-test-config kernel_release)" && $(rows ctx nccl-test-config kernel_release source) == library ]]'
 check "library: OS release recorded"             '[[ -n "$(rows value nccl-test-config os_release)" ]]'
@@ -192,8 +197,14 @@ run e2 NCCL_TESTS_REPORT_URL="$URL" FAKE_NSIZES=5000
 check "cap: more than 4096 result lines sends nothing, exit unchanged" '[[ $(npaths) -eq 0 && $RC -eq 0 ]]'
 reset_mock
 run e3 NCCL_TESTS_REPORT_URL="$URL" FAKE_CPUTIME=1
-check "cpu time: no latency rows under -C 1"     '[[ $(npaths) -eq 1 && $(rows count nccl-test-metric latency) -eq 0 ]]'
+check "cpu time: no latency rows under -C 1"     '[[ $(npaths) -eq 1 && $(rows count nccl-test-metric latency) -eq 0 && $(rows count nccl-test-metric latency_in_place) -eq 0 ]]'
+check "cpu time: sent as cpu_time instead"       '[[ $(rows count nccl-test-metric cpu_time) -eq 10 && $(rows count nccl-test-metric cpu_time_in_place) -eq 10 ]]'
 check "cpu time: bandwidth rows still present"   '[[ $(rows count nccl-test-metric bandwidth) -eq 11 ]]'
+reset_mock
+run e5 NCCL_TESTS_REPORT_URL="$URL" FAKE_CYCLES=3 FAKE_CHECK=120.5 FAKE_OOB=2
+check "cycles: run-level cycles row"             '[[ $(rows value nccl-test-metric cycles) == 3.0 || $(rows value nccl-test-metric cycles) == 3 ]]'
+check "cycles: rows tagged with their cycle"     '[[ "$(rows ctx nccl-test-metric latency cycle message_size=4K cycle=2)" == 2 || "$(rows ctx nccl-test-metric latency cycle message_size=4K cycle=2.0)" == 2.0 ]]'
+check "footer: min_bandwidth_check and out_of_bounds" '[[ $(rows value nccl-test-metric min_bandwidth_check) == 120.5 && ( $(rows value nccl-test-metric out_of_bounds) == 2 || $(rows value nccl-test-metric out_of_bounds) == 2.0 ) ]]'
 reset_mock
 run e4 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_MAX_TIME=0 NCCL_TESTS_REPORT_CONNECT_TIMEOUT=0
 check "timeouts: zero falls back to the defaults and still sends" '[[ $(npaths) -eq 1 ]]'

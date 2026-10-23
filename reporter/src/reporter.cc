@@ -38,6 +38,7 @@ struct SizeRec {
   unsigned long long nbytes = 0, nelem = 0;
   std::string type, op;
   int root = 0;
+  int cycle = 0;  // index of the -N cycle, counted from 0, inferred from where the sweep restarts
   bool cpu_time = false;
   Half oop, inp;
 };
@@ -74,6 +75,7 @@ struct State {
   std::vector<Device> devices;
   std::vector<SizeRec> sizes;
   bool sizes_overflow = false;
+  int cycles = 1;
   Footer footer;
   std::vector<std::string> errors;
 };
@@ -133,8 +135,9 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   ctx_put(common, "ended_at", iso_utc_ms(t1));
   for (const auto &t : s.cfg.tags) ctx_put(common, "tag_" + t.first, t.second);
 
-  // Per message size, the out-of-place half only. alg_bw, cpu time and the in-place half are
-  // not emitted.
+  // Per message size, both halves of the result line. The out-of-place half keeps the original
+  // names, bandwidth for bus bandwidth and latency for time, and the in-place half and algorithm
+  // bandwidth get their own names. Under -C 1 the time is CPU time and is sent as cpu_time.
   for (const SizeRec &z : s.sizes) {
     Context shape;
     ctx_put(shape, "message_size", humanize_size(z.nbytes));
@@ -143,15 +146,17 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     ctx_put(shape, "dtype", z.type);
     ctx_put(shape, "redop", z.op);
     ctx_put(shape, "root", std::to_string(z.root));
-    if (z.oop.present) {
-      Context c = shape; ctx_put(c, "agg", std::string("sample")); ctx_put(c, "unit", std::string("GB/s"));
-      add_row(rows, kKindMetric, "bandwidth", Value::number(z.oop.bus_bw), common, c);
-      // Under -C 1 the time is CPU time, not collective latency, so no latency row.
-      if (!z.cpu_time) {
-        Context l = shape; ctx_put(l, "agg", std::string("mean")); ctx_put(l, "unit", std::string("us"));
-        add_row(rows, kKindMetric, "latency", Value::number(z.oop.time_usec), common, l);
-      }
-    }
+    if (s.cycles > 1) ctx_put(shape, "cycle", (double)z.cycle);
+    auto half = [&](const Half &h, const std::string &suffix) {
+      if (!h.present) return;
+      Context bw = shape; ctx_put(bw, "agg", std::string("sample")); ctx_put(bw, "unit", std::string("GB/s"));
+      add_row(rows, kKindMetric, "bandwidth" + suffix, Value::number(h.bus_bw), common, bw);
+      add_row(rows, kKindMetric, "alg_bandwidth" + suffix, Value::number(h.alg_bw), common, bw);
+      Context tm = shape; ctx_put(tm, "agg", std::string("mean")); ctx_put(tm, "unit", std::string("us"));
+      add_row(rows, kKindMetric, (z.cpu_time ? "cpu_time" : "latency") + suffix, Value::number(h.time_usec), common, tm);
+    };
+    half(z.oop, "");
+    half(z.inp, "_in_place");
     if (z.oop.has_wrong || z.inp.has_wrong) {
       long long wrong = (z.oop.has_wrong ? z.oop.wrong : 0) + (z.inp.has_wrong ? z.inp.wrong : 0);
       Context w = shape; ctx_put(w, "agg", std::string("sample")); ctx_put(w, "unit", std::string("count"));
@@ -169,6 +174,18 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   {
     Context c; ctx_put(c, "agg", std::string("sample")); ctx_put(c, "unit", std::string("count")); ctx_put(c, "verdict", std::string(verdict));
     add_row(rows, kKindMetric, "returncode", Value::number((double)result_code), common, c);
+  }
+  if (s.footer.present) {
+    Context c; ctx_put(c, "agg", std::string("sample")); ctx_put(c, "unit", std::string("count"));
+    add_row(rows, kKindMetric, "out_of_bounds", Value::number((double)s.footer.out_of_bounds), common, c);
+    if (s.footer.check >= 0) {
+      Context m; ctx_put(m, "agg", std::string("sample")); ctx_put(m, "unit", std::string("GB/s"));
+      add_row(rows, kKindMetric, "min_bandwidth_check", Value::number(s.footer.check), common, m);
+    }
+  }
+  if (s.cycles > 1) {
+    Context c; ctx_put(c, "agg", std::string("sample")); ctx_put(c, "unit", std::string("count"));
+    add_row(rows, kKindMetric, "cycles", Value::number((double)s.cycles), common, c);
   }
   {
     double d = seconds_between(s.t0, t1);
@@ -206,7 +223,7 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     add_row(rows, kKindConfig, "argv", Value::text(cmd), cfg_base, src("command_line"));
   }
   for (size_t i = 0; i < s.errors.size() && i < 8; ++i)
-    add_row(rows, kKindConfig, "error_message", Value::text(clip_utf8(s.errors[i], 200)), cfg_base, src("errors"));
+    add_row(rows, kKindConfig, "error_message", Value::text(clip_utf8(s.errors[i], 4000)), cfg_base, src("errors"));
   for (const auto &kv : collect_library_versions())
     add_row(rows, kKindConfig, kv.first, Value::text(kv.second), cfg_base, src("library"));
 
@@ -309,6 +326,9 @@ void nccl_tests_ext_size_begin(size_t nbytes, size_t nelem, const char *type_nam
   }
   SizeRec z;
   z.nbytes = nbytes; z.nelem = nelem; z.type = str(type_name); z.op = str(op_name); z.root = root;
+  // A sweep that does not grow means the next -N cycle has started.
+  if (!s.sizes.empty() && nbytes <= s.sizes.back().nbytes) s.cycles++;
+  z.cycle = s.cycles - 1;
   s.sizes.push_back(std::move(z));
 }
 

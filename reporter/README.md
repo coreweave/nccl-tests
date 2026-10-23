@@ -120,16 +120,20 @@ timeouts fall back to the defaults. A run that produces more than 4096 result li
 
 ## Rows, version 1.0.0
 
-- `nccl-test-metric` has, per message size, `bandwidth` as a sample in GB/s of out-of-place bus
-  bandwidth, `latency` as a mean in us, and `wrong_elements` as a sample count with both halves
-  summed. Under `-C 1` the time is CPU time, so no `latency` rows are sent. Per run it has `bandwidth` as a mean in GB/s with a `verdict`, `returncode` and
-  `duration` in seconds. Context carries `message_size`, `size_bytes`, `count`, `dtype`,
+- `nccl-test-metric` has, per message size and for both halves of the result line, `bandwidth`
+  as a sample in GB/s of bus bandwidth, `alg_bandwidth` as a sample of algorithm bandwidth and
+  `latency` as a mean in us, with `_in_place` appended for the in-place half. Under `-C 1` the
+  time is CPU time and is sent as `cpu_time` instead of `latency`. `wrong_elements` is a sample
+  count with both halves summed. Per run it has `bandwidth` as a mean in GB/s with a `verdict`,
+  `returncode`, `duration` in seconds, `out_of_bounds` and, with `-a`, `min_bandwidth_check`.
+  With `-N` above 1 every per-size row carries `cycle`, counted from 0, and a `cycles` row gives
+  the total. Context carries `message_size`, `size_bytes`, `count`, `dtype`,
   `redop` and `root`, plus the common keys `node`, `test_name`, `topology=collective`,
   `nccl_version`, `nccl_library_version`, `nccl_headers_version`, `nccl_tests_version`,
   `cuda_version`, `image`, `job_id`, `uuid`, `started_at`, `ended_at` and `tag_*`.
 - `nccl-test-config` has every `NCCL_*` variable with `source=environment`, the test's settings
   with `source=test_config`, `argv` with `source=command_line`, `error_message` with
-  `source=errors`, and system and library versions with `source=library`. The library rows are
+  `source=errors` with up to 4000 characters each, and system and library versions with `source=library`. The library rows are
   `kernel_release`, `os_release`, `driver_version`, `cuda_driver_version`, `mpi_library_version`,
   `ucx_version` and `hpcx_version` where available, `pkg_<name>` for the installed verbs, provider,
   rdma-core, NCCL and DOCA-OFED packages, plus one row per loaded verbs, NCCL, NCCL network plugin,
