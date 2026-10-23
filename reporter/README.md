@@ -128,8 +128,14 @@ timeouts fall back to the defaults. A run that produces more than 4096 result li
   `nccl_version`, `nccl_library_version`, `nccl_headers_version`, `nccl_tests_version`,
   `cuda_version`, `image`, `job_id`, `uuid`, `started_at`, `ended_at` and `tag_*`.
 - `nccl-test-config` has every `NCCL_*` variable with `source=environment`, the test's settings
-  with `source=test_config`, `argv` with `source=command_line` and `error_message` with
-  `source=errors`.
+  with `source=test_config`, `argv` with `source=command_line`, `error_message` with
+  `source=errors`, and system and library versions with `source=library`. The library rows are
+  `kernel_release`, `os_release`, `driver_version`, `cuda_driver_version`, `mpi_library_version`,
+  `ucx_version` and `hpcx_version` where available, `pkg_<name>` for the installed verbs, provider,
+  rdma-core, NCCL and DOCA-OFED packages, plus one row per loaded verbs, NCCL, NCCL network plugin,
+  UCX, MPI, SHARP, HCOLL, CUDA and NVML library, named after the library and valued with its
+  resolved file name, for example `libibverbs` with `libibverbs.so.1.14.56.0`. They describe the
+  reporting rank's node only. Libraries that are not already loaded are never loaded for this.
 - `nccl-test-node-facts` has one `gpu` row per GPU. The value is the device UUID, else the
   serial, else the PCI bus id. Context carries `node`, `gpu`, `uuid`, `serial`, `pci_bus_id`,
   `device_name`, `rank` and `group`. The UUID is the identity because some boards report one
