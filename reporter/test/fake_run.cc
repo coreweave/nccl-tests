@@ -4,6 +4,7 @@
 //   FAKE_RC is the exit and result code, default 0. FAKE_WRITER default 1. FAKE_NDEV default 4.
 //   FAKE_NSIZES default 10. FAKE_ERR is an NCCL error text. FAKE_WRONG, when set, gives
 //   size 3 three wrong elements. FAKE_CPUTIME, when set, reports the times as CPU time.
+//   FAKE_CYCLES repeats the sweep, as -N does. FAKE_OOB and FAKE_CHECK set the footer counts.
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -30,6 +31,8 @@ int main(int argc, char **argv, char **envp) {
                           (i % 2) ? "1650123456789" : "unknown",
                           (i == 0 || i == 3) ? uuid : "unknown");
   }
+  int cycles = envi("FAKE_CYCLES", 1);
+  for (int cyc = 0; cyc < cycles; ++cyc) {
   unsigned long long size = 8;
   for (int i = 0; i < nsizes; ++i, size *= 2) {
     nccl_tests_ext_size_begin(size, size / 4, "float", "sum", -1);
@@ -37,7 +40,9 @@ int main(int argc, char **argv, char **envp) {
     nccl_tests_ext_size_result(1, 12.5 + i, size / 1e3, 100.0 + i, 1, 0, cpu);
     nccl_tests_ext_size_result(0, 12.0 + i, size / 1e3, 101.0 + i, 1, (i == 3 && getenv("FAKE_WRONG")) ? 3 : 0, cpu);
   }
-  nccl_tests_ext_footer(0, 150.25, -1, "11111111-2222-4333-8444-555555555555");
+  }
+  nccl_tests_ext_footer(envi("FAKE_OOB", 0), 150.25, getenv("FAKE_CHECK") ? atof(getenv("FAKE_CHECK")) : -1,
+                        "11111111-2222-4333-8444-555555555555");
   if (getenv("FAKE_ERR")) nccl_tests_ext_error(getenv("FAKE_ERR"));
   printf("# Collective test concluded: all_reduce_perf\n");
   nccl_tests_ext_finalize(rc);
