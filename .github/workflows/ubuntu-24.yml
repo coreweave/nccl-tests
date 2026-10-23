@@ -105,7 +105,7 @@ jobs:
       folder: .
       dockerfile: Dockerfile
       base-image: nvidia/cuda
-      base-tag: 13.4.2-devel-ubuntu24.04
-      cuda-version: "13.4.2"
+      base-tag: 13.4.3-devel-ubuntu24.04
+      cuda-version: "13.4.3"
       nccl-version: 2.32.3-1
       hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu24.04-cuda13"

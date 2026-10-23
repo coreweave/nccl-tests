@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG CUDA_VERSION=13.4.2
+ARG CUDA_VERSION=13.4.3
 ARG BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04
 FROM ${BASE_IMAGE} AS base
 
@@ -23,6 +23,7 @@ RUN apt-get -qq update && \
     rm -rf /var/lib/apt/lists/*
 
 ARG DEBIAN_FRONTEND=noninteractive
+RUN echo 'Howdy :D'
 RUN apt-get -qq update && \
     apt-get -qq install -y \
         --allow-change-held-packages \
