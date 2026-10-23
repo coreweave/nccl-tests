@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "http.h"
+#include "libs.h"
 #include "rows.h"
 #include "util.h"
 
@@ -177,7 +178,8 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     }
   }
 
-  // Config rows cover every NCCL_* variable, the test's own settings, the command line and errors.
+  // Config rows cover every NCCL_* variable, the test's own settings, the command line, errors,
+  // and the versions of the system and of the libraries loaded in the process.
   Context cfg_base;
   for (const auto &kv : common) if (kv.first != "topology") cfg_base.push_back(kv);
   auto src = [](const char *what) { Context c; ctx_put(c, "source", std::string(what)); return c; };
@@ -205,6 +207,8 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   }
   for (size_t i = 0; i < s.errors.size() && i < 8; ++i)
     add_row(rows, kKindConfig, "error_message", Value::text(clip_utf8(s.errors[i], 200)), cfg_base, src("errors"));
+  for (const auto &kv : collect_library_versions())
+    add_row(rows, kKindConfig, kv.first, Value::text(kv.second), cfg_base, src("library"));
 
   // One facts row per GPU. The value is the device UUID, else
   // the serial, else the PCI bus id. The serial alone is not enough, because some boards report

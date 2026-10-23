@@ -38,6 +38,10 @@ elif cmd == "value":
     print(first(a[0], a[1], a[2:])["value"])
 elif cmd == "ctx":
     print(first(a[0], a[1], a[3:])["context"].get(a[2]))
+elif cmd == "count_except_source":
+    print(sum(1 for r in rows if r["kind"] == a[0] and r["context"].get("source") != a[1]))
+elif cmd == "count_source":
+    print(sum(1 for r in rows if r["kind"] == a[0] and r["context"].get("source") == a[1]))
 elif cmd == "names":
     print(" ".join(sorted({r["name"] for r in rows if r["kind"] == a[0]})))
 elif cmd == "maxstr":
