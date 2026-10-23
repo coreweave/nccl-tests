@@ -282,11 +282,21 @@ ENV UCX_VFS_ENABLE=no
 #     rm /opt/hpcx/nccl_rdma_sharp_plugin/lib/* && \
 #     rm -r /tmp/*
 
-# NCCL Tests
-ENV NCCL_TESTS_COMMITISH=f727aa2a540fef911de9d7bfd8852bc5d2c69815
+# NCCL Tests, built from the CoreWeave fork with the result reporter in ./reporter.
+# The reporter stays off unless NCCL_TESTS_REPORT_URL or NCCL_TESTS_REPORT=1 is set, or one
+# of the REPORTER_DEFAULT_HOSTS resolves inside a cluster. Both lists are empty by default.
+# NCCL_TESTS_REPORT=0 turns it off. See reporter/README.md.
+ARG REPORTER_DEFAULT_HOSTS=""
+ARG REPORTER_SKIP_NAMESPACES=""
+ENV NCCL_TESTS_REPO=coreweave/nccl-tests-json
+ENV NCCL_TESTS_COMMITISH=7c10986940f105a087d961ec18f865dce4241d13
+COPY reporter /opt/nccl-tests-reporter
+RUN make -C /opt/nccl-tests-reporter clean lib \
+        DEFAULT_HOSTS="${REPORTER_DEFAULT_HOSTS}" \
+        SKIP_NAMESPACES="${REPORTER_SKIP_NAMESPACES}"
 WORKDIR /opt/nccl-tests
-RUN wget -q -O - https://github.com/NVIDIA/nccl-tests/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
-    make -j20 MPI=1 && \
+RUN wget -q -O - https://github.com/${NCCL_TESTS_REPO}/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
+    make -j20 MPI=1 EXT_DIR=/opt/nccl-tests-reporter && \
     ln -s /opt/nccl-tests /opt/nccl_tests
 
 ADD run_test.py /opt/nccl-tests/run_test.py
