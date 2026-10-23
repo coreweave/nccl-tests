@@ -5,8 +5,13 @@
 #include <string.h>
 #include <sys/socket.h>
 
+#include <chrono>
+#include <condition_variable>
 #include <cstdio>
+#include <memory>
+#include <mutex>
 #include <sstream>
+#include <thread>
 
 #include "util.h"
 
@@ -44,6 +49,12 @@ static long env_long(const char *name, long dflt) {
   long x = strtol(v, &end, 10);
   if (end == v || x < 0) return dflt;
   return x;
+}
+
+// Like env_long but zero is rejected too, for timeouts where zero means no limit to libcurl.
+static long env_positive_long(const char *name, long dflt) {
+  long x = env_long(name, dflt);
+  return x > 0 ? x : dflt;
 }
 
 static std::vector<std::string> split_csv(const std::string &s) {
@@ -93,15 +104,38 @@ static std::string discover_namespace(const std::vector<std::string> &search) {
   return "";
 }
 
-static bool host_resolves(const std::string &host) {
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  struct addrinfo *res = nullptr;
-  int rc = getaddrinfo(host.c_str(), nullptr, &hints, &res);
-  if (res) freeaddrinfo(res);
-  return rc == 0;
+// Resolves host on a detached thread and waits until deadline. A lookup still running at the
+// deadline counts as not resolved and is left to finish on its own, so a slow resolver never
+// holds up the end of the test.
+struct Lookup {
+  std::mutex m;
+  std::condition_variable cv;
+  bool done = false, ok = false;
+};
+
+static bool host_resolves(const std::string &host, std::chrono::steady_clock::time_point deadline) {
+  if (std::chrono::steady_clock::now() >= deadline) return false;
+  auto l = std::make_shared<Lookup>();
+  try {
+    std::thread([l, host]() {
+      struct addrinfo hints;
+      memset(&hints, 0, sizeof(hints));
+      hints.ai_family = AF_UNSPEC;
+      hints.ai_socktype = SOCK_STREAM;
+      struct addrinfo *res = nullptr;
+      int rc = getaddrinfo(host.c_str(), nullptr, &hints, &res);
+      if (res) freeaddrinfo(res);
+      std::lock_guard<std::mutex> g(l->m);
+      l->ok = rc == 0;
+      l->done = true;
+      l->cv.notify_all();
+    }).detach();
+  } catch (...) {
+    return false;
+  }
+  std::unique_lock<std::mutex> g(l->m);
+  l->cv.wait_until(g, deadline, [&] { return l->done; });
+  return l->done && l->ok;
 }
 
 Config load_config(char **envp) {
@@ -112,7 +146,8 @@ Config load_config(char **envp) {
 
   const char *url = getenv("NCCL_TESTS_REPORT_URL");
   if (url) {
-    c.url = trim(url);  // set but empty = force-disable
+    c.url = trim(url);
+    if (c.url.empty()) { c.reason = "NCCL_TESTS_REPORT_URL is set but empty"; return c; }
   } else {
     const char *file = getenv("NCCL_TESTS_REPORT_URL_FILE");
     c.url = read_first_line(file && *file ? file : kUrlFileDefault);
@@ -145,8 +180,8 @@ Config load_config(char **envp) {
   if ((v = getenv("NCCL_TESTS_REPORT_IMAGE")) && *v) c.image = v;
   if ((v = getenv("SLURM_JOB_ID")) && *v) c.slurm_job_id = v;
   if ((v = getenv("NCCL_VERSION")) && *v) c.nccl_version_env = v;
-  c.connect_timeout_s = env_long("NCCL_TESTS_REPORT_CONNECT_TIMEOUT", 2);
-  c.max_time_s = env_long("NCCL_TESTS_REPORT_MAX_TIME", 5);
+  c.connect_timeout_s = env_positive_long("NCCL_TESTS_REPORT_CONNECT_TIMEOUT", 2);
+  c.max_time_s = env_positive_long("NCCL_TESTS_REPORT_MAX_TIME", 5);
   c.debug = (v = getenv("NCCL_TESTS_REPORT_DEBUG")) && strcmp(v, "1") == 0;
 
   static const char kTag[] = "NCCL_TESTS_REPORT_TAG_";
@@ -169,8 +204,10 @@ Config load_config(char **envp) {
 
 bool resolve_default_endpoint(Config &c) {
   if (!c.pending) return c.active;
+  // All candidates share one budget, the connect timeout.
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(c.connect_timeout_s);
   for (const std::string &h : c.candidate_hosts) {
-    if (host_resolves(h)) {
+    if (host_resolves(h, deadline)) {
       c.url = "http://" + h + ":" + std::to_string(c.default_port) + c.default_path;
       c.pending = false;
       c.reason = "resolved " + h;

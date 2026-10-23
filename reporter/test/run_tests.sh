@@ -33,7 +33,7 @@ run() {
   # do not depend on the surrounding environment. Container images set NCCL_*.
   local -a scrub=(); local v
   for v in $(env | grep -oE '^(NCCL_[A-Z0-9_]*|SLURM_JOB_ID)=' | tr -d '='); do scrub+=(-u "$v"); done
-  env "${scrub[@]}" NCCL_TESTS_REPORT_URL_FILE=/nonexistent "$@" \
+  env "${scrub[@]}" NCCL_TESTS_REPORT_URL_FILE=/nonexistent NCCL_TESTS_REPORT_NAMESPACE_FILE=/nonexistent "$@" \
       "$BIN" all_reduce_perf -b 8 -e 1G -g 4 >"$WORK/$name.out" 2>"$WORK/$name.err"
   RC=$?
   ELAPSED=$(python3 -c "import time; print(time.time()-$t0)")
@@ -179,6 +179,21 @@ run d10 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS
 check "debug: reason and resolved endpoint logged"               'grep -q "in a cluster, endpoint resolved at finalize" $WORK/d10.err && grep -q "endpoint http://127.0.0.1:$PORT/v2/runs/" $WORK/d10.err'
 run d11 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.laptop" NCCL_TESTS_REPORT_DEBUG=1
 check "debug: inactive reason logged"                            'grep -q "inactive, no endpoint configured and no candidate hosts" $WORK/d11.err'
+
+echo "# review fixes"
+reset_mock
+run e1 NCCL_TESTS_REPORT_URL="" NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT"
+check "opt-out: empty NCCL_TESTS_REPORT_URL beats candidate hosts" '[[ $(npaths) -eq 0 && $RC -eq 0 ]]'
+reset_mock
+run e2 NCCL_TESTS_REPORT_URL="$URL" FAKE_NSIZES=5000
+check "cap: more than 4096 result lines sends nothing, exit unchanged" '[[ $(npaths) -eq 0 && $RC -eq 0 ]]'
+reset_mock
+run e3 NCCL_TESTS_REPORT_URL="$URL" FAKE_CPUTIME=1
+check "cpu time: no latency rows under -C 1"     '[[ $(npaths) -eq 1 && $(rows count nccl-test-metric latency) -eq 0 ]]'
+check "cpu time: bandwidth rows still present"   '[[ $(rows count nccl-test-metric bandwidth) -eq 11 ]]'
+reset_mock
+run e4 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_MAX_TIME=0 NCCL_TESTS_REPORT_CONNECT_TIMEOUT=0
+check "timeouts: zero falls back to the defaults and still sends" '[[ $(npaths) -eq 1 ]]'
 
 echo
 echo "passed $PASS, failed $FAIL"

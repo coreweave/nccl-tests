@@ -50,10 +50,12 @@ void nccl_tests_ext_device(int rank, int group, int pid, const char *hostname,
 void nccl_tests_ext_size_begin(size_t nbytes, size_t nelem,
                                const char *type_name, const char *op_name, int root);
 
-/* One half of a result line. out_of_place is 1 for the first half and 0 for in-place. */
+/* One half of a result line. out_of_place is 1 for the first half and 0 for in-place.
+ * cpu_time is 1 when time_usec is CPU time because the test runs with -C 1. */
 void nccl_tests_ext_size_result(int out_of_place, double time_usec,
                                 double alg_bw, double bus_bw,
-                                int report_errors, long long wrong_elts);
+                                int report_errors, long long wrong_elts,
+                                int cpu_time);
 
 /* Run summary. check_avg_bw is -1 when no minimum was requested. uuid may be NULL. */
 void nccl_tests_ext_footer(int out_of_bounds, double avg_bus_bw,

@@ -3,7 +3,7 @@
 // No GPU, NCCL or MPI involved. Environment knobs, with defaults:
 //   FAKE_RC is the exit and result code, default 0. FAKE_WRITER default 1. FAKE_NDEV default 4.
 //   FAKE_NSIZES default 10. FAKE_ERR is an NCCL error text. FAKE_WRONG, when set, gives
-//   size 3 three wrong elements.
+//   size 3 three wrong elements. FAKE_CPUTIME, when set, reports the times as CPU time.
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -33,8 +33,9 @@ int main(int argc, char **argv, char **envp) {
   unsigned long long size = 8;
   for (int i = 0; i < nsizes; ++i, size *= 2) {
     nccl_tests_ext_size_begin(size, size / 4, "float", "sum", -1);
-    nccl_tests_ext_size_result(1, 12.5 + i, size / 1e3, 100.0 + i, 1, 0);
-    nccl_tests_ext_size_result(0, 12.0 + i, size / 1e3, 101.0 + i, 1, (i == 3 && getenv("FAKE_WRONG")) ? 3 : 0);
+    int cpu = getenv("FAKE_CPUTIME") ? 1 : 0;
+    nccl_tests_ext_size_result(1, 12.5 + i, size / 1e3, 100.0 + i, 1, 0, cpu);
+    nccl_tests_ext_size_result(0, 12.0 + i, size / 1e3, 101.0 + i, 1, (i == 3 && getenv("FAKE_WRONG")) ? 3 : 0, cpu);
   }
   nccl_tests_ext_footer(0, 150.25, -1, "11111111-2222-4333-8444-555555555555");
   if (getenv("FAKE_ERR")) nccl_tests_ext_error(getenv("FAKE_ERR"));

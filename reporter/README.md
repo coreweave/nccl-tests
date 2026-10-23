@@ -65,7 +65,7 @@ The fork's `src/ext_hooks.h` defines the macros that wrap each call.
 | `nccl_tests_ext_identify_writer` | `run()`, where `is_main_thread` is set | the rank 0 main thread is the writer |
 | `nccl_tests_ext_run_config` | `writeDeviceReport` | versions, nThreads, nGpus, sizes, iterations, flags |
 | `nccl_tests_ext_device` | the device record loop, which now runs with or without `-J` | rank, host, device, PCI id, name, serial, device UUID |
-| `nccl_tests_ext_size_begin` and `_size_result` | `writeBenchmarkLinePreamble` and `writeBenchmarkLineBody` | size, count, type, op, root, then time, alg and bus bandwidth, wrong elements |
+| `nccl_tests_ext_size_begin` and `_size_result` | `writeBenchmarkLinePreamble` and `writeBenchmarkLineBody` | size, count, type, op, root, then time, alg and bus bandwidth, wrong elements and whether the time is CPU time |
 | `nccl_tests_ext_footer` | `writeResultFooter` | out-of-bounds count, average bus bandwidth, minimum-bandwidth check, run uuid |
 | `nccl_tests_ext_error` | `writeErrors` | last NCCL error text |
 | `nccl_tests_ext_finalize` | `main()`, after `run()` returns | result code, then builds and sends |
@@ -114,12 +114,15 @@ Environment variables override the build-time defaults.
 
 Behavior. The reporter never changes stdout, stderr or the exit code. It makes one attempt
 with short timeouts and no retries. Only the writer rank sends. No URL means no work at all.
+Name resolution of the candidate hosts shares one deadline, the connect timeout. Zero
+timeouts fall back to the defaults. A run that produces more than 4096 result lines, such as
+`-N 0`, stops recording and sends nothing.
 
 ## Rows, version 1.0.0
 
 - `nccl-test-metric` has, per message size, `bandwidth` as a sample in GB/s of out-of-place bus
   bandwidth, `latency` as a mean in us, and `wrong_elements` as a sample count with both halves
-  summed. Per run it has `bandwidth` as a mean in GB/s with a `verdict`, `returncode` and
+  summed. Under `-C 1` the time is CPU time, so no `latency` rows are sent. Per run it has `bandwidth` as a mean in GB/s with a `verdict`, `returncode` and
   `duration` in seconds. Context carries `message_size`, `size_bytes`, `count`, `dtype`,
   `redop` and `root`, plus the common keys `node`, `test_name`, `topology=collective`,
   `nccl_version`, `nccl_library_version`, `nccl_headers_version`, `nccl_tests_version`,

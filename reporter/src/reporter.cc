@@ -37,8 +37,13 @@ struct SizeRec {
   unsigned long long nbytes = 0, nelem = 0;
   std::string type, op;
   int root = 0;
+  bool cpu_time = false;
   Half oop, inp;
 };
+
+// Result lines kept per run. A run with -N 0 cycles forever and calls the size hooks on every
+// cycle, so past this many lines the run stops recording and finalize sends nothing.
+static const size_t kMaxSizeRecords = 4096;
 struct Device {
   int rank = 0, group = 0, pid = 0, device = 0;
   std::string hostname, pci, name, serial, uuid;
@@ -67,6 +72,7 @@ struct State {
   RunConfig rc;
   std::vector<Device> devices;
   std::vector<SizeRec> sizes;
+  bool sizes_overflow = false;
   Footer footer;
   std::vector<std::string> errors;
 };
@@ -139,8 +145,11 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     if (z.oop.present) {
       Context c = shape; ctx_put(c, "agg", std::string("sample")); ctx_put(c, "unit", std::string("GB/s"));
       add_row(rows, kKindMetric, "bandwidth", Value::number(z.oop.bus_bw), common, c);
-      Context l = shape; ctx_put(l, "agg", std::string("mean")); ctx_put(l, "unit", std::string("us"));
-      add_row(rows, kKindMetric, "latency", Value::number(z.oop.time_usec), common, l);
+      // Under -C 1 the time is CPU time, not collective latency, so no latency row.
+      if (!z.cpu_time) {
+        Context l = shape; ctx_put(l, "agg", std::string("mean")); ctx_put(l, "unit", std::string("us"));
+        add_row(rows, kKindMetric, "latency", Value::number(z.oop.time_usec), common, l);
+      }
     }
     if (z.oop.has_wrong || z.inp.has_wrong) {
       long long wrong = (z.oop.has_wrong ? z.oop.wrong : 0) + (z.inp.has_wrong ? z.inp.wrong : 0);
@@ -287,16 +296,23 @@ void nccl_tests_ext_device(int rank, int group, int pid, const char *hostname, i
 
 void nccl_tests_ext_size_begin(size_t nbytes, size_t nelem, const char *type_name, const char *op_name, int root) {
   State &s = S();
-  if (!s.cfg.active) return;
+  if (!s.cfg.active || s.sizes_overflow) return;
+  if (s.sizes.size() >= kMaxSizeRecords) {
+    s.sizes_overflow = true;
+    s.sizes.clear();
+    s.sizes.shrink_to_fit();
+    return;
+  }
   SizeRec z;
   z.nbytes = nbytes; z.nelem = nelem; z.type = str(type_name); z.op = str(op_name); z.root = root;
   s.sizes.push_back(std::move(z));
 }
 
 void nccl_tests_ext_size_result(int out_of_place, double time_usec, double alg_bw, double bus_bw,
-                                int report_errors, long long wrong_elts) {
+                                int report_errors, long long wrong_elts, int cpu_time) {
   State &s = S();
-  if (!s.cfg.active || s.sizes.empty()) return;
+  if (!s.cfg.active || s.sizes_overflow || s.sizes.empty()) return;
+  if (cpu_time) s.sizes.back().cpu_time = true;
   Half &h = out_of_place ? s.sizes.back().oop : s.sizes.back().inp;
   h.present = true;
   h.time_usec = time_usec; h.alg_bw = alg_bw; h.bus_bw = bus_bw;
@@ -323,6 +339,7 @@ void nccl_tests_ext_finalize(int result_code) {
   if (!s.initialized || !s.cfg.active || s.finalized) return;
   s.finalized = true;
   if (!s.writer) { dbg("not the writer rank; nothing sent"); return; }
+  if (s.sizes_overflow) { dbg("more than %zu result lines; nothing sent", kMaxSizeRecords); return; }
   if (s.cfg.pending) {
     bool ok = resolve_default_endpoint(s.cfg);
     dbg("%s%s", ok ? "endpoint " : "not sent, ", ok ? s.cfg.url.c_str() : s.cfg.reason.c_str());
