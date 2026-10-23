@@ -22,14 +22,19 @@ int main(int argc, char **argv, char **envp) {
   nccl_tests_ext_identify_writer(writer);
   nccl_tests_ext_run_config("all_reduce_perf", "2.18.3", 22104, 23102, 12040,
                             1, ndev, 8, 1ULL << 30, 0, 2, 5, 20, 1, 1, 0, 0, 0);
+  // Every process contributes its local info before the gather, as the fork does.
+  char local[1024];
+  nccl_tests_ext_local_info(local, sizeof(local));
   for (int i = 0; i < ndev; ++i) {
     char pci[32]; snprintf(pci, sizeof(pci), "0000:%02x:00", 0x1b + i);
     // Device 0 has a uuid only, 1 a serial only, 2 neither, 3 both. Devices 1 and 3 share a
     // serial, as two GPUs of one GB300 module do.
     char uuid[48]; snprintf(uuid, sizeof(uuid), "GPU-663051f8-43a9-e63c-6886-da4b882cd7%02x", i);
-    nccl_tests_ext_device(i, 0, 4242, "fakehost-01", i, pci, "NVIDIA GB300 ",
+    nccl_tests_ext_device(i, 0, 4242, i < 2 ? "fakehost-01" : "fakehost-02", i, pci, "NVIDIA GB300 ",
                           (i % 2) ? "1650123456789" : "unknown",
-                          (i == 0 || i == 3) ? uuid : "unknown");
+                          (i == 0 || i == 3) ? uuid : "unknown",
+                          i == 0 ? "97.00.D0.00.5B" : "unknown", i < 2 ? 0 : 1,
+                          i < 2 ? "0-71" : "72-143", i < 2 ? "0" : "1", local);
   }
   int cycles = envi("FAKE_CYCLES", 1);
   for (int cyc = 0; cyc < cycles; ++cyc) {

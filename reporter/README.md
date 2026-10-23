@@ -64,7 +64,8 @@ The fork's `src/ext_hooks.h` defines the macros that wrap each call.
 | `nccl_tests_ext_init` | `main()`, after `MPI_Init` | argv, env, start time |
 | `nccl_tests_ext_identify_writer` | `run()`, where `is_main_thread` is set | the rank 0 main thread is the writer |
 | `nccl_tests_ext_run_config` | `writeDeviceReport` | versions, nThreads, nGpus, sizes, iterations, flags |
-| `nccl_tests_ext_device` | the device record loop, which now runs with or without `-J` | rank, host, device, PCI id, name, serial, device UUID |
+| `nccl_tests_ext_local_info` | the device record loop, on every process | a line of text the extension writes about its node |
+| `nccl_tests_ext_device` | the device record loop, which now runs with or without `-J` | rank, host, device, PCI id, name, serial, device UUID, VBIOS, GPU NUMA node, process CPU affinity and NUMA nodes, local info |
 | `nccl_tests_ext_size_begin` and `_size_result` | `writeBenchmarkLinePreamble` and `writeBenchmarkLineBody` | size, count, type, op, root, then time, alg and bus bandwidth, wrong elements and whether the time is CPU time |
 | `nccl_tests_ext_footer` | `writeResultFooter` | out-of-bounds count, average bus bandwidth, minimum-bandwidth check, run uuid |
 | `nccl_tests_ext_error` | `writeErrors` | last NCCL error text |
@@ -138,9 +139,11 @@ timeouts fall back to the defaults. A run that produces more than 4096 result li
   `ucx_version` and `hpcx_version` where available, `pkg_<name>` for the installed verbs, provider,
   rdma-core, NCCL and DOCA-OFED packages, plus one row per loaded verbs, NCCL, NCCL network plugin,
   UCX, MPI, SHARP, HCOLL, CUDA and NVML library, named after the library and valued with its
-  resolved file name, for example `libibverbs` with `libibverbs.so.1.14.56.0`. They describe the
-  reporting rank's node only. Libraries that are not already loaded are never loaded for this.
+  resolved file name, for example `libibverbs` with `libibverbs.so.1.14.56.0`. The config rows describe the
+  reporting rank's node, and the node-facts rows every node. Libraries that are not already loaded are never loaded for this.
 - `nccl-test-node-facts` has one `gpu` row per GPU. The value is the device UUID, else the
   serial, else the PCI bus id. Context carries `node`, `gpu`, `uuid`, `serial`, `pci_bus_id`,
-  `device_name`, `rank` and `group`. The UUID is the identity because some boards report one
+  `device_name`, `rank`, `group`, `vbios`, `gpu_numa_node`, and the `cpu_affinity` and
+  `cpu_numa_nodes` of the process that drives the GPU. Each node also gets the library rows
+  described above, with `source=library`, from the first process seen on that node. The UUID is the identity because some boards report one
   NVML serial for the GPUs of a module.

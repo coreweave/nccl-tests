@@ -47,9 +47,42 @@ struct SizeRec {
 // cycle, so past this many lines the run stops recording and finalize sends nothing.
 static const size_t kMaxSizeRecords = 4096;
 struct Device {
-  int rank = 0, group = 0, pid = 0, device = 0;
-  std::string hostname, pci, name, serial, uuid;
+  int rank = 0, group = 0, pid = 0, device = 0, gpu_numa = -1;
+  std::string hostname, pci, name, serial, uuid, vbios, cpu_affinity, cpu_numa, local_info;
 };
+
+// The local info text is name=value pairs joined by '&', with '%', '&', '=' and control and
+// space characters percent-encoded, so it survives the line-based gather in one line.
+std::string pct_encode(const std::string &s) {
+  static const char *hex = "0123456789ABCDEF";
+  std::string out;
+  for (unsigned char c : s) {
+    if (c <= ' ' || c == '%' || c == '&' || c == '=' || c >= 0x7f) { out.push_back('%'); out.push_back(hex[c >> 4]); out.push_back(hex[c & 15]); }
+    else out.push_back((char)c);
+  }
+  return out;
+}
+std::string pct_decode(const std::string &s) {
+  std::string out;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i] == '%' && i + 2 < s.size()) { out.push_back((char)strtol(s.substr(i + 1, 2).c_str(), nullptr, 16)); i += 2; }
+    else out.push_back(s[i]);
+  }
+  return out;
+}
+std::vector<std::pair<std::string, std::string>> decode_local_info(const std::string &s) {
+  std::vector<std::pair<std::string, std::string>> out;
+  size_t start = 0;
+  while (start < s.size()) {
+    size_t amp = s.find('&', start);
+    std::string pair = s.substr(start, amp == std::string::npos ? std::string::npos : amp - start);
+    size_t eq = pair.find('=');
+    if (eq != std::string::npos && eq > 0) out.emplace_back(pct_decode(pair.substr(0, eq)), pct_decode(pair.substr(eq + 1)));
+    if (amp == std::string::npos) break;
+    start = amp + 1;
+  }
+  return out;
+}
 struct RunConfig {
   bool present = false;
   std::string program, tests_version;
@@ -246,12 +279,31 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     ctx_put(c, "device_name", trim(d.name));
     ctx_put(c, "rank", (double)d.rank);
     ctx_put(c, "group", (double)d.group);
+    if (!d.vbios.empty() && d.vbios != "unknown") ctx_put(c, "vbios", d.vbios);
+    if (d.gpu_numa >= 0) ctx_put(c, "gpu_numa_node", (double)d.gpu_numa);
+    if (!d.cpu_affinity.empty() && d.cpu_affinity != "unknown") ctx_put(c, "cpu_affinity", d.cpu_affinity);
+    if (!d.cpu_numa.empty() && d.cpu_numa != "unknown") ctx_put(c, "cpu_numa_nodes", d.cpu_numa);
     // facts_base already has node. The per-device node must win, so put it in base position.
     Context base = facts_base;
     for (auto &kv : base) if (kv.first == "node" && !d.hostname.empty()) kv.second = Value::text(d.hostname);
     Context extra;
     for (const auto &kv : c) if (kv.first != "node") extra.push_back(kv);
     add_row(rows, kKindFacts, "gpu", Value::text(id), base, extra);
+  }
+  // One row per library version per node, from the local info each process contributed. The
+  // first process seen on a node speaks for it.
+  std::vector<std::string> nodes_done;
+  for (const Device &d : s.devices) {
+    std::string host = d.hostname.empty() ? s.node : d.hostname;
+    bool done = false;
+    for (const auto &n : nodes_done) if (n == host) done = true;
+    if (done || d.local_info.empty()) continue;
+    nodes_done.push_back(host);
+    Context base = facts_base;
+    for (auto &kv : base) if (kv.first == "node") kv.second = Value::text(host);
+    Context lib; ctx_put(lib, "source", std::string("library"));
+    for (const auto &kv : decode_local_info(d.local_info))
+      add_row(rows, kKindFacts, kv.first, Value::text(kv.second), base, lib);
   }
   return rows;
 }
@@ -303,15 +355,39 @@ void nccl_tests_ext_run_config(const char *program_name, const char *nccl_tests_
   r.graph = cuda_graph_launches; r.blocking = blocking_coll; r.parallel_init = parallel_init;
 }
 
+void nccl_tests_ext_local_info(char *out, size_t len) {
+  if (out == nullptr || len == 0) return;
+  out[0] = '\0';
+  State &s = S();
+  if (!s.cfg.active) return;
+  std::string text;
+  try {
+    for (const auto &kv : collect_library_versions()) {
+      std::string pair = pct_encode(kv.first) + "=" + pct_encode(kv.second);
+      if (text.size() + pair.size() + 1 >= len) break;
+      if (!text.empty()) text.push_back('&');
+      text += pair;
+    }
+  } catch (...) {
+    text.clear();
+  }
+  snprintf(out, len, "%s", text.c_str());
+}
+
 void nccl_tests_ext_device(int rank, int group, int pid, const char *hostname, int device,
                            const char *pci_bus_id, const char *device_name, const char *serial,
-                           const char *uuid) {
+                           const char *uuid, const char *vbios, int gpu_numa_node,
+                           const char *cpu_affinity, const char *cpu_numa_nodes,
+                           const char *local_info) {
   State &s = S();
   if (!s.cfg.active) return;
   Device d;
   d.rank = rank; d.group = group; d.pid = pid; d.device = device;
   d.hostname = str(hostname); d.pci = str(pci_bus_id); d.name = str(device_name); d.serial = trim(str(serial));
   d.uuid = trim(str(uuid));
+  d.vbios = trim(str(vbios)); d.gpu_numa = gpu_numa_node;
+  d.cpu_affinity = trim(str(cpu_affinity)); d.cpu_numa = trim(str(cpu_numa_nodes));
+  d.local_info = str(local_info);
   s.devices.push_back(std::move(d));
 }
 
