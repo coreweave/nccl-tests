@@ -4,7 +4,8 @@
 //   FAKE_RC is the exit and result code, default 0. FAKE_WRITER default 1. FAKE_NDEV default 4.
 //   FAKE_NSIZES default 10. FAKE_ERR is an NCCL error text. FAKE_WRONG, when set, gives
 //   size 3 three wrong elements. FAKE_CPUTIME, when set, reports the times as CPU time.
-//   FAKE_CYCLES repeats the sweep, as -N does. FAKE_OOB and FAKE_CHECK set the footer counts.
+//   FAKE_CYCLES repeats the sweep, as -N does. FAKE_TYPES runs one sweep per data type, up to 3,
+//   outside the cycles as -d all does. FAKE_OOB and FAKE_CHECK set the footer counts.
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -36,14 +37,17 @@ int main(int argc, char **argv, char **envp) {
                           i == 0 ? "97.00.D0.00.5B" : "unknown", i < 2 ? 0 : 1,
                           i < 2 ? "0-71" : "72-143", i < 2 ? "0" : "1", local);
   }
-  int cycles = envi("FAKE_CYCLES", 1);
+  int cycles = envi("FAKE_CYCLES", 1), ntypes = envi("FAKE_TYPES", 1);
+  const char *types[] = {"float", "half", "double"};
+  for (int t = 0; t < ntypes && t < 3; ++t) {
   for (int cyc = 0; cyc < cycles; ++cyc) {
   unsigned long long size = 8;
   for (int i = 0; i < nsizes; ++i, size *= 2) {
-    nccl_tests_ext_size_begin(size, size / 4, "float", "sum", -1);
+    nccl_tests_ext_size_begin(size, size / 4, types[t], "sum", -1);
     int cpu = getenv("FAKE_CPUTIME") ? 1 : 0;
     nccl_tests_ext_size_result(1, 12.5 + i, size / 1e3, 100.0 + i, 1, 0, cpu);
     nccl_tests_ext_size_result(0, 12.0 + i, size / 1e3, 101.0 + i, 1, (i == 3 && getenv("FAKE_WRONG")) ? 3 : 0, cpu);
+  }
   }
   }
   nccl_tests_ext_footer(envi("FAKE_OOB", 0), 150.25, getenv("FAKE_CHECK") ? atof(getenv("FAKE_CHECK")) : -1,
