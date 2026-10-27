@@ -3,7 +3,6 @@
 #include <sys/stat.h>
 
 #include <fstream>
-#include <sstream>
 
 namespace ext {
 
@@ -52,10 +51,13 @@ bool read_file_capped(const std::string &path, size_t max_bytes, std::string *bo
   if ((size_t)st.st_size > max_bytes) return false;
   std::ifstream f(path, std::ios::binary);
   if (!f) return false;
-  std::ostringstream ss;
-  ss << f.rdbuf();
-  *body = ss.str();
-  return body->size() <= max_bytes;
+  // Read one byte past the limit at most, so a file that grew after stat is caught without
+  // buffering what it grew by.
+  body->resize(max_bytes + 1);
+  f.read(&(*body)[0], (std::streamsize)body->size());
+  body->resize((size_t)f.gcount());
+  if (body->size() > max_bytes) { if (size) *size = body->size(); body->clear(); return false; }
+  return true;
 }
 
 }  // namespace ext

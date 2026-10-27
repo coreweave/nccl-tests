@@ -270,6 +270,18 @@ reset_mock
 run l8 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/pct%%.log"
 check "logs: %% in NCCL_DEBUG_FILE is a literal %"  '[[ $(nartifacts) -eq 1 ]]'
 
+LONG_ID=run-$(printf 'x%.0s' $(seq 70))
+reset_mock
+run l9 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_RUN_ID="$LONG_ID"
+check "run id: an override longer than the exchange stays whole" '[[ $(results_run_id) == "$LONG_ID" ]]'
+FIXED_URL="http://127.0.0.1:$PORT/v2/runs/fixed-run/results"
+reset_mock
+run l10 NCCL_TESTS_REPORT_URL="$FIXED_URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
+check "logs: fixed results URL without a run id sends no logs" '[[ $(nartifacts) -eq 0 && $(npaths) -eq 1 ]]'
+reset_mock
+run l11 NCCL_TESTS_REPORT_URL="$FIXED_URL" NCCL_TESTS_REPORT_RUN_ID=fixed-run NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
+check "logs: fixed results URL with the matching run id"        '[[ $(nartifacts) -eq 1 ]] && grep -q "^/v1/runs/fixed-run/artifacts/" "$WORK/m.artifacts"'
+
 echo
 echo "passed $PASS, failed $FAIL"
 [[ $FAIL -eq 0 ]]
