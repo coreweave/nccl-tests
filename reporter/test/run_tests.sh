@@ -53,6 +53,7 @@ check "inactive: stdout is the test banner"     'grep -q "Collective test conclu
 echo "# active: delivery and row content"
 reset_mock
 run t2 NCCL_TESTS_REPORT_URL="$URL" NCCL_DEBUG=INFO NCCL_IB_HCA=mlx5_0 NCCL_VERSION=2.31.2 \
+       NCCL_COMM_ID=10.0.0.1:1234 NCCL_TOPO_FILE=/home/user/topo.xml NCCL_MY_SECRET=x \
        NCCL_TESTS_REPORT_TAG_SKU=gb300 NCCL_TESTS_REPORT_IMAGE=img:1 SLURM_JOB_ID=42
 check "active: exactly one request"             '[[ $(npaths) -eq 1 ]]'
 check "active: rows pass the API rules"         '[[ $(validation) == PASS ]]'
@@ -65,7 +66,7 @@ check "out-of-place: algorithm bandwidth"        '[[ $(rows count nccl-test-metr
 check "out_of_bounds row from the footer"        '[[ $(rows value nccl-test-metric out_of_bounds) == 0.0 || $(rows value nccl-test-metric out_of_bounds) == 0 ]]'
 check "no min_bandwidth_check row without -a"    '[[ $(rows count nccl-test-metric min_bandwidth_check) -eq 0 ]]'
 check "no cycle key on a single cycle"           '[[ "$(rows ctx nccl-test-metric latency cycle message_size=4K)" == None ]]'
-check "config rows: 3 NCCL_* + 12 settings + argv" '[[ $(rows count_except_source nccl-test-config library) -eq 16 ]]'
+check "config rows: 2 listed NCCL_* + 12 settings + argv" '[[ $(rows count_except_source nccl-test-config library) -eq 15 ]]'
 check "library: kernel and OS release recorded"  '[[ -n "$(rows value nccl-test-config kernel_release)" && $(rows ctx nccl-test-config kernel_release source) == library ]]'
 check "library: OS release recorded"             '[[ -n "$(rows value nccl-test-config os_release)" ]]'
 check "library: at least one library row" '[[ $(rows count_source nccl-test-config library) -ge 1 ]]'
@@ -87,6 +88,8 @@ check "test_name from the program name"         '[[ $(rows ctx nccl-test-metric 
 check "run uuid from the footer"                '[[ $(rows ctx nccl-test-metric returncode uuid) == 11111111-2222-4333-8444-555555555555 ]]'
 check "config: NCCL_DEBUG from environment"     '[[ $(rows value nccl-test-config NCCL_DEBUG) == INFO && $(rows ctx nccl-test-config NCCL_DEBUG source) == environment ]]'
 check "config: reporter's own variables excluded" '! rows names nccl-test-config | grep -q NCCL_TESTS_REPORT'
+check "config: NCCL_IB_HCA is on the list"      '[[ $(rows value nccl-test-config NCCL_IB_HCA) == mlx5_0 ]]'
+check "config: unlisted NCCL_* not recorded"    '! rows names nccl-test-config | grep -q -E "NCCL_COMM_ID|NCCL_TOPO_FILE|NCCL_MY_SECRET"'
 check "config: step_factor, not step_bytes"     '[[ $(rows value nccl-test-config step_factor) == 2 ]] && ! rows names nccl-test-config | grep -q step_bytes'
 check "config: argv recorded"                   '[[ "$(rows value nccl-test-config argv)" == *"all_reduce_perf -b 8 -e 1G -g 4"* ]]'
 check "facts: serial when no uuid"              '[[ $(rows value nccl-test-node-facts gpu gpu=1) == 1650123456789 ]]'
@@ -123,7 +126,7 @@ echo "# client-side limits"
 reset_mock
 BIG=$(head -c 40000 /dev/zero | tr '\0' a)
 TAGS=(); for i in $(seq 70); do TAGS+=("NCCL_TESTS_REPORT_TAG_T$(printf %03d "$i")=v"); done
-run t7 NCCL_TESTS_REPORT_URL="$URL" "NCCL_TESTS_REPORT_TAG_BIG=$BIG" "NCCL_TESTS_REPORT_TAG_Weird-Name=x" "NCCL_HUGE=$BIG$BIG" "${TAGS[@]}"
+run t7 NCCL_TESTS_REPORT_URL="$URL" "NCCL_TESTS_REPORT_TAG_BIG=$BIG" "NCCL_TESTS_REPORT_TAG_Weird-Name=x" "NCCL_IB_HCA=$BIG$BIG" "${TAGS[@]}"
 check "limits: fake ran and one request arrived" '[[ $RC -eq 0 && $(npaths) -eq 1 ]]'
 check "limits: rows still pass the API rules"   '[[ $(validation) == PASS ]]'
 check "limits: strings clipped to 32 KiB"       'x=$(rows maxstr) && [[ $x -le 32768 ]]'
