@@ -8,6 +8,8 @@ results API field rules for name, value, kind, version and context to
 <out_prefix>.validation, which reads PASS, or FAIL followed by the errors. Artifact PUTs, any
 path with /artifacts/, are not validated. Their paths go to <out_prefix>.artifacts and each
 body to <out_prefix>.artifact.<file>, with its content type in <out_prefix>.artifact.<file>.type.
+A PUT whose rows are all of kind nccl-test-log goes to <out_prefix>.logpaths, .logbody and
+.logvalidation instead of the result files.
 """
 import json
 import re
@@ -70,9 +72,20 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b"{}")
             return
         try:
-            errs = validate(json.loads(body))
+            parsed = json.loads(body)
+            errs = validate(parsed)
         except Exception as ex:  # noqa: BLE001
-            errs = ["bad json: %s" % ex]
+            parsed, errs = None, ["bad json: %s" % ex]
+        if isinstance(parsed, list) and parsed and all(r.get("kind") == "nccl-test-log" for r in parsed):
+            # A log-only PUT, kept apart from the result rows it would otherwise replace here.
+            open(OUT + ".logpaths", "a").write(self.path + "\n")
+            open(OUT + ".logbody", "wb").write(body)
+            open(OUT + ".logvalidation", "w").write("PASS" if not errs else "FAIL %s" % errs[:5])
+            self.send_response(202 if not errs else 400)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"{}")
+            return
         open(OUT + ".paths", "a").write(self.path + "\n")
         open(OUT + ".body", "wb").write(body)
         open(OUT + ".meta", "w").write("%s\nauth=%s\n" % (self.path, self.headers.get("X-Test", "")))

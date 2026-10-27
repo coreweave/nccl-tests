@@ -36,6 +36,7 @@ struct Config {
   std::string artifact_path = "/v1/runs/{run_id}/artifacts/{file}";
   long log_max_time_s = 30;     // NCCL_TESTS_REPORT_LOG_MAX_TIME, per upload
   size_t log_max_bytes = 64u << 20;  // NCCL_TESTS_REPORT_LOG_MAX_MIB, at most 256, larger files are skipped
+  size_t log_rows_max_bytes = 1u << 20;  // NCCL_TESTS_REPORT_LOG_ROWS_MAX_KIB, per process when a log goes with the results
 };
 
 // envp may be NULL. getenv is used for single lookups either way.

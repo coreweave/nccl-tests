@@ -257,6 +257,8 @@ Config load_config(char **envp) {
     c.log_max_time_s = env_positive_long("NCCL_TESTS_REPORT_LOG_MAX_TIME", 30);
     long max_mib = env_positive_long("NCCL_TESTS_REPORT_LOG_MAX_MIB", 64);
     c.log_max_bytes = (size_t)(max_mib < 256 ? max_mib : 256) << 20;
+    long rows_kib = env_positive_long("NCCL_TESTS_REPORT_LOG_ROWS_MAX_KIB", 1024);
+    c.log_rows_max_bytes = (size_t)(rows_kib < 8192 ? rows_kib : 8192) << 10;
     if ((v = getenv("NCCL_TESTS_REPORT_ARTIFACT_URL")) && *v) {
       c.artifact_url = trim(v);
     } else {
