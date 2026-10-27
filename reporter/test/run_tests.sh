@@ -34,7 +34,7 @@ run() {
   local -a scrub=(); local v
   for v in $(env | grep -oE '^((NCCL|UCX|UCC|HCOLL|SHARP|OMPI|OPAL|PRTE|PMIX|PMI|MPICH|I_MPI|CUDA|GDRCOPY|MLX5|RDMAV|IBV)_[A-Za-z0-9_]*|SLURM_JOB_ID)=' | tr -d '='); do scrub+=(-u "$v"); done
   env "${scrub[@]}" NCCL_TESTS_REPORT_URL_FILE=/nonexistent NCCL_TESTS_REPORT_NAMESPACE_FILE=/nonexistent "$@" \
-      "$BIN" all_reduce_perf -b 8 -e 1G -g 4 >"$WORK/$name.out" 2>"$WORK/$name.err"
+      "$BIN" all_reduce_perf -b 8 -e 1G -g 4 ${EXTRA_ARGS:-} >"$WORK/$name.out" 2>"$WORK/$name.err"
   RC=$?
   ELAPSED=$(python3 -c "import time; print(time.time()-$t0)")
 }
@@ -42,6 +42,8 @@ npaths() { if [[ -f $WORK/m.paths ]]; then wc -l < "$WORK/m.paths"; else echo 0;
 validation() { cat "$WORK/m.validation" 2>/dev/null || echo "NONE"; }
 rows() { python3 test/rows.py "$WORK/m.body" "$@"; }
 reset_mock() { rm -f "$WORK"/m.*; }
+nartifacts() { if [[ -f $WORK/m.artifacts ]]; then wc -l < "$WORK/m.artifacts"; else echo 0; fi; }
+results_run_id() { sed -n 's|^/v2/runs/\([^/]*\)/results$|\1|p' "$WORK/m.paths" 2>/dev/null | head -1; }
 
 echo "# inactive: no endpoint provisioned"
 run t1
@@ -229,6 +231,44 @@ check "types: cycles counted within each type"   '[[ ( $(rows value nccl-test-me
 reset_mock
 run e4 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_MAX_TIME=0 NCCL_TESTS_REPORT_CONNECT_TIMEOUT=0
 check "timeouts: zero falls back to the defaults and still sends" '[[ $(npaths) -eq 1 ]]'
+
+echo "# log upload"
+AURL="http://127.0.0.1:$PORT/v1/runs/{run_id}/artifacts/{file}"
+SHORT=$(hostname | cut -d. -f1)
+printf 'NCCL INFO fake debug line\n' > "$WORK/dbg.$SHORT.log"
+printf '{"fake": true}\n' > "$WORK/out.json"
+reset_mock
+run l1 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
+check "logs: off unless NCCL_TESTS_REPORT_LOGS=1"   '[[ $(nartifacts) -eq 0 && $(npaths) -eq 1 && $(rows count nccl-test-config artifact) -eq 0 ]]'
+reset_mock
+EXTRA_ARGS="-J $WORK/out.json" run l2 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
+check "logs: debug file and -J output both sent"    '[[ $RC -eq 0 && $(nartifacts) -eq 2 && $(npaths) -eq 1 ]]'
+check "logs: artifacts share the results run id"    'id=$(results_run_id) && [[ -n $id && $(grep -c "^/v1/runs/$id/artifacts/" "$WORK/m.artifacts") -eq 2 ]]'
+check "logs: debug file named by host and pid"      'grep -qE "/artifacts/nccl-debug-${SHORT//[^A-Za-z0-9_-]/_}-[0-9]+\.log$" "$WORK/m.artifacts"'
+check "logs: debug file body is the file"           'f=$(ls "$WORK"/m.artifact.nccl-debug-*.log) && cmp -s "$f" "$WORK/dbg.$SHORT.log"'
+check "logs: -J output sent as JSON"                'f=$(ls "$WORK"/m.artifact.nccl-tests-*.json) && cmp -s "$f" "$WORK/out.json" && [[ $(cat "$f.type") == application/json ]]'
+check "logs: results list the artifacts"            '[[ $(rows count nccl-test-config artifact) -eq 2 && $(rows ctx nccl-test-config artifact source) == logs ]]'
+check "logs: stdout unchanged"                      'cmp -s "$WORK/l1.out" "$WORK/l2.out"'
+reset_mock
+run l3 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/dbg.%h.log" FAKE_WRITER=0 FAKE_SHARED_RUN_ID=shared-run-1
+check "logs: other ranks send under rank 0's run id" '[[ $(nartifacts) -eq 1 && $(npaths) -eq 0 ]] && grep -q "^/v1/runs/shared-run-1/artifacts/nccl-debug-" "$WORK/m.artifacts"'
+reset_mock
+run l4 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/dbg.%h.log" FAKE_WRITER=0 FAKE_NO_SHARE=1
+check "logs: no shared run id, other ranks send nothing" '[[ $(nartifacts) -eq 0 && $RC -eq 0 ]]'
+head -c 2097152 /dev/zero > "$WORK/big.log"
+reset_mock
+run l5 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/big.log" NCCL_TESTS_REPORT_LOG_MAX_MIB=1
+check "logs: a file over the limit is skipped"      '[[ $(nartifacts) -eq 0 && $(npaths) -eq 1 && $(rows count nccl-test-config artifact) -eq 0 ]]'
+reset_mock
+run l6 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_ARTIFACT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
+check "logs: artifact host found in a cluster"      '[[ $(nartifacts) -eq 1 ]] && grep -q "^/v1/runs/.*/artifacts/nccl-debug-" "$WORK/m.artifacts"'
+reset_mock
+run l7 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.laptop" NCCL_TESTS_REPORT_ARTIFACT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
+check "logs: no artifact endpoint outside a cluster" '[[ $(nartifacts) -eq 0 && $(npaths) -eq 1 && $RC -eq 0 ]]'
+printf 'pct\n' > "$WORK/pct%.log"
+reset_mock
+run l8 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/pct%%.log"
+check "logs: %% in NCCL_DEBUG_FILE is a literal %"  '[[ $(nartifacts) -eq 1 ]]'
 
 echo
 echo "passed $PASS, failed $FAIL"

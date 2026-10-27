@@ -284,18 +284,21 @@ ENV UCX_VFS_ENABLE=no
 # NCCL Tests, built from the CoreWeave fork with the result reporter in ./reporter.
 # The reporter stays off unless NCCL_TESTS_REPORT_URL or NCCL_TESTS_REPORT=1 is set, or one
 # of the REPORTER_DEFAULT_HOSTS resolves inside a cluster. Both lists are empty by default.
-# NCCL_TESTS_REPORT=0 turns it off. See reporter/README.md.
+# NCCL_TESTS_REPORT=0 turns it off. Log files are uploaded only with NCCL_TESTS_REPORT_LOGS=1,
+# to REPORTER_ARTIFACT_HOSTS, also empty by default. See reporter/README.md.
 ARG REPORTER_DEFAULT_HOSTS=""
 ARG REPORTER_SKIP_NAMESPACES=""
+ARG REPORTER_ARTIFACT_HOSTS=""
 # The build passes the image reference in, and the reporter records it with every report.
 ARG REPORTER_IMAGE=""
 ENV NCCL_TESTS_REPORT_IMAGE=${REPORTER_IMAGE}
 ENV NCCL_TESTS_REPO=coreweave/nccl-tests-json
-ENV NCCL_TESTS_COMMITISH=7c10986940f105a087d961ec18f865dce4241d13
+ENV NCCL_TESTS_COMMITISH=d53dbb6d601354085b5f4ed128620c23ab9f1a64
 COPY reporter /opt/nccl-tests-reporter
 RUN make -C /opt/nccl-tests-reporter clean lib \
         DEFAULT_HOSTS="${REPORTER_DEFAULT_HOSTS}" \
-        SKIP_NAMESPACES="${REPORTER_SKIP_NAMESPACES}"
+        SKIP_NAMESPACES="${REPORTER_SKIP_NAMESPACES}" \
+        ARTIFACT_HOSTS="${REPORTER_ARTIFACT_HOSTS}"
 WORKDIR /opt/nccl-tests
 RUN wget -q -O - https://github.com/${NCCL_TESTS_REPO}/archive/${NCCL_TESTS_COMMITISH}.tar.gz | tar --strip-components=1 -xzf - && \
     make -j20 MPI=1 EXT_DIR=/opt/nccl-tests-reporter && \
