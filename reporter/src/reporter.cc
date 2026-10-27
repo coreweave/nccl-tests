@@ -333,7 +333,7 @@ bool put_artifact(State &s, const std::string &path, const std::string &file, co
   o.auth_header = s.cfg.auth_header;
   std::string err;
   dbg("PUT %s (%zu bytes)", url.c_str(), body.size());
-  if (http_put(url, body, content_type, o, &err)) return true;
+  if (http_put(url, body, content_type, o, &err)) { dbg("artifact %s delivered", file.c_str()); return true; }
   dbg("artifact delivery failed (ignored): %s", err.c_str());
   return false;
 }
