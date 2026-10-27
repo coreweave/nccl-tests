@@ -68,6 +68,7 @@ The fork's `src/ext_hooks.h` defines the macros that wrap each call.
 | `nccl_tests_ext_local_info` | the device record loop, on every process | a line of text the extension writes about its node |
 | `nccl_tests_ext_device` | the device record loop, which now runs with or without `-J` | rank, host, device, PCI id, name, serial, device UUID, VBIOS, GPU NUMA node, process CPU affinity and NUMA nodes, local info |
 | `nccl_tests_ext_size_begin` and `_size_result` | `writeBenchmarkLinePreamble` and `writeBenchmarkLineBody` | size, count, type, op, root, then time, alg and bus bandwidth, wrong elements and whether the time is CPU time |
+| `nccl_tests_ext_process_end` and `_process_end_gathered` | `run()`, after the footer and before `MPI_Finalize`, on every process | each process's end-of-run text, gathered to rank 0 with `MPI_Gatherv` |
 | `nccl_tests_ext_footer` | `writeResultFooter` | out-of-bounds count, average bus bandwidth, minimum-bandwidth check, run uuid |
 | `nccl_tests_ext_error` | `writeErrors` | last NCCL error text |
 | `nccl_tests_ext_finalize` | `main()`, after `run()` returns, on every process | result code, then the writer builds and sends, and each process uploads its logs when asked |
@@ -113,11 +114,12 @@ Environment variables override the build-time defaults.
 | `NCCL_TESTS_REPORT_TAG_<NAME>` | Recorded as context `tag_<name>`. |
 | `NCCL_TESTS_REPORT_CONNECT_TIMEOUT`, `_MAX_TIME` | Seconds. Defaults 2 and 5. |
 | `NCCL_TESTS_REPORT_DEBUG=1` | Log to stderr. Otherwise silent. |
-| `NCCL_TESTS_REPORT_LOGS=1` | Also upload log files as run artifacts. Off by default. See below. |
+| `NCCL_TESTS_REPORT_LOGS=1` | Also send each process's NCCL debug log. Off by default. See below. |
 | `NCCL_TESTS_REPORT_ARTIFACT_URL` | Artifact endpoint URL with `{run_id}` and `{file}`. |
 | `NCCL_TESTS_REPORT_ARTIFACT_HOSTS` | Candidate artifact hosts, comma separated, tried in order inside a cluster. |
-| `NCCL_TESTS_REPORT_LOG_MAX_MIB` | Largest file to upload, in MiB. Default 64, at most 256. Larger files are skipped. |
+| `NCCL_TESTS_REPORT_LOG_MAX_MIB` | Largest log for the artifact endpoint, in MiB. Default 64, at most 256. A larger one goes with the results. |
 | `NCCL_TESTS_REPORT_LOG_MAX_TIME` | Seconds per upload. Default 30. |
+| `NCCL_TESTS_REPORT_LOG_ROWS_MAX_KIB` | Largest log per process sent with the results, in KiB. Default 1024, at most 8192. |
 
 Behavior. The reporter never changes stdout, stderr or the exit code. It makes one attempt
 with short timeouts and no retries. Only the writer rank sends. No URL means no work at all.
@@ -127,23 +129,33 @@ timeouts fall back to the defaults. A run that produces more than 4096 result li
 
 ## Log upload
 
-With `NCCL_TESTS_REPORT_LOGS=1` on an active reporter, each process uploads the log files the
-user already asked for, as artifacts of the run. Nothing changes where NCCL or the test writes
-its output, and no file is read unless the user named it.
+With `NCCL_TESTS_REPORT_LOGS=1` on an active reporter, every process sends the NCCL debug log
+the user already asked NCCL to write, `NCCL_DEBUG_FILE` with `%h`, `%p` and `%%` expanded as
+NCCL does. NCCL writes that file only when `NCCL_DEBUG` is `WARN` or more verbose. Nothing
+changes where NCCL or the test writes its output, and no other file is read. The `-J` output
+file is never sent, since it holds the whole environment of the process.
 
-- Every process uploads its NCCL debug file when `NCCL_DEBUG_FILE` is set, with `%h`, `%p` and
-  `%%` expanded as NCCL does, as `nccl-debug-<host>-<pid>.log`. NCCL writes that file only when
-  `NCCL_DEBUG` is `WARN` or more verbose.
-- The writer uploads the `-J` output file as `nccl-tests-<host>.json`.
-- The writer lists the artifacts it delivered as `artifact` config rows with `source=logs`.
+The log needs nothing beyond the results endpoint.
 
-Each file goes in one PUT to `/v1/runs/{run_id}/artifacts/{file}` on the artifact endpoint,
-which is `NCCL_TESTS_REPORT_ARTIFACT_URL` or else the first of the artifact hosts that resolves
-inside a cluster, on the reporter port. Rank 0 shares its run id with every process right after
-MPI init, so the files of all nodes land under the run id of the results. A process that did not
-receive the run id uploads nothing. With a results URL that has no `{run_id}`, logs are sent only when
-`NCCL_TESTS_REPORT_RUN_ID` gives the run id, since no process can know it otherwise. A file that is missing or over the size limit is skipped,
-and a failed upload is ignored like a failed report.
+- When an artifact endpoint is reachable, each process PUTs its log to
+  `/v1/runs/{run_id}/artifacts/nccl-debug-<host>-<pid>.log` under the run id of the results.
+  The endpoint is `NCCL_TESTS_REPORT_ARTIFACT_URL` or else the first of the artifact hosts that
+  resolves inside a cluster, on the reporter port.
+- Otherwise, or when that upload fails or the file is over the artifact size limit, the process
+  hands the log to rank 0 at the end of the run, through the fork's end-of-run gather. Rank 0
+  sends those logs to the results endpoint in a second PUT of kind `nccl-test-log`, one row per
+  piece of up to 30000 bytes with `node`, `pid`, `file`, `part`, `parts`, `bytes` and
+  `truncated` in context. A log over `NCCL_TESTS_REPORT_LOG_ROWS_MAX_KIB`, default 1024, keeps
+  its first and last halves. All logs together stay within 12 MiB, and logs past that are left
+  out.
+- Rank 0 records one `log_status` config row per process with `source=logs`, so the outcome of
+  every node is in the results. The value is `delivered`, `in_results`, `no_debug_file`,
+  `missing` or `over_budget`, and context has `log_node`, `pid`, `file`, `bytes` and, when cut,
+  `truncated`.
+
+Rank 0 shares its run id with every process right after MPI init. A process without the shared
+run id, or with a results URL that has no `{run_id}` and no `NCCL_TESTS_REPORT_RUN_ID`, skips the
+artifact endpoint and hands its log to rank 0. A failed upload never changes the test.
 
 ## Recorded environment variables
 

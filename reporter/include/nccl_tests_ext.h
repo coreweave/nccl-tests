@@ -8,8 +8,10 @@
  *
  * Call order within the reporting process, which is rank 0 of an MPI job or the only process:
  *   init -> run_id -> run_id_shared -> identify_writer -> run_config -> device* ->
- *   (size_begin -> size_result{1,2})* -> footer -> error? -> finalize
- * Every other process of an MPI job calls init, run_id_shared, local_info and finalize.
+ *   (size_begin -> size_result{1,2})* -> footer -> process_end -> process_end_gathered ->
+ *   error? -> finalize
+ * Every other process of an MPI job calls init, run_id_shared, local_info, process_end and
+ * finalize.
  * All hooks after init run on the main thread. An extension must never change the
  * test's stdout, stderr or exit code, and must never block for long.
  */
@@ -80,6 +82,15 @@ void nccl_tests_ext_size_result(int out_of_place, double time_usec,
 /* Run summary. check_avg_bw is -1 when no minimum was requested. uuid may be NULL. */
 void nccl_tests_ext_footer(int out_of_bounds, double avg_bus_bw,
                            double check_avg_bw, const char *uuid);
+
+/* Called on every process at the end of the run, after the communicators are destroyed and
+ * before MPI_Finalize. The extension may point data at up to len bytes it owns, which stay
+ * valid until process_end_gathered returns on rank 0. */
+void nccl_tests_ext_process_end(const char **data, size_t *len);
+
+/* Called on rank 0 only, with what every process returned from process_end, indexed by
+ * MPI rank. A build without MPI calls it with its own data and nprocs 1. */
+void nccl_tests_ext_process_end_gathered(int nprocs, const char *const *data, const size_t *len);
 
 /* Last NCCL error text, if any. May be NULL or empty. */
 void nccl_tests_ext_error(const char *message);

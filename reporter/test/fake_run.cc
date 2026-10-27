@@ -7,9 +7,13 @@
 //   FAKE_CYCLES repeats the sweep, as -N does. FAKE_TYPES runs one sweep per data type, up to 3,
 //   outside the cycles as -d all does. FAKE_OOB and FAKE_CHECK set the footer counts.
 //   FAKE_SHARED_RUN_ID, when set, is the run id a non-writer process receives from rank 0, and
-//   FAKE_NO_SHARE skips the run id exchange, as a build without MPI may.
+//   FAKE_NO_SHARE skips the run id exchange, as a build without MPI may. FAKE_NO_END skips
+//   the end-of-run gather, as an older fork does. FAKE_PAYLOAD_OUT saves what this process hands
+//   to rank 0, and FAKE_PEER_PAYLOAD adds a saved one as a second process on the writer.
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <string>
 
 #include "nccl_tests_ext.h"
 
@@ -61,6 +65,26 @@ int main(int argc, char **argv, char **envp) {
   }
   nccl_tests_ext_footer(envi("FAKE_OOB", 0), 150.25, getenv("FAKE_CHECK") ? atof(getenv("FAKE_CHECK")) : -1,
                         "11111111-2222-4333-8444-555555555555");
+  // The end-of-run gather, as the fork does it before MPI_Finalize.
+  if (!getenv("FAKE_NO_END")) {
+    const char *data = nullptr;
+    size_t len = 0;
+    nccl_tests_ext_process_end(&data, &len);
+    if (getenv("FAKE_PAYLOAD_OUT")) {
+      FILE *f = fopen(getenv("FAKE_PAYLOAD_OUT"), "wb");
+      if (f) { if (data && len) fwrite(data, 1, len, f); fclose(f); }
+    }
+    if (writer) {
+      std::string peer;
+      if (getenv("FAKE_PEER_PAYLOAD")) {
+        FILE *f = fopen(getenv("FAKE_PEER_PAYLOAD"), "rb");
+        if (f) { char buf[65536]; size_t n; while ((n = fread(buf, 1, sizeof(buf), f)) > 0) peer.append(buf, n); fclose(f); }
+      }
+      const char *ptrs[2] = {data, peer.data()};
+      size_t lens[2] = {len, peer.size()};
+      nccl_tests_ext_process_end_gathered(peer.empty() ? 1 : 2, ptrs, lens);
+    }
+  }
   if (getenv("FAKE_ERR")) nccl_tests_ext_error(getenv("FAKE_ERR"));
   printf("# Collective test concluded: all_reduce_perf\n");
   nccl_tests_ext_finalize(rc);

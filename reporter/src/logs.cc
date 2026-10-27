@@ -24,17 +24,6 @@ std::string nccl_debug_file_path(const char *pattern, const std::string &host, i
   return out;
 }
 
-std::string output_file_from_argv(const std::vector<std::string> &argv) {
-  std::string found;
-  for (size_t i = 1; i < argv.size(); ++i) {
-    const std::string &a = argv[i];
-    if ((a == "-J" || a == "--output_file") && i + 1 < argv.size()) found = argv[++i];
-    else if (a.compare(0, 14, "--output_file=") == 0) found = a.substr(14);
-    else if (a.size() > 2 && a.compare(0, 2, "-J") == 0) found = a.substr(2);
-  }
-  return found;
-}
-
 std::string artifact_name_part(const std::string &s) {
   std::string out;
   for (char c : s) {
