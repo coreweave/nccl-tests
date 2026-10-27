@@ -147,8 +147,8 @@ The reporter also reads `NCCL_VERSION` into the `nccl_version` context, `SLURM_J
   time is CPU time and is sent as `cpu_time` instead of `latency`. `wrong_elements` is a sample
   count with both halves summed. Per run it has `bandwidth` as a mean in GB/s with a `verdict`,
   `returncode`, `duration` in seconds, `out_of_bounds` and, with `-a`, `min_bandwidth_check`.
-  With `-N` above 1 every per-size row carries `cycle`, counted from 0, and a `cycles` row gives
-  the total. Context carries `message_size`, `size_bytes`, `count`, `dtype`,
+  With `-N` above 1 every per-size row carries `cycle`, counted from 0 within its data type, op
+  and root, and a `cycles` row gives the number of cycles. Context carries `message_size`, `size_bytes`, `count`, `dtype`,
   `redop` and `root`, plus the common keys `node`, `test_name`, `topology=collective`,
   `nccl_version`, `nccl_library_version`, `nccl_headers_version`, `nccl_tests_version`,
   `cuda_version`, `image`, `job_id`, `uuid`, `started_at`, `ended_at` and `tag_*`.

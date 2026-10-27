@@ -213,6 +213,12 @@ check "cycles: run-level cycles row"             '[[ $(rows value nccl-test-metr
 check "cycles: rows tagged with their cycle"     '[[ "$(rows ctx nccl-test-metric latency cycle message_size=4K cycle=2)" == 2 || "$(rows ctx nccl-test-metric latency cycle message_size=4K cycle=2.0)" == 2.0 ]]'
 check "footer: min_bandwidth_check and out_of_bounds" '[[ $(rows value nccl-test-metric min_bandwidth_check) == 120.5 && ( $(rows value nccl-test-metric out_of_bounds) == 2 || $(rows value nccl-test-metric out_of_bounds) == 2.0 ) ]]'
 reset_mock
+run e6 NCCL_TESTS_REPORT_URL="$URL" FAKE_TYPES=2
+check "types: a sweep per type is not a cycle"   '[[ $(rows count nccl-test-metric cycles) -eq 0 && "$(rows ctx nccl-test-metric latency cycle message_size=4K dtype=half)" == None ]]'
+reset_mock
+run e7 NCCL_TESTS_REPORT_URL="$URL" FAKE_TYPES=2 FAKE_CYCLES=2
+check "types: cycles counted within each type"   '[[ ( $(rows value nccl-test-metric cycles) == 2 || $(rows value nccl-test-metric cycles) == 2.0 ) && "$(rows ctx nccl-test-metric latency cycle message_size=4K dtype=half cycle=1)" == 1* ]]'
+reset_mock
 run e4 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_MAX_TIME=0 NCCL_TESTS_REPORT_CONNECT_TIMEOUT=0
 check "timeouts: zero falls back to the defaults and still sends" '[[ $(npaths) -eq 1 ]]'
 

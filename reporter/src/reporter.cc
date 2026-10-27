@@ -402,9 +402,14 @@ void nccl_tests_ext_size_begin(size_t nbytes, size_t nelem, const char *type_nam
   }
   SizeRec z;
   z.nbytes = nbytes; z.nelem = nelem; z.type = str(type_name); z.op = str(op_name); z.root = root;
-  // A sweep that does not grow means the next -N cycle has started.
-  if (!s.sizes.empty() && nbytes <= s.sizes.back().nbytes) s.cycles++;
-  z.cycle = s.cycles - 1;
+  // Each type, op and root gets its own sweep, with the -N cycles inside it. Within one of
+  // those sweeps a size that does not grow means the next cycle has started.
+  if (!s.sizes.empty()) {
+    const SizeRec &prev = s.sizes.back();
+    if (prev.type == z.type && prev.op == z.op && prev.root == z.root)
+      z.cycle = nbytes <= prev.nbytes ? prev.cycle + 1 : prev.cycle;
+  }
+  if (z.cycle + 1 > s.cycles) s.cycles = z.cycle + 1;
   s.sizes.push_back(std::move(z));
 }
 
