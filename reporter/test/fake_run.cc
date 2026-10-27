@@ -10,6 +10,7 @@
 //   FAKE_NO_SHARE skips the run id exchange, as a build without MPI may. FAKE_NO_END skips
 //   the end-of-run gather, as an older fork does. FAKE_PAYLOAD_OUT saves what this process hands
 //   to rank 0, and FAKE_PEER_PAYLOAD adds a saved one as a second process on the writer.
+//   FAKE_NPROCS is the process count the end-of-run hook is told, default 1.
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -69,7 +70,7 @@ int main(int argc, char **argv, char **envp) {
   if (!getenv("FAKE_NO_END")) {
     const char *data = nullptr;
     size_t len = 0;
-    nccl_tests_ext_process_end(&data, &len);
+    nccl_tests_ext_process_end(envi("FAKE_NPROCS", 1), &data, &len);
     if (getenv("FAKE_PAYLOAD_OUT")) {
       FILE *f = fopen(getenv("FAKE_PAYLOAD_OUT"), "wb");
       if (f) { if (data && len) fwrite(data, 1, len, f); fclose(f); }

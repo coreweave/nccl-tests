@@ -11,6 +11,11 @@ std::string nccl_debug_file_path(const char *pattern, const std::string &host, i
 // A host name reduced to characters that are safe in an artifact file name.
 std::string artifact_name_part(const std::string &s);
 
+// Reads at most max_bytes of a file. A file over that keeps its first and last parts around a
+// marker line, both cut at UTF-8 character boundaries, and truncated is set. size gets the file
+// size. Returns false when the file cannot be opened.
+bool read_head_tail(const std::string &path, size_t max_bytes, std::string *text, size_t *size, bool *truncated);
+
 // Reads the whole file when it exists and is at most max_bytes long. size gets the file size
 // whenever the file exists.
 bool read_file_capped(const std::string &path, size_t max_bytes, std::string *body, size_t *size);
