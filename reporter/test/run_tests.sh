@@ -285,6 +285,21 @@ check "fallback: marked truncated"                 '[[ $(rows ctx nccl-test-conf
 reset_mock
 run l9 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/big.log" NCCL_TESTS_REPORT_LOG_MAX_MIB=1
 check "fallback: over the artifact limit goes with the results" '[[ $(nartifacts) -eq 0 && $(statuses) == in_results && -f $WORK/m.logpaths ]]'
+check "fallback: over the artifact limit keeps the real last line" 't=$(logtext) && [[ $t == "line 000000"* ]] && grep -q "^line 039999" <<<"$t"'
+python3 -c "import sys;open(sys.argv[1],'w',encoding='utf-8').write(''.join('ligne %06d '%i + 'é€😀'*20 + '\\n' for i in range(20000)))" "$WORK/utf8.log"
+reset_mock
+run l9u NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_DEBUG_FILE="$WORK/utf8.log" NCCL_TESTS_REPORT_LOG_ROWS_MAX_KIB=100
+check "fallback: cuts keep UTF-8 whole"             '[[ $(cat "$WORK/m.logvalidation") == PASS && $(rows ctx nccl-test-config log_status truncated) == 1 ]]'
+reset_mock
+run l9s NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_DEBUG_FILE="$WORK/big.log" NCCL_TESTS_REPORT_LOG_ROWS_MAX_KIB=8192 FAKE_NPROCS=64
+check "fallback: each process keeps to its share"   'python3 -c "import json,sys;r=json.load(open(sys.argv[1]));t=sum(len(x[\"value\"]) for x in r);assert t<=(12<<20)//64,t" "$WORK/m.logbody"'
+if [[ $(id -u) -ne 0 ]]; then
+  cp "$WORK/dbg.$SHORT.log" "$WORK/locked.log"; chmod 000 "$WORK/locked.log"
+  reset_mock
+  run l9r NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_DEBUG_FILE="$WORK/locked.log"
+  check "status: an unreadable debug file"          '[[ $(statuses) == unreadable && ! -f $WORK/m.logpaths ]]'
+  chmod 600 "$WORK/locked.log"
+fi
 reset_mock
 run l10 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_ARTIFACT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
 check "logs: artifact host found in a cluster"      '[[ $(nartifacts) -eq 1 && $(statuses) == delivered ]]'

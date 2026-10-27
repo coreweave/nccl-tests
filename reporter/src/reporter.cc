@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -110,8 +111,8 @@ struct Footer {
 
 // What happened to the NCCL debug log of one process. status is delivered when the artifact
 // endpoint took it, in_results when content travels to rank 0 for the results endpoint,
-// no_debug_file when NCCL_DEBUG_FILE is unset, missing when the file is not there, and
-// over_budget when rank 0 had no room left for it.
+// no_debug_file when NCCL_DEBUG_FILE is unset, missing when the file is not there, unreadable
+// when it cannot be opened, and over_budget when rank 0 had no room left for it.
 struct LogOutcome {
   std::string host, file, status;
   int pid = 0;
@@ -136,6 +137,8 @@ struct State {
   std::string run_id;          // minted at init, replaced by the id rank 0 shares
   bool run_id_shared = false;  // rank 0's id arrived through nccl_tests_ext_run_id_shared
   bool process_end_called = false;     // the fork gathers log outcomes through process_end
+  bool ended = false;                  // t_end holds the end of the run
+  timespec t_end{};
   std::string end_payload;             // what this process hands to rank 0
   std::vector<LogOutcome> logs;        // on the writer, one outcome per process
 };
@@ -346,55 +349,41 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   return rows;
 }
 
-// Keeps the first and last halves of text that is over the limit, with a marker between them.
-std::string head_and_tail(const std::string &text, size_t max_bytes, bool *truncated) {
-  *truncated = text.size() > max_bytes;
-  if (!*truncated) return text;
-  std::string marker = "\n[... " + std::to_string(text.size() - max_bytes) + " bytes omitted ...]\n";
-  size_t keep = max_bytes > marker.size() ? max_bytes - marker.size() : 0;
-  return text.substr(0, keep / 2) + marker + text.substr(text.size() - (keep - keep / 2));
-}
-
 // Decides what happens to this process's NCCL debug log. The artifact endpoint takes it when one
-// is reachable under the shared run id. Otherwise the content goes to rank 0. Only a file the user
-// asked NCCL to write is read.
-LogOutcome handle_own_log(State &s) {
+// is reachable under the shared run id. Otherwise up to content_limit bytes go to rank 0. Only a
+// file the user asked NCCL to write is read.
+LogOutcome handle_own_log(State &s, size_t content_limit) {
   LogOutcome o;
   o.host = artifact_name_part(s.node.substr(0, s.node.find('.')));
   o.pid = (int)getpid();
   std::string path = nccl_debug_file_path(getenv("NCCL_DEBUG_FILE"), s.node, o.pid);
   if (path.empty()) { o.status = "no_debug_file"; dbg("no NCCL_DEBUG_FILE, no NCCL log to send"); return o; }
   o.file = "nccl-debug-" + o.host + "-" + std::to_string(o.pid) + ".log";
-  std::string body;
-  // Read up to the larger of the two limits, so a file too big for one path can still take the other.
-  size_t cap = s.cfg.log_max_bytes;
-  if (!read_file_capped(path, cap, &body, &o.bytes)) {
-    if (o.bytes == 0) { o.status = "missing"; dbg("no readable NCCL log at %s", path.c_str()); return o; }
-    // Over the artifact limit, so only the results path with its own limit is left.
-    std::ifstream f(path, std::ios::binary);
-    body.resize(s.cfg.log_rows_max_bytes);
-    f.read(&body[0], (std::streamsize)body.size());
-    body.resize((size_t)f.gcount());
-    o.content = head_and_tail(body + "\n[... rest of the file omitted ...]\n", s.cfg.log_rows_max_bytes, &o.truncated);
-    o.truncated = true;
-    o.status = "in_results";
-    return o;
-  }
+  struct stat st;
+  if (stat(path.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) { o.status = "missing"; dbg("no NCCL log at %s", path.c_str()); return o; }
+  o.bytes = (size_t)st.st_size;
   bool id_known = s.writer || s.run_id_shared || !s.cfg.run_id_override.empty();
   bool url_ok = s.cfg.url.empty() || s.cfg.url.find("{run_id}") != std::string::npos || !s.cfg.run_id_override.empty();
-  if (id_known && url_ok && resolve_artifact_endpoint(s.cfg)) {
-    std::string url = replace_all(replace_all(s.cfg.artifact_url, "{run_id}", s.run_id), "{file}", o.file);
-    HttpOptions h;
-    h.connect_timeout_s = s.cfg.connect_timeout_s; h.max_time_s = s.cfg.log_max_time_s;
-    h.auth_header = s.cfg.auth_header;
-    std::string err;
-    dbg("PUT %s (%zu bytes)", url.c_str(), body.size());
-    if (http_put(url, body, "text/plain", h, &err)) { dbg("artifact %s delivered", o.file.c_str()); o.status = "delivered"; return o; }
-    dbg("artifact delivery failed, sending the log with the results instead: %s", err.c_str());
+  std::string body;
+  if (o.bytes <= s.cfg.log_max_bytes && id_known && url_ok && resolve_artifact_endpoint(s.cfg)) {
+    if (!read_file_capped(path, s.cfg.log_max_bytes, &body, &o.bytes)) {
+      dbg("NCCL log at %s over the artifact limit or unreadable, sending it with the results", path.c_str());
+    } else {
+      std::string url = replace_all(replace_all(s.cfg.artifact_url, "{run_id}", s.run_id), "{file}", o.file);
+      HttpOptions h;
+      h.connect_timeout_s = s.cfg.connect_timeout_s; h.max_time_s = s.cfg.log_max_time_s;
+      h.auth_header = s.cfg.auth_header;
+      std::string err;
+      dbg("PUT %s (%zu bytes)", url.c_str(), body.size());
+      if (http_put(url, body, "text/plain", h, &err)) { dbg("artifact %s delivered", o.file.c_str()); o.status = "delivered"; return o; }
+      dbg("artifact delivery failed, sending the log with the results instead: %s", err.c_str());
+    }
   } else {
     dbg("no artifact endpoint for %s, sending it with the results", o.file.c_str());
   }
-  o.content = head_and_tail(body, s.cfg.log_rows_max_bytes, &o.truncated);
+  if (!read_head_tail(path, content_limit, &o.content, &o.bytes, &o.truncated)) {
+    o.status = "unreadable"; dbg("NCCL log at %s cannot be read", path.c_str()); return o;
+  }
   o.status = "in_results";
   return o;
 }
@@ -524,15 +513,20 @@ void nccl_tests_ext_run_id_shared(const char *run_id) {
   s.run_id_shared = true;
 }
 
-void nccl_tests_ext_process_end(const char **data, size_t *len) {
+void nccl_tests_ext_process_end(int nprocs, const char **data, size_t *len) {
   if (data) *data = nullptr;
   if (len) *len = 0;
   State &s = S();
   if (!s.cfg.active || !data || !len) return;
   s.process_end_called = true;
+  // The run ends here, so log handling and the gather do not count toward its duration.
+  s.t_end = now_realtime();
+  s.ended = true;
   if (!s.cfg.logs) return;
   try {
-    s.end_payload = encode_outcome(handle_own_log(s));
+    // Each process keeps to its share of the budget, so the gather stays small.
+    size_t share = kLogRowsBudget / (size_t)(nprocs > 0 ? nprocs : 1);
+    s.end_payload = encode_outcome(handle_own_log(s, std::min(s.cfg.log_rows_max_bytes, share)));
     *data = s.end_payload.data();
     *len = s.end_payload.size();
   } catch (...) {
@@ -660,13 +654,13 @@ void nccl_tests_ext_finalize(int result_code) {
   State &s = S();
   if (!s.initialized || !s.cfg.active || s.finalized) return;
   s.finalized = true;
-  // The run ends here, so log uploads do not count toward the reported duration.
-  timespec t1 = now_realtime();
+  // The run ended at process_end when the fork calls it, else here, before any log upload.
+  timespec t1 = s.ended ? s.t_end : now_realtime();
   // A fork without process_end leaves each process to handle its own log here. Only the
   // writer can then send content with the results.
   if (s.cfg.logs && !s.process_end_called) {
     try {
-      LogOutcome o = handle_own_log(s);
+      LogOutcome o = handle_own_log(s, s.cfg.log_rows_max_bytes);
       if (s.writer) s.logs.push_back(std::move(o));
     } catch (...) {
       dbg("log handling failed (exception); ignored");

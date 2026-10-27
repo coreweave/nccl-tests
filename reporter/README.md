@@ -146,11 +146,11 @@ The log needs nothing beyond the results endpoint.
   sends those logs to the results endpoint in a second PUT of kind `nccl-test-log`, one row per
   piece of up to 30000 bytes with `node`, `pid`, `file`, `part`, `parts`, `bytes` and
   `truncated` in context. A log over `NCCL_TESTS_REPORT_LOG_ROWS_MAX_KIB`, default 1024, keeps
-  its first and last halves. All logs together stay within 12 MiB, and logs past that are left
-  out.
+  its first and last parts, cut at character boundaries. Each process also keeps to its share
+  of 12 MiB across all processes, so all logs together fit one request.
 - Rank 0 records one `log_status` config row per process with `source=logs`, so the outcome of
   every node is in the results. The value is `delivered`, `in_results`, `no_debug_file`,
-  `missing` or `over_budget`, and context has `log_node`, `pid`, `file`, `bytes` and, when cut,
+  `missing`, `unreadable` or `over_budget`, and context has `log_node`, `pid`, `file`, `bytes` and, when cut,
   `truncated`.
 
 Rank 0 shares its run id with every process right after MPI init. A process without the shared
