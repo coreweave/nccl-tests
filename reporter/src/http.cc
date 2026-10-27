@@ -80,7 +80,8 @@ static Api load() {
 static size_t discard(char *, size_t s, size_t n, void *) { return s * n; }
 }  // namespace curl
 
-bool http_put_json(const std::string &url, const std::string &body, const HttpOptions &opt, std::string *err) {
+bool http_put(const std::string &url, const std::string &body, const std::string &content_type,
+              const HttpOptions &opt, std::string *err) {
   using namespace curl;
   static Api api = load();  // one dlopen per process
   if (!api.ok()) { if (err) *err = "libcurl not available"; return false; }
@@ -91,7 +92,7 @@ bool http_put_json(const std::string &url, const std::string &body, const HttpOp
   CURL *h = api.easy_init();
   if (!h) { if (err) *err = "curl_easy_init failed"; return false; }
 
-  slist *headers = api.slist_append(nullptr, "Content-Type: application/json");
+  slist *headers = api.slist_append(nullptr, ("Content-Type: " + content_type).c_str());
   headers = api.slist_append(headers, "Expect:");  // no 100-continue round trip
   if (!opt.auth_header.empty()) headers = api.slist_append(headers, opt.auth_header.c_str());
 
@@ -119,6 +120,10 @@ bool http_put_json(const std::string &url, const std::string &body, const HttpOp
   api.slist_free_all(headers);
   api.easy_cleanup(h);
   return ok;
+}
+
+bool http_put_json(const std::string &url, const std::string &body, const HttpOptions &opt, std::string *err) {
+  return http_put(url, body, "application/json", opt, err);
 }
 
 }  // namespace ext

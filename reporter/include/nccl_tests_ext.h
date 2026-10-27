@@ -7,7 +7,9 @@
  * compile to nothing. Everything here is generic. It carries no product, host or schema names.
  *
  * Call order within the reporting process, which is rank 0 of an MPI job or the only process:
- *   init -> identify_writer -> run_config -> device* -> (size_begin -> size_result{1,2})* -> footer -> error? -> finalize
+ *   init -> run_id -> run_id_shared -> identify_writer -> run_config -> device* ->
+ *   (size_begin -> size_result{1,2})* -> footer -> error? -> finalize
+ * Every other process of an MPI job calls init, run_id_shared, local_info and finalize.
  * All hooks after init run on the main thread. An extension must never change the
  * test's stdout, stderr or exit code, and must never block for long.
  */
@@ -22,6 +24,14 @@ extern "C" {
 
 /* Process start, right after MPI_Init. envp may be NULL. */
 void nccl_tests_ext_init(int argc, char **argv, char **envp);
+
+/* Called on rank 0 only, before the run id is broadcast. The extension may write its run id,
+ * up to len - 1 bytes, into out. */
+void nccl_tests_ext_run_id(char *out, size_t len);
+
+/* Called on every process with the run id rank 0 wrote, after the broadcast. Builds without
+ * MPI may not call it. */
+void nccl_tests_ext_run_id_shared(const char *run_id);
 
 /* Called with 1 by the thread that owns the report, the main thread of rank 0. Once set,
  * the writer stays the writer. Calls with 0 are ignored. */
@@ -74,7 +84,7 @@ void nccl_tests_ext_footer(int out_of_bounds, double avg_bus_bw,
 /* Last NCCL error text, if any. May be NULL or empty. */
 void nccl_tests_ext_error(const char *message);
 
-/* End of run. result_code is the testResult_t that the process returns. */
+/* End of run, on every process. result_code is the testResult_t that the process returns. */
 void nccl_tests_ext_finalize(int result_code);
 
 #ifdef __cplusplus

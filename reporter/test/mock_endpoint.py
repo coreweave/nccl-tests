@@ -5,7 +5,9 @@ Usage: mock_endpoint.py <port> <out_prefix>
 Accepts PUT and saves the body to <out_prefix>.body, the request path and auth header
 to <out_prefix>.meta, and the result of validating the rows against the columnar
 results API field rules for name, value, kind, version and context to
-<out_prefix>.validation, which reads PASS, or FAIL followed by the errors.
+<out_prefix>.validation, which reads PASS, or FAIL followed by the errors. Artifact PUTs, any
+path with /artifacts/, are not validated. Their paths go to <out_prefix>.artifacts and each
+body to <out_prefix>.artifact.<file>, with its content type in <out_prefix>.artifact.<file>.type.
 """
 import json
 import re
@@ -57,6 +59,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_PUT(self):
         n = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(n)
+        if "/artifacts/" in self.path:
+            name = self.path.rsplit("/", 1)[-1]
+            open(OUT + ".artifacts", "a").write(self.path + "\n")
+            open(OUT + ".artifact." + name, "wb").write(body)
+            open(OUT + ".artifact." + name + ".type", "w").write(self.headers.get("Content-Type", ""))
+            self.send_response(201)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"{}")
+            return
         try:
             errs = validate(json.loads(body))
         except Exception as ex:  # noqa: BLE001

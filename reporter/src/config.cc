@@ -25,6 +25,9 @@
 #ifndef NCCL_TESTS_EXT_SKIP_NAMESPACES
 #define NCCL_TESTS_EXT_SKIP_NAMESPACES ""
 #endif
+#ifndef NCCL_TESTS_EXT_ARTIFACT_HOSTS
+#define NCCL_TESTS_EXT_ARTIFACT_HOSTS ""
+#endif
 
 namespace ext {
 
@@ -248,6 +251,25 @@ Config load_config(char **envp) {
   c.max_time_s = env_positive_long("NCCL_TESTS_REPORT_MAX_TIME", 5);
   c.debug = (v = getenv("NCCL_TESTS_REPORT_DEBUG")) && strcmp(v, "1") == 0;
 
+  // Log upload is a separate opt-in on top of an active reporter.
+  c.logs = (v = getenv("NCCL_TESTS_REPORT_LOGS")) && strcmp(v, "1") == 0;
+  if (c.logs) {
+    c.log_max_time_s = env_positive_long("NCCL_TESTS_REPORT_LOG_MAX_TIME", 30);
+    long max_mib = env_positive_long("NCCL_TESTS_REPORT_LOG_MAX_MIB", 64);
+    c.log_max_bytes = (size_t)(max_mib < 256 ? max_mib : 256) << 20;
+    if ((v = getenv("NCCL_TESTS_REPORT_ARTIFACT_URL")) && *v) {
+      c.artifact_url = trim(v);
+    } else {
+      c.artifact_hosts = split_csv((v = getenv("NCCL_TESTS_REPORT_ARTIFACT_HOSTS")) && *v ? v : NCCL_TESTS_EXT_ARTIFACT_HOSTS);
+      c.default_port = (int)env_long("NCCL_TESTS_REPORT_PORT", 4318);
+      const char *rc = getenv("NCCL_TESTS_REPORT_RESOLV_CONF");
+      bool in_cluster = c.in_cluster;
+      for (const std::string &d : resolv_search_domains(rc && *rc ? rc : kResolvConfDefault))
+        if (d.find("cluster.local") != std::string::npos) in_cluster = true;
+      c.artifact_pending = !c.artifact_hosts.empty() && (in_cluster || c.forced);
+    }
+  }
+
   static const char kTag[] = "NCCL_TESTS_REPORT_TAG_";
   const size_t tag_len = sizeof(kTag) - 1;
   if (envp) {
@@ -264,6 +286,20 @@ Config load_config(char **envp) {
     }
   }
   return c;
+}
+
+bool resolve_artifact_endpoint(Config &c) {
+  if (!c.artifact_url.empty()) return true;
+  if (!c.artifact_pending) return false;
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(c.connect_timeout_s);
+  for (const std::string &h : c.artifact_hosts) {
+    if (host_resolves(h, deadline)) {
+      c.artifact_url = "http://" + h + ":" + std::to_string(c.default_port) + c.artifact_path;
+      c.artifact_pending = false;
+      return true;
+    }
+  }
+  return false;
 }
 
 bool resolve_default_endpoint(Config &c) {

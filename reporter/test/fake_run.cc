@@ -6,6 +6,8 @@
 //   size 3 three wrong elements. FAKE_CPUTIME, when set, reports the times as CPU time.
 //   FAKE_CYCLES repeats the sweep, as -N does. FAKE_TYPES runs one sweep per data type, up to 3,
 //   outside the cycles as -d all does. FAKE_OOB and FAKE_CHECK set the footer counts.
+//   FAKE_SHARED_RUN_ID, when set, is the run id a non-writer process receives from rank 0, and
+//   FAKE_NO_SHARE skips the run id exchange, as a build without MPI may.
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -18,6 +20,13 @@ int main(int argc, char **argv, char **envp) {
   int ndev = envi("FAKE_NDEV", 4), nsizes = envi("FAKE_NSIZES", 10);
 
   nccl_tests_ext_init(argc, argv, envp);
+  // The run id exchange, as the fork does it right after MPI init. A writer is rank 0.
+  if (!getenv("FAKE_NO_SHARE")) {
+    char run_id[64] = {0};
+    if (writer) nccl_tests_ext_run_id(run_id, sizeof(run_id));
+    else if (getenv("FAKE_SHARED_RUN_ID")) snprintf(run_id, sizeof(run_id), "%s", getenv("FAKE_SHARED_RUN_ID"));
+    nccl_tests_ext_run_id_shared(run_id);
+  }
   printf("# nccl-tests version 2.18.3 nccl-headers=22104 nccl-library=23102\n");
   printf("# Collective test starting: all_reduce_perf\n");
   nccl_tests_ext_identify_writer(writer);

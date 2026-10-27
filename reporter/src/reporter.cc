@@ -1,5 +1,6 @@
 // The reporter implements the nccl-tests extension hooks, buffers what the test
-// reports, and at finalize turns it into columnar rows and PUTs them once.
+// reports, and at finalize turns it into columnar rows and PUTs them once. With log upload
+// enabled, every process also PUTs the log files it can find as artifacts of the same run.
 //
 // Rules, also in the README. Never change the test's stdout, stderr or exit code. Never hang.
 // Stay silent unless NCCL_TESTS_REPORT_DEBUG=1. No endpoint means no work at all.
@@ -8,6 +9,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <cmath>
 #include <cstdio>
@@ -17,6 +19,7 @@
 #include "config.h"
 #include "http.h"
 #include "libs.h"
+#include "logs.h"
 #include "rows.h"
 #include "util.h"
 
@@ -111,6 +114,9 @@ struct State {
   int cycles = 1;
   Footer footer;
   std::vector<std::string> errors;
+  std::string run_id;          // minted at init, replaced by the id rank 0 shares
+  bool run_id_shared = false;  // rank 0's id arrived through nccl_tests_ext_run_id_shared
+  std::vector<std::string> artifacts;  // file names this process delivered as artifacts
 };
 
 State &S() {
@@ -261,6 +267,8 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     add_row(rows, kKindConfig, "error_message", Value::text(clip_utf8(s.errors[i], 4000)), cfg_base, src("errors"));
   for (const auto &kv : collect_library_versions())
     add_row(rows, kKindConfig, kv.first, Value::text(kv.second), cfg_base, src("library"));
+  for (const std::string &a : s.artifacts)
+    add_row(rows, kKindConfig, "artifact", Value::text(a), cfg_base, src("logs"));
 
   // One facts row per GPU. The value is the device UUID, else
   // the serial, else the PCI bus id. The serial alone is not enough, because some boards report
@@ -310,6 +318,51 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   return rows;
 }
 
+// PUTs one file as an artifact of the run. Returns true when the endpoint accepted it.
+bool put_artifact(State &s, const std::string &path, const std::string &file, const char *content_type) {
+  std::string body;
+  size_t size = 0;
+  if (!read_file_capped(path, s.cfg.log_max_bytes, &body, &size)) {
+    if (size > s.cfg.log_max_bytes) dbg("artifact %s skipped, %zu bytes is over the limit", file.c_str(), size);
+    else dbg("artifact %s skipped, no readable file at %s", file.c_str(), path.c_str());
+    return false;
+  }
+  std::string url = replace_all(replace_all(s.cfg.artifact_url, "{run_id}", s.run_id), "{file}", file);
+  HttpOptions o;
+  o.connect_timeout_s = s.cfg.connect_timeout_s; o.max_time_s = s.cfg.log_max_time_s;
+  o.auth_header = s.cfg.auth_header;
+  std::string err;
+  dbg("PUT %s (%zu bytes)", url.c_str(), body.size());
+  if (http_put(url, body, content_type, o, &err)) return true;
+  dbg("artifact delivery failed (ignored): %s", err.c_str());
+  return false;
+}
+
+// Uploads the NCCL debug file of this process and, on the writer, the -J output file. Only
+// files the user already asked NCCL or the test to write are read.
+void upload_logs(State &s) {
+  if (!s.writer && !s.run_id_shared && s.cfg.run_id_override.empty()) {
+    dbg("logs not sent, this build does not share the run id with this process");
+    return;
+  }
+  if (!resolve_artifact_endpoint(s.cfg)) { dbg("logs not sent, no artifact endpoint"); return; }
+  std::string host = artifact_name_part(s.node.substr(0, s.node.find('.')));
+  int pid = (int)getpid();
+  std::string debug_path = nccl_debug_file_path(getenv("NCCL_DEBUG_FILE"), s.node, pid);
+  if (debug_path.empty()) dbg("no NCCL_DEBUG_FILE, no NCCL log to send");
+  else {
+    std::string file = "nccl-debug-" + host + "-" + std::to_string(pid) + ".log";
+    if (put_artifact(s, debug_path, file, "text/plain")) s.artifacts.push_back(file);
+  }
+  if (s.writer) {
+    std::string out = output_file_from_argv(s.argv);
+    if (!out.empty()) {
+      std::string file = "nccl-tests-" + host + ".json";
+      if (put_artifact(s, out, file, "application/json")) s.artifacts.push_back(file);
+    }
+  }
+}
+
 }  // namespace
 
 extern "C" {
@@ -327,6 +380,7 @@ void nccl_tests_ext_init(int argc, char **argv, char **envp) {
   }
   s.t0 = now_realtime();
   s.node = hostname();
+  s.run_id = s.cfg.run_id_override.empty() ? uuid_v7() : s.cfg.run_id_override;
   for (int i = 0; i < argc && argv && argv[i]; ++i) s.argv.push_back(argv[i]);
   if (s.cfg.pending) dbg("active, %s", s.cfg.reason.c_str());
   else dbg("active, %s, %s", s.cfg.reason.c_str(), s.cfg.url.c_str());
@@ -336,6 +390,21 @@ void nccl_tests_ext_identify_writer(int is_writer) {
   State &s = S();
   if (!s.cfg.active) return;
   if (is_writer) s.writer = true;  // sticky, so a later call with 0 does not clear it
+}
+
+void nccl_tests_ext_run_id(char *out, size_t len) {
+  if (out == nullptr || len == 0) return;
+  out[0] = '\0';
+  State &s = S();
+  if (!s.cfg.active) return;
+  snprintf(out, len, "%s", s.run_id.c_str());
+}
+
+void nccl_tests_ext_run_id_shared(const char *run_id) {
+  State &s = S();
+  if (!s.cfg.active || run_id == nullptr || *run_id == '\0') return;
+  s.run_id = run_id;
+  s.run_id_shared = true;
 }
 
 void nccl_tests_ext_run_config(const char *program_name, const char *nccl_tests_version,
@@ -445,7 +514,10 @@ void nccl_tests_ext_finalize(int result_code) {
   State &s = S();
   if (!s.initialized || !s.cfg.active || s.finalized) return;
   s.finalized = true;
-  if (!s.writer) { dbg("not the writer rank; nothing sent"); return; }
+  if (s.cfg.logs) {
+    try { upload_logs(s); } catch (...) { dbg("log upload failed (exception); ignored"); }
+  }
+  if (!s.writer) { dbg("not the writer rank; no results sent"); return; }
   if (s.sizes_overflow) { dbg("more than %zu result lines; nothing sent", kMaxSizeRecords); return; }
   if (s.cfg.pending) {
     bool ok = resolve_default_endpoint(s.cfg);
@@ -456,8 +528,7 @@ void nccl_tests_ext_finalize(int result_code) {
     timespec t1 = now_realtime();
     std::vector<Row> rows = build_rows(s, result_code, t1);
     if (rows.empty()) { dbg("no rows; nothing sent"); return; }
-    std::string run_id = s.cfg.run_id_override.empty() ? uuid_v7() : s.cfg.run_id_override;
-    std::string url = replace_all(s.cfg.url, "{run_id}", run_id);
+    std::string url = replace_all(s.cfg.url, "{run_id}", s.run_id);
     std::string body = rows_to_json(rows);
     HttpOptions o;
     o.connect_timeout_s = s.cfg.connect_timeout_s; o.max_time_s = s.cfg.max_time_s;

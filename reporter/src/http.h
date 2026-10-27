@@ -1,4 +1,4 @@
-// One HTTP PUT of a JSON body through libcurl, which is loaded with dlopen at call
+// One HTTP PUT through libcurl, which is loaded with dlopen at call
 // time. A missing libcurl means "not delivered", never a build or load failure of
 // the test binary. One attempt, short timeouts, no signals.
 #pragma once
@@ -13,6 +13,8 @@ struct HttpOptions {
 };
 
 // Returns true when the server answered 2xx. err gets a short reason otherwise.
+bool http_put(const std::string &url, const std::string &body, const std::string &content_type,
+              const HttpOptions &opt, std::string *err);
 bool http_put_json(const std::string &url, const std::string &body, const HttpOptions &opt, std::string *err);
 
 }  // namespace ext

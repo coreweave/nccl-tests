@@ -62,6 +62,7 @@ The fork's `src/ext_hooks.h` defines the macros that wrap each call.
 | Hook | Where | Carries |
 |---|---|---|
 | `nccl_tests_ext_init` | `main()`, after `MPI_Init` | argv, env, start time |
+| `nccl_tests_ext_run_id` and `_run_id_shared` | `run()`, after the host hash gather | rank 0 writes its run id, `MPI_Bcast` hands it to every process |
 | `nccl_tests_ext_identify_writer` | `run()`, where `is_main_thread` is set | the rank 0 main thread is the writer |
 | `nccl_tests_ext_run_config` | `writeDeviceReport` | versions, nThreads, nGpus, sizes, iterations, flags |
 | `nccl_tests_ext_local_info` | the device record loop, on every process | a line of text the extension writes about its node |
@@ -69,7 +70,7 @@ The fork's `src/ext_hooks.h` defines the macros that wrap each call.
 | `nccl_tests_ext_size_begin` and `_size_result` | `writeBenchmarkLinePreamble` and `writeBenchmarkLineBody` | size, count, type, op, root, then time, alg and bus bandwidth, wrong elements and whether the time is CPU time |
 | `nccl_tests_ext_footer` | `writeResultFooter` | out-of-bounds count, average bus bandwidth, minimum-bandwidth check, run uuid |
 | `nccl_tests_ext_error` | `writeErrors` | last NCCL error text |
-| `nccl_tests_ext_finalize` | `main()`, after `run()` returns | result code, then builds and sends |
+| `nccl_tests_ext_finalize` | `main()`, after `run()` returns, on every process | result code, then the writer builds and sends, and each process uploads its logs when asked |
 
 Two small changes to the fork go beyond the hook lines. The device-record parse loop runs
 when `write_json || NCCL_TESTS_EXT_ENABLED`, while JSON output is still written only under
@@ -112,12 +113,36 @@ Environment variables override the build-time defaults.
 | `NCCL_TESTS_REPORT_TAG_<NAME>` | Recorded as context `tag_<name>`. |
 | `NCCL_TESTS_REPORT_CONNECT_TIMEOUT`, `_MAX_TIME` | Seconds. Defaults 2 and 5. |
 | `NCCL_TESTS_REPORT_DEBUG=1` | Log to stderr. Otherwise silent. |
+| `NCCL_TESTS_REPORT_LOGS=1` | Also upload log files as run artifacts. Off by default. See below. |
+| `NCCL_TESTS_REPORT_ARTIFACT_URL` | Artifact endpoint URL with `{run_id}` and `{file}`. |
+| `NCCL_TESTS_REPORT_ARTIFACT_HOSTS` | Candidate artifact hosts, comma separated, tried in order inside a cluster. |
+| `NCCL_TESTS_REPORT_LOG_MAX_MIB` | Largest file to upload, in MiB. Default 64, at most 256. Larger files are skipped. |
+| `NCCL_TESTS_REPORT_LOG_MAX_TIME` | Seconds per upload. Default 30. |
 
 Behavior. The reporter never changes stdout, stderr or the exit code. It makes one attempt
 with short timeouts and no retries. Only the writer rank sends. No URL means no work at all.
 Name resolution of the candidate hosts shares one deadline, the connect timeout. Zero
 timeouts fall back to the defaults. A run that produces more than 4096 result lines, such as
 `-N 0`, stops recording and sends nothing.
+
+## Log upload
+
+With `NCCL_TESTS_REPORT_LOGS=1` on an active reporter, each process uploads the log files the
+user already asked for, as artifacts of the run. Nothing changes where NCCL or the test writes
+its output, and no file is read unless the user named it.
+
+- Every process uploads its NCCL debug file when `NCCL_DEBUG_FILE` is set, with `%h`, `%p` and
+  `%%` expanded as NCCL does, as `nccl-debug-<host>-<pid>.log`. NCCL writes that file only when
+  `NCCL_DEBUG` is `WARN` or more verbose.
+- The writer uploads the `-J` output file as `nccl-tests-<host>.json`.
+- The writer lists the artifacts it delivered as `artifact` config rows with `source=logs`.
+
+Each file goes in one PUT to `/v1/runs/{run_id}/artifacts/{file}` on the artifact endpoint,
+which is `NCCL_TESTS_REPORT_ARTIFACT_URL` or else the first of the artifact hosts that resolves
+inside a cluster, on the reporter port. Rank 0 shares its run id with every process right after
+MPI init, so the files of all nodes land under the run id of the results. A process that did not
+receive the run id uploads nothing. A file that is missing or over the size limit is skipped,
+and a failed upload is ignored like a failed report.
 
 ## Recorded environment variables
 
