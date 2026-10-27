@@ -345,6 +345,12 @@ void upload_logs(State &s) {
     dbg("logs not sent, this build does not share the run id with this process");
     return;
   }
+  // A results URL with a fixed run in its path and no {run_id} names a run this process cannot
+  // know, unless NCCL_TESTS_REPORT_RUN_ID gives it.
+  if (!s.cfg.url.empty() && s.cfg.url.find("{run_id}") == std::string::npos && s.cfg.run_id_override.empty()) {
+    dbg("logs not sent, the results URL has no {run_id}, set NCCL_TESTS_REPORT_RUN_ID to match it");
+    return;
+  }
   if (!resolve_artifact_endpoint(s.cfg)) { dbg("logs not sent, no artifact endpoint"); return; }
   std::string host = artifact_name_part(s.node.substr(0, s.node.find('.')));
   int pid = (int)getpid();
@@ -397,12 +403,15 @@ void nccl_tests_ext_run_id(char *out, size_t len) {
   out[0] = '\0';
   State &s = S();
   if (!s.cfg.active) return;
-  snprintf(out, len, "%s", s.run_id.c_str());
+  // An id that does not fit is not shared, so no process takes a truncated copy.
+  if (s.run_id.size() < len) snprintf(out, len, "%s", s.run_id.c_str());
 }
 
 void nccl_tests_ext_run_id_shared(const char *run_id) {
   State &s = S();
   if (!s.cfg.active || run_id == nullptr || *run_id == '\0') return;
+  // An explicit NCCL_TESTS_REPORT_RUN_ID is the same on every process and wins.
+  if (!s.cfg.run_id_override.empty()) return;
   s.run_id = run_id;
   s.run_id_shared = true;
 }
@@ -514,6 +523,8 @@ void nccl_tests_ext_finalize(int result_code) {
   State &s = S();
   if (!s.initialized || !s.cfg.active || s.finalized) return;
   s.finalized = true;
+  // The run ends here, so log uploads do not count toward the reported duration.
+  timespec t1 = now_realtime();
   if (s.cfg.logs) {
     try { upload_logs(s); } catch (...) { dbg("log upload failed (exception); ignored"); }
   }
@@ -525,7 +536,6 @@ void nccl_tests_ext_finalize(int result_code) {
     if (!ok) return;
   }
   try {
-    timespec t1 = now_realtime();
     std::vector<Row> rows = build_rows(s, result_code, t1);
     if (rows.empty()) { dbg("no rows; nothing sent"); return; }
     std::string url = replace_all(s.cfg.url, "{run_id}", s.run_id);

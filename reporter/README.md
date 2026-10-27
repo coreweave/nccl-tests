@@ -141,7 +141,8 @@ Each file goes in one PUT to `/v1/runs/{run_id}/artifacts/{file}` on the artifac
 which is `NCCL_TESTS_REPORT_ARTIFACT_URL` or else the first of the artifact hosts that resolves
 inside a cluster, on the reporter port. Rank 0 shares its run id with every process right after
 MPI init, so the files of all nodes land under the run id of the results. A process that did not
-receive the run id uploads nothing. A file that is missing or over the size limit is skipped,
+receive the run id uploads nothing. With a results URL that has no `{run_id}`, logs are sent only when
+`NCCL_TESTS_REPORT_RUN_ID` gives the run id, since no process can know it otherwise. A file that is missing or over the size limit is skipped,
 and a failed upload is ignored like a failed report.
 
 ## Recorded environment variables
