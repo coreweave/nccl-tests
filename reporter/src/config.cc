@@ -26,6 +26,26 @@
 
 namespace ext {
 
+// The environment variables recorded as test config. Only these names are read, so a variable
+// outside the list is never sent, whatever its prefix. File paths and addresses are left out.
+static const char *const kRecordedEnv[] = {
+    "NCCL_ALGO", "NCCL_PROTO", "NCCL_BUFFSIZE", "NCCL_NTHREADS",
+    "NCCL_MIN_NCHANNELS", "NCCL_MAX_NCHANNELS", "NCCL_MIN_CTAS", "NCCL_MAX_CTAS",
+    "NCCL_NET", "NCCL_NET_PLUGIN", "NCCL_TUNER_PLUGIN", "NCCL_NET_GDR_LEVEL", "NCCL_NET_GDR_READ",
+    "NCCL_IB_HCA", "NCCL_IB_GID_INDEX", "NCCL_IB_PCI_RELAXED_ORDERING", "NCCL_IB_DATA_DIRECT",
+    "NCCL_IB_QPS_PER_CONNECTION", "NCCL_IB_SPLIT_DATA_ON_QPS", "NCCL_IB_ADAPTIVE_ROUTING",
+    "NCCL_IB_TIMEOUT", "NCCL_IB_RETRY_CNT", "NCCL_IB_SL", "NCCL_IB_TC", "NCCL_CROSS_NIC",
+    "NCCL_SOCKET_IFNAME", "NCCL_SOCKET_NTHREADS", "NCCL_NSOCKS_PERTHREAD",
+    "NCCL_P2P_LEVEL", "NCCL_P2P_DISABLE", "NCCL_SHM_DISABLE", "NCCL_NVLS_ENABLE",
+    "NCCL_MNNVL_ENABLE", "NCCL_CUMEM_ENABLE", "NCCL_COLLNET_ENABLE",
+    "NCCL_DEBUG", "NCCL_DEBUG_SUBSYS", "NCCL_TESTS_COMMITISH",
+};
+
+static bool recorded_env(const std::string &key) {
+  for (const char *name : kRecordedEnv) if (key == name) return true;
+  return false;
+}
+
 static const char *kUrlFileDefault = "/etc/perf-telemetry/url";
 static const char *kNamespaceFileDefault = "/var/run/secrets/kubernetes.io/serviceaccount/namespace";
 static const char *kResolvConfDefault = "/etc/resolv.conf";
@@ -194,8 +214,8 @@ Config load_config(char **envp) {
       std::string val(eq + 1);
       if (key.compare(0, tag_len, kTag) == 0 && key.size() > tag_len) {
         c.tags.emplace_back(key.substr(tag_len), val);
-      } else if (key.compare(0, 5, "NCCL_") == 0 && key.compare(0, 17, "NCCL_TESTS_REPORT") != 0) {
-        c.nccl_env.emplace_back(key, val);  // the reporter's own settings are not test config
+      } else if (recorded_env(key)) {
+        c.nccl_env.emplace_back(key, val);
       }
     }
   }
