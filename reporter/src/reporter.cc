@@ -1,7 +1,8 @@
 // The reporter implements the nccl-tests extension hooks, buffers what the test
 // reports, and at finalize turns it into columnar rows and PUTs them once. With log upload
-// enabled, every process delivers its NCCL debug log as an artifact of the same run, or, when no
-// artifact endpoint takes it, hands it to rank 0, which sends it to the results endpoint.
+// enabled, every process delivers its NCCL debug log as an artifact of the same run and hands
+// the outcome to rank 0, which records it with the results. Log content never travels with
+// the results.
 //
 // Rules, also in the README. Never change the test's stdout, stderr or exit code. Never hang.
 // Stay silent unless NCCL_TESTS_REPORT_DEBUG=1. No endpoint means no work at all.
@@ -34,10 +35,6 @@ const char *kRowVersion = "1.0.0";
 const char *kKindMetric = "nccl-test-metric";
 const char *kKindConfig = "nccl-test-config";
 const char *kKindFacts = "nccl-test-node-facts";
-const char *kKindLog = "nccl-test-log";
-// Log rows travel in their own PUT, which stays under the results endpoint's request limit.
-const size_t kLogRowsBudget = 12u << 20;
-const size_t kLogChunk = 30000;  // below the 32 KiB string limit of a row
 
 struct Half {
   bool present = false;
@@ -110,15 +107,14 @@ struct Footer {
 };
 
 // What happened to the NCCL debug log of one process. status is delivered when the artifact
-// endpoint took it, in_results when content travels to rank 0 for the results endpoint,
+// endpoint took it, failed when the upload did not succeed, no_artifact_endpoint when none was
+// configured or resolved, no_run_id when the process has no run id to file it under,
 // no_debug_file when NCCL_DEBUG_FILE is unset, missing when the file is not there, unreadable
-// when it cannot be opened, and over_budget when rank 0 had no room left for it.
+// when it cannot be opened, and over_limit when the file is larger than the artifact limit.
 struct LogOutcome {
   std::string host, file, status;
   int pid = 0;
   size_t bytes = 0;      // size of the file on disk
-  bool truncated = false;
-  std::string content;   // only with in_results
 };
 
 struct State {
@@ -297,7 +293,6 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     ctx_put(c, "pid", (double)l.pid);
     if (!l.file.empty()) ctx_put(c, "file", l.file);
     ctx_put(c, "bytes", (double)l.bytes);
-    if (l.truncated) ctx_put(c, "truncated", std::string("1"));
     add_row(rows, kKindConfig, "log_status", Value::text(l.status), cfg_base, c);
   }
 
@@ -350,9 +345,9 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
 }
 
 // Decides what happens to this process's NCCL debug log. The artifact endpoint takes it when one
-// is reachable under the shared run id. Otherwise up to content_limit bytes go to rank 0. Only a
-// file the user asked NCCL to write is read.
-LogOutcome handle_own_log(State &s, size_t content_limit) {
+// is reachable under the shared run id. Otherwise the log stays on the node and only its status
+// reaches the results. Only a file the user asked NCCL to write is read.
+LogOutcome handle_own_log(State &s) {
   LogOutcome o;
   o.host = artifact_name_part(s.node.substr(0, s.node.find('.')));
   o.pid = (int)getpid();
@@ -362,108 +357,47 @@ LogOutcome handle_own_log(State &s, size_t content_limit) {
   struct stat st;
   if (stat(path.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) { o.status = "missing"; dbg("no NCCL log at %s", path.c_str()); return o; }
   o.bytes = (size_t)st.st_size;
+  if (o.bytes > s.cfg.log_max_bytes) { o.status = "over_limit"; dbg("NCCL log at %s is over the artifact limit, not sent", path.c_str()); return o; }
   bool id_known = s.writer || s.run_id_shared || !s.cfg.run_id_override.empty();
   bool url_ok = s.cfg.url.empty() || s.cfg.url.find("{run_id}") != std::string::npos || !s.cfg.run_id_override.empty();
+  if (!id_known || !url_ok) { o.status = "no_run_id"; dbg("no run id to file %s under, not sent", o.file.c_str()); return o; }
+  if (!resolve_artifact_endpoint(s.cfg)) { o.status = "no_artifact_endpoint"; dbg("no artifact endpoint for %s, not sent", o.file.c_str()); return o; }
   std::string body;
-  if (o.bytes <= s.cfg.log_max_bytes && id_known && url_ok && resolve_artifact_endpoint(s.cfg)) {
-    if (!read_file_capped(path, s.cfg.log_max_bytes, &body, &o.bytes)) {
-      dbg("NCCL log at %s over the artifact limit or unreadable, sending it with the results", path.c_str());
-    } else {
-      std::string url = replace_all(replace_all(s.cfg.artifact_url, "{run_id}", s.run_id), "{file}", o.file);
-      HttpOptions h;
-      h.connect_timeout_s = s.cfg.connect_timeout_s; h.max_time_s = s.cfg.log_max_time_s;
-      h.auth_header = s.cfg.auth_header;
-      std::string err;
-      dbg("PUT %s (%zu bytes)", url.c_str(), body.size());
-      if (http_put(url, body, "text/plain", h, &err)) { dbg("artifact %s delivered", o.file.c_str()); o.status = "delivered"; return o; }
-      dbg("artifact delivery failed, sending the log with the results instead: %s", err.c_str());
-    }
-  } else {
-    dbg("no artifact endpoint for %s, sending it with the results", o.file.c_str());
+  if (!read_file_capped(path, s.cfg.log_max_bytes, &body, &o.bytes)) {
+    o.status = o.bytes > s.cfg.log_max_bytes ? "over_limit" : "unreadable";
+    dbg("NCCL log at %s is %s, not sent", path.c_str(), o.status.c_str());
+    return o;
   }
-  if (!read_head_tail(path, content_limit, &o.content, &o.bytes, &o.truncated)) {
-    o.status = "unreadable"; dbg("NCCL log at %s cannot be read", path.c_str()); return o;
-  }
-  o.status = "in_results";
+  std::string url = replace_all(replace_all(s.cfg.artifact_url, "{run_id}", s.run_id), "{file}", o.file);
+  HttpOptions h;
+  h.connect_timeout_s = s.cfg.connect_timeout_s; h.max_time_s = s.cfg.log_max_time_s;
+  h.auth_header = s.cfg.auth_header;
+  std::string err;
+  dbg("PUT %s (%zu bytes)", url.c_str(), body.size());
+  if (http_put(url, body, "text/plain", h, &err)) { dbg("artifact %s delivered", o.file.c_str()); o.status = "delivered"; return o; }
+  dbg("artifact delivery failed (ignored): %s", err.c_str());
+  o.status = "failed";
   return o;
 }
 
-// One header line of percent-encoded name=value pairs, then the content.
+// One line of percent-encoded name=value pairs, which is all a process hands to rank 0.
 std::string encode_outcome(const LogOutcome &o) {
-  std::string h = "host=" + pct_encode(o.host) + "&pid=" + std::to_string(o.pid) + "&file=" + pct_encode(o.file) +
-                  "&status=" + pct_encode(o.status) + "&bytes=" + std::to_string(o.bytes) +
-                  "&truncated=" + (o.truncated ? "1" : "0");
-  return h + "\n" + o.content;
+  return "host=" + pct_encode(o.host) + "&pid=" + std::to_string(o.pid) + "&file=" + pct_encode(o.file) +
+         "&status=" + pct_encode(o.status) + "&bytes=" + std::to_string(o.bytes);
 }
 
 bool decode_outcome(const char *data, size_t len, LogOutcome *o) {
-  std::string all(data, len);
-  size_t nl = all.find('\n');
-  if (nl == std::string::npos) return false;
-  for (const auto &kv : decode_local_info(all.substr(0, nl))) {
+  std::string line(data, len);
+  size_t nl = line.find('\n');
+  if (nl != std::string::npos) line.erase(nl);
+  for (const auto &kv : decode_local_info(line)) {
     if (kv.first == "host") o->host = kv.second;
     else if (kv.first == "pid") o->pid = atoi(kv.second.c_str());
     else if (kv.first == "file") o->file = kv.second;
     else if (kv.first == "status") o->status = kv.second;
     else if (kv.first == "bytes") o->bytes = (size_t)strtoull(kv.second.c_str(), nullptr, 10);
-    else if (kv.first == "truncated") o->truncated = kv.second == "1";
   }
-  o->content = all.substr(nl + 1);
   return !o->status.empty();
-}
-
-// Splits text into row-sized pieces, at a line end where one is near, never inside a UTF-8
-// sequence.
-std::vector<std::string> chunks_of(const std::string &text) {
-  std::vector<std::string> out;
-  size_t pos = 0;
-  while (pos < text.size()) {
-    size_t n = std::min(kLogChunk, text.size() - pos);
-    if (pos + n < text.size()) {
-      size_t nl = text.rfind('\n', pos + n - 1);
-      if (nl != std::string::npos && nl >= pos + n / 2) n = nl - pos + 1;
-      else while (n > 1 && (((unsigned char)text[pos + n]) & 0xC0) == 0x80) --n;
-    }
-    out.push_back(text.substr(pos, n));
-    pos += n;
-  }
-  return out;
-}
-
-// The log rows for every process whose content travelled to rank 0.
-std::vector<Row> build_log_rows(const State &s, const timespec &t1) {
-  std::vector<Row> rows;
-  Context common;
-  ctx_put(common, "test_name", s.rc.program.empty() ? (s.argv.empty() ? "" : basename_of(s.argv[0])) : s.rc.program);
-  ctx_put(common, "ended_at", iso_utc_ms(t1));
-  for (const auto &t : s.cfg.tags) ctx_put(common, "tag_" + t.first, t.second);
-  for (const LogOutcome &l : s.logs) {
-    if (l.status != "in_results" || l.content.empty()) continue;
-    std::vector<std::string> parts = chunks_of(l.content);
-    for (size_t i = 0; i < parts.size(); ++i) {
-      Context c;
-      ctx_put(c, "node", l.host);
-      ctx_put(c, "pid", (double)l.pid);
-      ctx_put(c, "file", l.file);
-      ctx_put(c, "part", (double)i);
-      ctx_put(c, "parts", (double)parts.size());
-      ctx_put(c, "bytes", (double)l.bytes);
-      ctx_put(c, "truncated", std::string(l.truncated ? "1" : "0"));
-      add_row(rows, kKindLog, "nccl_debug_log", Value::text(parts[i]), common, c);
-    }
-  }
-  return rows;
-}
-
-// Keeps the log content rank 0 sends within one request. Later processes lose their content
-// first, and their status says so.
-void apply_log_budget(State &s) {
-  size_t used = 0;
-  for (LogOutcome &l : s.logs) {
-    if (l.status != "in_results") continue;
-    if (used + l.content.size() > kLogRowsBudget) { l.content.clear(); l.status = "over_budget"; continue; }
-    used += l.content.size();
-  }
 }
 
 }  // namespace
@@ -524,9 +458,8 @@ void nccl_tests_ext_process_end(int nprocs, const char **data, size_t *len) {
   s.ended = true;
   if (!s.cfg.logs) return;
   try {
-    // Each process keeps to its share of the budget, so the gather stays small.
-    size_t share = kLogRowsBudget / (size_t)(nprocs > 0 ? nprocs : 1);
-    s.end_payload = encode_outcome(handle_own_log(s, std::min(s.cfg.log_rows_max_bytes, share)));
+    // Only the outcome travels to rank 0, one short line per process.
+    s.end_payload = encode_outcome(handle_own_log(s));
     *data = s.end_payload.data();
     *len = s.end_payload.size();
   } catch (...) {
@@ -657,10 +590,10 @@ void nccl_tests_ext_finalize(int result_code) {
   // The run ended at process_end when the fork calls it, else here, before any log upload.
   timespec t1 = s.ended ? s.t_end : now_realtime();
   // A fork without process_end leaves each process to handle its own log here. Only the
-  // writer can then send content with the results.
+  // writer's outcome can then reach the results.
   if (s.cfg.logs && !s.process_end_called) {
     try {
-      LogOutcome o = handle_own_log(s, s.cfg.log_rows_max_bytes);
+      LogOutcome o = handle_own_log(s);
       if (s.writer) s.logs.push_back(std::move(o));
     } catch (...) {
       dbg("log handling failed (exception); ignored");
@@ -674,7 +607,6 @@ void nccl_tests_ext_finalize(int result_code) {
     if (!ok) return;
   }
   try {
-    apply_log_budget(s);
     std::vector<Row> rows = build_rows(s, result_code, t1);
     if (rows.empty()) { dbg("no rows; nothing sent"); return; }
     std::string url = replace_all(s.cfg.url, "{run_id}", s.run_id);
@@ -686,16 +618,6 @@ void nccl_tests_ext_finalize(int result_code) {
     dbg("PUT %s (%zu rows, %zu bytes)", url.c_str(), rows.size(), body.size());
     if (http_put_json(url, body, o, &err)) dbg("delivered");
     else dbg("delivery failed (ignored): %s", err.c_str());
-    // Logs that no artifact endpoint took go in a PUT of their own kind, so they neither
-    // replace the result rows nor count toward their request.
-    std::vector<Row> log_rows = build_log_rows(s, t1);
-    if (!log_rows.empty()) {
-      std::string log_body = rows_to_json(log_rows);
-      o.max_time_s = s.cfg.log_max_time_s;
-      dbg("PUT %s (%zu log rows, %zu bytes)", url.c_str(), log_rows.size(), log_body.size());
-      if (http_put_json(url, log_body, o, &err)) dbg("logs delivered with the results");
-      else dbg("log delivery failed (ignored): %s", err.c_str());
-    }
   } catch (...) {
     dbg("report failed (exception); ignored");
   }
