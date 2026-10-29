@@ -121,19 +121,30 @@ timeouts fall back to the defaults. A run that produces more than 4096 result li
 
 ## Recorded environment variables
 
-Only these variables are read from the environment and sent, and only when set. Any other
-variable is never read, whatever its prefix, so file paths, addresses and anything a user adds
-to the environment stay on the node.
+The reporter reads a variable only when its name starts with one of the prefixes below, and
+sends it only when it is set. These prefixes cover the libraries that decide how NCCL moves
+data. Everything else in the environment, such as the shell, the scheduler and anything a user
+adds, is never read.
 
-| Area | Variables |
+| Stack | Prefixes |
 |---|---|
-| Algorithm and sizing | `NCCL_ALGO`, `NCCL_PROTO`, `NCCL_BUFFSIZE`, `NCCL_NTHREADS`, `NCCL_MIN_NCHANNELS`, `NCCL_MAX_NCHANNELS`, `NCCL_MIN_CTAS`, `NCCL_MAX_CTAS` |
-| Network and plugins | `NCCL_NET`, `NCCL_NET_PLUGIN`, `NCCL_TUNER_PLUGIN`, `NCCL_NET_GDR_LEVEL`, `NCCL_NET_GDR_READ`, `NCCL_CROSS_NIC` |
-| InfiniBand | `NCCL_IB_HCA`, `NCCL_IB_GID_INDEX`, `NCCL_IB_PCI_RELAXED_ORDERING`, `NCCL_IB_DATA_DIRECT`, `NCCL_IB_QPS_PER_CONNECTION`, `NCCL_IB_SPLIT_DATA_ON_QPS`, `NCCL_IB_ADAPTIVE_ROUTING`, `NCCL_IB_TIMEOUT`, `NCCL_IB_RETRY_CNT`, `NCCL_IB_SL`, `NCCL_IB_TC` |
-| Sockets | `NCCL_SOCKET_IFNAME`, `NCCL_SOCKET_NTHREADS`, `NCCL_NSOCKS_PERTHREAD` |
-| Transports | `NCCL_P2P_LEVEL`, `NCCL_P2P_DISABLE`, `NCCL_SHM_DISABLE`, `NCCL_NVLS_ENABLE`, `NCCL_MNNVL_ENABLE`, `NCCL_CUMEM_ENABLE`, `NCCL_COLLNET_ENABLE` |
-| Logging | `NCCL_DEBUG`, `NCCL_DEBUG_SUBSYS` |
-| Build | `NCCL_TESTS_COMMITISH` |
+| NCCL | `NCCL_` |
+| UCX and UCC | `UCX_`, `UCC_` |
+| HCOLL and SHARP | `HCOLL_`, `SHARP_` |
+| MPI runtimes | `OMPI_`, `OPAL_`, `PRTE_`, `PMIX_`, `PMI_`, `MPICH_`, `I_MPI_` |
+| CUDA | `CUDA_` |
+| RDMA | `GDRCOPY_`, `MLX5_`, `RDMAV_`, `IBV_` |
+
+Three rules keep credentials out, and they follow the environment filter of the fork's JSON
+output. A name that contains KEY, TOKEN, SECRET, PASS, PWD, CRED, AUTH, PRIVATE, SIGNING,
+SIGNATURE, HMAC, SALT, JWT, BEARER, COOKIE, SESSION, LICENSE, LICENCE, DSN, URL, DATABASE,
+REDIS, MONGODB, CONNECTION_STRING, USERNAME, USER or EMAIL is dropped, except that a name
+containing PKEY stays, because InfiniBand partition keys are settings. A value that starts
+like a credential from a known service, for example `Bearer ` or `ghp_`, is sent as
+`<redacted>`, so the variable is known to exist without its content. The reporter's own
+`NCCL_TESTS_REPORT_*` settings are never sent as config rows. Names are compared without
+regard to case. Other values, including file paths, addresses and interface names, are sent
+as they are.
 
 The reporter also reads `NCCL_VERSION` into the `nccl_version` context, `SLURM_JOB_ID` into
 `job_id`, `HPCX_DIR` only to find the HPC-X version file, and its own `NCCL_TESTS_REPORT_*` settings. Of those settings only the values of

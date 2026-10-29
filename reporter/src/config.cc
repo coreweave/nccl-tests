@@ -3,8 +3,10 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/socket.h>
 
+#include <cctype>
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
@@ -26,24 +28,63 @@
 
 namespace ext {
 
-// The environment variables recorded as test config. Only these names are read, so a variable
-// outside the list is never sent, whatever its prefix. File paths and addresses are left out.
-static const char *const kRecordedEnv[] = {
-    "NCCL_ALGO", "NCCL_PROTO", "NCCL_BUFFSIZE", "NCCL_NTHREADS",
-    "NCCL_MIN_NCHANNELS", "NCCL_MAX_NCHANNELS", "NCCL_MIN_CTAS", "NCCL_MAX_CTAS",
-    "NCCL_NET", "NCCL_NET_PLUGIN", "NCCL_TUNER_PLUGIN", "NCCL_NET_GDR_LEVEL", "NCCL_NET_GDR_READ",
-    "NCCL_IB_HCA", "NCCL_IB_GID_INDEX", "NCCL_IB_PCI_RELAXED_ORDERING", "NCCL_IB_DATA_DIRECT",
-    "NCCL_IB_QPS_PER_CONNECTION", "NCCL_IB_SPLIT_DATA_ON_QPS", "NCCL_IB_ADAPTIVE_ROUTING",
-    "NCCL_IB_TIMEOUT", "NCCL_IB_RETRY_CNT", "NCCL_IB_SL", "NCCL_IB_TC", "NCCL_CROSS_NIC",
-    "NCCL_SOCKET_IFNAME", "NCCL_SOCKET_NTHREADS", "NCCL_NSOCKS_PERTHREAD",
-    "NCCL_P2P_LEVEL", "NCCL_P2P_DISABLE", "NCCL_SHM_DISABLE", "NCCL_NVLS_ENABLE",
-    "NCCL_MNNVL_ENABLE", "NCCL_CUMEM_ENABLE", "NCCL_COLLNET_ENABLE",
-    "NCCL_DEBUG", "NCCL_DEBUG_SUBSYS", "NCCL_TESTS_COMMITISH",
+// Environment variables are recorded by name prefix. These prefixes cover the libraries that
+// decide how NCCL moves data. Nothing outside them is read.
+static const char *const kRecordedPrefixes[] = {
+    "NCCL_", "UCX_", "UCC_", "HCOLL_", "SHARP_",
+    "OMPI_", "OPAL_", "PRTE_", "PMIX_", "PMI_", "MPICH_", "I_MPI_",
+    "CUDA_", "GDRCOPY_", "MLX5_", "RDMAV_", "IBV_",
 };
 
-static bool recorded_env(const std::string &key) {
-  for (const char *name : kRecordedEnv) if (key == name) return true;
+// A name containing one of these parts holds a credential or an identity and is dropped,
+// unless it also contains an exempt part. InfiniBand partition keys are settings, not secrets.
+static const char *const kSensitiveNameParts[] = {
+    "KEY", "TOKEN", "SECRET", "PASS", "PWD", "CRED", "AUTH", "PRIVATE", "SIGNING", "SIGNATURE",
+    "HMAC", "SALT", "JWT", "BEARER", "COOKIE", "SESSION", "LICENSE", "LICENCE", "DSN", "URL",
+    "DATABASE", "REDIS", "MONGODB", "CONNECTION_STRING", "USERNAME", "USER", "EMAIL",
+};
+static const char *const kExemptNameParts[] = {"PKEY"};
+
+// A value that starts with one of these is a credential issued by a known service. The
+// variable is kept and the value replaced, so the setting is known to exist without its content.
+static const char *const kSecretValuePrefixes[] = {
+    "Bearer ", "Basic ", "ghp_", "gho_", "github_pat_", "glpat-", "xoxb-", "xoxp-", "xoxa-",
+    "AKIA", "ASIA", "sk-", "sk_live_", "sk_test_", "AIza", "ya29.", "eyJ",
+};
+static const char kRedactedValue[] = "<redacted>";
+
+// Name comparisons ignore case.
+template <size_t N>
+static bool name_starts_with(const std::string &name, const char *const (&prefixes)[N]) {
+  for (const char *p : prefixes) {
+    size_t n = strlen(p);
+    if (name.size() >= n && strncasecmp(name.c_str(), p, n) == 0) return true;
+  }
   return false;
+}
+
+template <size_t N>
+static bool name_contains(const std::string &name, const char *const (&parts)[N]) {
+  std::string upper = name;
+  for (char &ch : upper) ch = (char)toupper((unsigned char)ch);
+  for (const char *p : parts) if (upper.find(p) != std::string::npos) return true;
+  return false;
+}
+
+// True when a set variable belongs in the config rows. The reporter's own settings never do.
+static bool is_recorded(const std::string &key) {
+  if (strncasecmp(key.c_str(), "NCCL_TESTS_REPORT", 17) == 0) return false;
+  if (!name_starts_with(key, kRecordedPrefixes)) return false;
+  if (name_contains(key, kSensitiveNameParts) && !name_contains(key, kExemptNameParts)) return false;
+  return true;
+}
+
+static std::string recorded_value(const std::string &val) {
+  for (const char *p : kSecretValuePrefixes) {
+    size_t n = strlen(p);
+    if (val.size() >= n && val.compare(0, n, p) == 0) return kRedactedValue;
+  }
+  return val;
 }
 
 static const char *kUrlFileDefault = "/etc/perf-telemetry/url";
@@ -214,8 +255,8 @@ Config load_config(char **envp) {
       std::string val(eq + 1);
       if (key.compare(0, tag_len, kTag) == 0 && key.size() > tag_len) {
         c.tags.emplace_back(key.substr(tag_len), val);
-      } else if (recorded_env(key)) {
-        c.nccl_env.emplace_back(key, val);
+      } else if (is_recorded(key)) {
+        c.recorded_env.emplace_back(key, recorded_value(val));
       }
     }
   }

@@ -27,7 +27,7 @@ struct Config {
   long max_time_s = 5;          // NCCL_TESTS_REPORT_MAX_TIME
   bool debug = false;           // NCCL_TESTS_REPORT_DEBUG=1 logs to stderr
   std::vector<std::pair<std::string, std::string>> tags;  // NCCL_TESTS_REPORT_TAG_<NAME> as name and value
-  std::vector<std::pair<std::string, std::string>> nccl_env;  // the set variables named in kRecordedEnv
+  std::vector<std::pair<std::string, std::string>> recorded_env;  // set variables under the recorded prefixes, credentials removed
   std::string slurm_job_id;     // SLURM_JOB_ID
   std::string nccl_version_env; // NCCL_VERSION, if the image sets it
 };
