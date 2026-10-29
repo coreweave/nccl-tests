@@ -52,7 +52,7 @@ check "inactive: stdout is the test banner"     'grep -q "Collective test conclu
 
 echo "# active: delivery and row content"
 reset_mock
-run t2 NCCL_TESTS_REPORT_URL="$URL" NCCL_DEBUG=INFO NCCL_IB_HCA=mlx5_0 NCCL_VERSION=2.31.2 \
+run t2 NCCL_TESTS_REPORT_URL="$URL" NCCL_DEBUG=INFO NCCL_IB_HCA=mlx5_0 NCCL_VERSION=2.30.4-1 \
        NCCL_COMM_ID=10.0.0.1:1234 NCCL_TOPO_FILE=/home/user/topo.xml NCCL_MY_SECRET=x \
        NCCL_API_TOKEN=t NCCL_IB_PKEY=0x8001 UCX_TLS=rc_x,cuda_copy UCX_IB_PKEY=0x8002 \
        OMPI_MCA_pml=ucx OMPI_MCA_extra="Bearer abc" SLURM_JOB_USER=alice MY_VAR=1 \
@@ -84,7 +84,7 @@ check "per-size bandwidth is the oop bus_bw"    '[[ $(rows value nccl-test-metri
 check "message_size humanized (4K)"             '[[ $(rows value nccl-test-metric latency message_size=4K) == 21.5 ]]'
 check "tag_* from NCCL_TESTS_REPORT_TAG_*"      '[[ $(rows ctx nccl-test-metric returncode tag_sku) == gb300 ]]'
 check "image, job_id carried"                   '[[ $(rows ctx nccl-test-metric returncode image) == img:1 && $(rows ctx nccl-test-metric returncode job_id) == 42 ]]'
-check "nccl_version prefers the env, library dotted" '[[ $(rows ctx nccl-test-metric returncode nccl_version) == 2.31.2 && $(rows ctx nccl-test-metric returncode nccl_library_version) == 2.31.2 ]]'
+check "nccl_version is the loaded library, not NCCL_VERSION" '[[ $(rows ctx nccl-test-metric returncode nccl_version) == 2.31.2 && $(rows ctx nccl-test-metric returncode nccl_library_version) == 2.31.2 && $(rows value nccl-test-config NCCL_VERSION) == 2.30.4-1 ]]'
 check "headers and cuda versions dotted"        '[[ $(rows ctx nccl-test-metric returncode nccl_headers_version) == 2.21.4 && $(rows ctx nccl-test-metric returncode cuda_version) == 12.4 ]]'
 check "test_name from the program name"         '[[ $(rows ctx nccl-test-metric returncode test_name) == all_reduce_perf ]]'
 check "run uuid from the footer"                '[[ $(rows ctx nccl-test-metric returncode uuid) == 11111111-2222-4333-8444-555555555555 ]]'
