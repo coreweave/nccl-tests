@@ -146,8 +146,10 @@ like a credential from a known service, for example `Bearer ` or `ghp_`, is sent
 regard to case. Other values, including file paths, addresses and interface names, are sent
 as they are.
 
-The reporter also reads `NCCL_VERSION` into the `nccl_version` context, `SLURM_JOB_ID` into
-`job_id`, `HPCX_DIR` only to find the HPC-X version file, and its own `NCCL_TESTS_REPORT_*` settings. Of those settings only the values of
+The `nccl_version` context is the version of the NCCL library loaded in the process, never the
+`NCCL_VERSION` variable, which a base image may set for an NCCL that the image no longer ships.
+The reporter also reads `SLURM_JOB_ID` into `job_id`, `HPCX_DIR` only to find the HPC-X version
+file, and its own `NCCL_TESTS_REPORT_*` settings. Of those settings only the values of
 `NCCL_TESTS_REPORT_TAG_<NAME>` and `NCCL_TESTS_REPORT_IMAGE` are sent, as `tag_<name>` and `image`.
 
 ## Rows, version 1.0.0

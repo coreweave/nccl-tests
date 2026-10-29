@@ -156,7 +156,7 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   ctx_put(common, "node", s.node);
   ctx_put(common, "test_name", rc.program.empty() ? (s.argv.empty() ? "" : basename_of(s.argv[0])) : rc.program);
   ctx_put(common, "topology", std::string("collective"));
-  ctx_put(common, "nccl_version", s.cfg.nccl_version_env.empty() ? lib : s.cfg.nccl_version_env);
+  ctx_put(common, "nccl_version", lib);
   ctx_put(common, "nccl_library_version", lib);
   ctx_put(common, "nccl_headers_version", dotted_nccl_version(rc.headers));
   ctx_put(common, "nccl_tests_version", rc.tests_version);

@@ -240,7 +240,6 @@ Config load_config(char **envp) {
   if ((v = getenv("NCCL_TESTS_REPORT_AUTH_HEADER")) && *v) c.auth_header = v;
   if ((v = getenv("NCCL_TESTS_REPORT_IMAGE")) && *v) c.image = v;
   if ((v = getenv("SLURM_JOB_ID")) && *v) c.slurm_job_id = v;
-  if ((v = getenv("NCCL_VERSION")) && *v) c.nccl_version_env = v;
   c.connect_timeout_s = env_positive_long("NCCL_TESTS_REPORT_CONNECT_TIMEOUT", 2);
   c.max_time_s = env_positive_long("NCCL_TESTS_REPORT_MAX_TIME", 5);
   c.debug = (v = getenv("NCCL_TESTS_REPORT_DEBUG")) && strcmp(v, "1") == 0;

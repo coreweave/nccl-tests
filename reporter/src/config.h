@@ -29,7 +29,6 @@ struct Config {
   std::vector<std::pair<std::string, std::string>> tags;  // NCCL_TESTS_REPORT_TAG_<NAME> as name and value
   std::vector<std::pair<std::string, std::string>> recorded_env;  // set variables under the recorded prefixes, credentials removed
   std::string slurm_job_id;     // SLURM_JOB_ID
-  std::string nccl_version_env; // NCCL_VERSION, if the image sets it
 };
 
 // envp may be NULL. getenv is used for single lookups either way.
