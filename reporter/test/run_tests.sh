@@ -29,10 +29,10 @@ RC=0; ELAPSED=0
 run() {
   local name=$1; shift
   local t0; t0=$(date +%s.%N)
-  # Scrub ambient reporter settings, NCCL_* variables and the Slurm job id so row counts
-  # do not depend on the surrounding environment. Container images set NCCL_*.
+  # Scrub ambient reporter settings, every variable under a recorded prefix and the Slurm job
+  # id so row counts do not depend on the surrounding environment. Container images set NCCL_*.
   local -a scrub=(); local v
-  for v in $(env | grep -oE '^(NCCL_[A-Z0-9_]*|SLURM_JOB_ID)=' | tr -d '='); do scrub+=(-u "$v"); done
+  for v in $(env | grep -oE '^((NCCL|UCX|UCC|HCOLL|SHARP|OMPI|OPAL|PRTE|PMIX|PMI|MPICH|I_MPI|CUDA|GDRCOPY|MLX5|RDMAV|IBV)_[A-Za-z0-9_]*|SLURM_JOB_ID)=' | tr -d '='); do scrub+=(-u "$v"); done
   env "${scrub[@]}" NCCL_TESTS_REPORT_URL_FILE=/nonexistent NCCL_TESTS_REPORT_NAMESPACE_FILE=/nonexistent "$@" \
       "$BIN" all_reduce_perf -b 8 -e 1G -g 4 >"$WORK/$name.out" 2>"$WORK/$name.err"
   RC=$?
@@ -54,6 +54,8 @@ echo "# active: delivery and row content"
 reset_mock
 run t2 NCCL_TESTS_REPORT_URL="$URL" NCCL_DEBUG=INFO NCCL_IB_HCA=mlx5_0 NCCL_VERSION=2.31.2 \
        NCCL_COMM_ID=10.0.0.1:1234 NCCL_TOPO_FILE=/home/user/topo.xml NCCL_MY_SECRET=x \
+       NCCL_API_TOKEN=t NCCL_IB_PKEY=0x8001 UCX_TLS=rc_x,cuda_copy UCX_IB_PKEY=0x8002 \
+       OMPI_MCA_pml=ucx OMPI_MCA_extra="Bearer abc" SLURM_JOB_USER=alice MY_VAR=1 \
        NCCL_TESTS_REPORT_TAG_SKU=gb300 NCCL_TESTS_REPORT_IMAGE=img:1 SLURM_JOB_ID=42
 check "active: exactly one request"             '[[ $(npaths) -eq 1 ]]'
 check "active: rows pass the API rules"         '[[ $(validation) == PASS ]]'
@@ -66,7 +68,7 @@ check "out-of-place: algorithm bandwidth"        '[[ $(rows count nccl-test-metr
 check "out_of_bounds row from the footer"        '[[ $(rows value nccl-test-metric out_of_bounds) == 0.0 || $(rows value nccl-test-metric out_of_bounds) == 0 ]]'
 check "no min_bandwidth_check row without -a"    '[[ $(rows count nccl-test-metric min_bandwidth_check) -eq 0 ]]'
 check "no cycle key on a single cycle"           '[[ "$(rows ctx nccl-test-metric latency cycle message_size=4K)" == None ]]'
-check "config rows: 2 listed NCCL_* + 12 settings + argv" '[[ $(rows count_except_source nccl-test-config library) -eq 15 ]]'
+check "config rows: 10 recorded variables + 12 settings + argv" '[[ $(rows count_except_source nccl-test-config library) -eq 23 ]]'
 check "library: kernel and OS release recorded"  '[[ -n "$(rows value nccl-test-config kernel_release)" && $(rows ctx nccl-test-config kernel_release source) == library ]]'
 check "library: OS release recorded"             '[[ -n "$(rows value nccl-test-config os_release)" ]]'
 check "library: at least one library row" '[[ $(rows count_source nccl-test-config library) -ge 1 ]]'
@@ -88,8 +90,13 @@ check "test_name from the program name"         '[[ $(rows ctx nccl-test-metric 
 check "run uuid from the footer"                '[[ $(rows ctx nccl-test-metric returncode uuid) == 11111111-2222-4333-8444-555555555555 ]]'
 check "config: NCCL_DEBUG from environment"     '[[ $(rows value nccl-test-config NCCL_DEBUG) == INFO && $(rows ctx nccl-test-config NCCL_DEBUG source) == environment ]]'
 check "config: reporter's own variables excluded" '! rows names nccl-test-config | grep -q NCCL_TESTS_REPORT'
-check "config: NCCL_IB_HCA is on the list"      '[[ $(rows value nccl-test-config NCCL_IB_HCA) == mlx5_0 ]]'
-check "config: unlisted NCCL_* not recorded"    '! rows names nccl-test-config | grep -q -E "NCCL_COMM_ID|NCCL_TOPO_FILE|NCCL_MY_SECRET"'
+check "config: NCCL_IB_HCA recorded"            '[[ $(rows value nccl-test-config NCCL_IB_HCA) == mlx5_0 ]]'
+check "config: every set NCCL_* recorded"       '[[ $(rows value nccl-test-config NCCL_COMM_ID) == 10.0.0.1:1234 && $(rows value nccl-test-config NCCL_TOPO_FILE) == /home/user/topo.xml ]]'
+check "config: UCX and MPI settings recorded"   '[[ $(rows value nccl-test-config UCX_TLS) == rc_x,cuda_copy && $(rows value nccl-test-config OMPI_MCA_pml) == ucx ]]'
+check "config: credential-shaped names dropped" '! rows names nccl-test-config | grep -q -E "NCCL_MY_SECRET|NCCL_API_TOKEN"'
+check "config: partition keys kept despite KEY" '[[ $(rows value nccl-test-config NCCL_IB_PKEY) == 0x8001 && $(rows value nccl-test-config UCX_IB_PKEY) == 0x8002 ]]'
+check "config: credential-shaped values redacted" '[[ "$(rows value nccl-test-config OMPI_MCA_extra)" == "<redacted>" ]]'
+check "config: other prefixes not recorded"     '! rows names nccl-test-config | grep -q -E "SLURM_JOB_USER|MY_VAR"'
 check "config: step_factor, not step_bytes"     '[[ $(rows value nccl-test-config step_factor) == 2 ]] && ! rows names nccl-test-config | grep -q step_bytes'
 check "config: argv recorded"                   '[[ "$(rows value nccl-test-config argv)" == *"all_reduce_perf -b 8 -e 1G -g 4"* ]]'
 check "facts: serial when no uuid"              '[[ $(rows value nccl-test-node-facts gpu gpu=1) == 1650123456789 ]]'

@@ -228,12 +228,13 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     }
   }
 
-  // Config rows cover every NCCL_* variable, the test's own settings, the command line, errors,
-  // and the versions of the system and of the libraries loaded in the process.
+  // Config rows cover the set variables under the recorded prefixes, the test's own settings,
+  // the command line, errors, and the versions of the system and of the libraries loaded in
+  // the process.
   Context cfg_base;
   for (const auto &kv : common) if (kv.first != "topology") cfg_base.push_back(kv);
   auto src = [](const char *what) { Context c; ctx_put(c, "source", std::string(what)); return c; };
-  for (const auto &kv : s.cfg.nccl_env) add_row(rows, kKindConfig, kv.first, Value::text(kv.second), cfg_base, src("environment"));
+  for (const auto &kv : s.cfg.recorded_env) add_row(rows, kKindConfig, kv.first, Value::text(kv.second), cfg_base, src("environment"));
   if (rc.present) {
     Context tc = src("test_config");
     add_row(rows, kKindConfig, "nthreads", Value::number(rc.nthreads), cfg_base, tc);
