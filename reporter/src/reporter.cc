@@ -154,6 +154,7 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   // Context shared by metric rows.
   Context common;
   ctx_put(common, "node", s.node);
+  ctx_put(common, "namespace", s.cfg.pod_namespace);
   ctx_put(common, "test_name", rc.program.empty() ? (s.argv.empty() ? "" : basename_of(s.argv[0])) : rc.program);
   ctx_put(common, "topology", std::string("collective"));
   ctx_put(common, "nccl_version", lib);

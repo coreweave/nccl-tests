@@ -108,7 +108,7 @@ Environment variables override the build-time defaults.
 | `NCCL_TESTS_REPORT_NAMESPACE_FILE`, `_RESOLV_CONF` | Alternate paths for the namespace file and `resolv.conf`, for tests. |
 | `NCCL_TESTS_REPORT_RUN_ID` | Override the run id. The default is a new UUIDv7 per run. |
 | `NCCL_TESTS_REPORT_AUTH_HEADER` | One header line, sent verbatim. |
-| `NCCL_TESTS_REPORT_IMAGE` | Image name or tag to record. |
+| `NCCL_TESTS_REPORT_IMAGE` | Image name or tag to record. The image build sets it to the image's own reference, so every report names the exact build. |
 | `NCCL_TESTS_REPORT_TAG_<NAME>` | Recorded as context `tag_<name>`. |
 | `NCCL_TESTS_REPORT_CONNECT_TIMEOUT`, `_MAX_TIME` | Seconds. Defaults 2 and 5. |
 | `NCCL_TESTS_REPORT_DEBUG=1` | Log to stderr. Otherwise silent. |
@@ -162,9 +162,11 @@ file, and its own `NCCL_TESTS_REPORT_*` settings. Of those settings only the val
   `returncode`, `duration` in seconds, `out_of_bounds` and, with `-a`, `min_bandwidth_check`.
   With `-N` above 1 every per-size row carries `cycle`, counted from 0 within its data type, op
   and root, and a `cycles` row gives the number of cycles. Context carries `message_size`, `size_bytes`, `count`, `dtype`,
-  `redop` and `root`, plus the common keys `node`, `test_name`, `topology=collective`,
+  `redop` and `root`, plus the common keys `node`, `namespace`, `test_name`, `topology=collective`,
   `nccl_version`, `nccl_library_version`, `nccl_headers_version`, `nccl_tests_version`,
   `cuda_version`, `image`, `job_id`, `uuid`, `started_at`, `ended_at` and `tag_*`.
+  `namespace` is the pod namespace when the reporter can discover it, from the service account
+  file or the first `resolv.conf` search domain, and is absent otherwise.
 - `nccl-test-config` has the listed environment variables below with `source=environment`, the test's settings
   with `source=test_config`, `argv` with `source=command_line`, `error_message` with
   `source=errors` with up to 4000 characters each, and system and library versions with `source=library`. The library rows are

@@ -287,6 +287,9 @@ ENV UCX_VFS_ENABLE=no
 # NCCL_TESTS_REPORT=0 turns it off. See reporter/README.md.
 ARG REPORTER_DEFAULT_HOSTS=""
 ARG REPORTER_SKIP_NAMESPACES=""
+# The build passes the image reference in, and the reporter records it with every report.
+ARG REPORTER_IMAGE=""
+ENV NCCL_TESTS_REPORT_IMAGE=${REPORTER_IMAGE}
 ENV NCCL_TESTS_REPO=coreweave/nccl-tests-json
 ENV NCCL_TESTS_COMMITISH=7c10986940f105a087d961ec18f865dce4241d13
 COPY reporter /opt/nccl-tests-reporter

@@ -213,6 +213,14 @@ Config load_config(char **envp) {
     const char *file = getenv("NCCL_TESTS_REPORT_URL_FILE");
     c.url = read_first_line(file && *file ? file : kUrlFileDefault);
   }
+  // The pod namespace is discovered on every path, because it is recorded with the rows and
+  // not only consulted for the skip list.
+  {
+    const char *rc = getenv("NCCL_TESTS_REPORT_RESOLV_CONF");
+    std::vector<std::string> search = resolv_search_domains(rc && *rc ? rc : kResolvConfDefault);
+    for (const std::string &d : search) if (d.find("cluster.local") != std::string::npos) c.in_cluster = true;
+    c.pod_namespace = discover_namespace(search);
+  }
   if (!c.url.empty()) {
     c.active = true;
     c.reason = "configured endpoint";
@@ -221,10 +229,6 @@ Config load_config(char **envp) {
     c.candidate_hosts = split_csv((v = getenv("NCCL_TESTS_REPORT_HOSTS")) && *v ? v : NCCL_TESTS_EXT_DEFAULT_HOSTS);
     c.skip_namespaces = split_csv((v = getenv("NCCL_TESTS_REPORT_SKIP_NAMESPACES")) && *v ? v : NCCL_TESTS_EXT_SKIP_NAMESPACES);
     c.default_port = (int)env_long("NCCL_TESTS_REPORT_PORT", 4318);
-    const char *rc = getenv("NCCL_TESTS_REPORT_RESOLV_CONF");
-    std::vector<std::string> search = resolv_search_domains(rc && *rc ? rc : kResolvConfDefault);
-    for (const std::string &d : search) if (d.find("cluster.local") != std::string::npos) c.in_cluster = true;
-    c.pod_namespace = discover_namespace(search);
     bool skipped = false;
     for (const std::string &n : c.skip_namespaces) if (!c.pod_namespace.empty() && n == c.pod_namespace) skipped = true;
     if (skipped && !c.forced) { c.reason = "namespace " + c.pod_namespace + " is on the skip list"; return c; }
