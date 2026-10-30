@@ -62,14 +62,16 @@ The fork's `src/ext_hooks.h` defines the macros that wrap each call.
 | Hook | Where | Carries |
 |---|---|---|
 | `nccl_tests_ext_init` | `main()`, after `MPI_Init` | argv, env, start time |
+| `nccl_tests_ext_run_id` and `_run_id_shared` | `run()`, after the host hash gather | rank 0 writes its run id, `MPI_Bcast` hands it to every process |
 | `nccl_tests_ext_identify_writer` | `run()`, where `is_main_thread` is set | the rank 0 main thread is the writer |
 | `nccl_tests_ext_run_config` | `writeDeviceReport` | versions, nThreads, nGpus, sizes, iterations, flags |
 | `nccl_tests_ext_local_info` | the device record loop, on every process | a line of text the extension writes about its node |
 | `nccl_tests_ext_device` | the device record loop, which now runs with or without `-J` | rank, host, device, PCI id, name, serial, device UUID, VBIOS, GPU NUMA node, process CPU affinity and NUMA nodes, local info |
 | `nccl_tests_ext_size_begin` and `_size_result` | `writeBenchmarkLinePreamble` and `writeBenchmarkLineBody` | size, count, type, op, root, then time, alg and bus bandwidth, wrong elements and whether the time is CPU time |
+| `nccl_tests_ext_process_end` and `_process_end_gathered` | `run()`, after the footer and before `MPI_Finalize`, on every process | each process's end-of-run text, gathered to rank 0 with `MPI_Gatherv` |
 | `nccl_tests_ext_footer` | `writeResultFooter` | out-of-bounds count, average bus bandwidth, minimum-bandwidth check, run uuid |
 | `nccl_tests_ext_error` | `writeErrors` | last NCCL error text |
-| `nccl_tests_ext_finalize` | `main()`, after `run()` returns | result code, then builds and sends |
+| `nccl_tests_ext_finalize` | `main()`, after `run()` returns, on every process | result code, then the writer builds and sends, and each process uploads its logs when asked |
 
 Two small changes to the fork go beyond the hook lines. The device-record parse loop runs
 when `write_json || NCCL_TESTS_EXT_ENABLED`, while JSON output is still written only under
@@ -112,12 +114,41 @@ Environment variables override the build-time defaults.
 | `NCCL_TESTS_REPORT_TAG_<NAME>` | Recorded as context `tag_<name>`. |
 | `NCCL_TESTS_REPORT_CONNECT_TIMEOUT`, `_MAX_TIME` | Seconds. Defaults 2 and 5. |
 | `NCCL_TESTS_REPORT_DEBUG=1` | Log to stderr. Otherwise silent. |
+| `NCCL_TESTS_REPORT_LOGS=1` | Also send each process's NCCL debug log. Off by default. See below. |
+| `NCCL_TESTS_REPORT_ARTIFACT_URL` | Artifact endpoint URL with `{run_id}` and `{file}`. |
+| `NCCL_TESTS_REPORT_ARTIFACT_HOSTS` | Candidate artifact hosts, comma separated, tried in order inside a cluster. |
+| `NCCL_TESTS_REPORT_LOG_MAX_MIB` | Largest log the artifact endpoint is sent, in MiB. Default 64, at most 256. A larger one is not sent. |
+| `NCCL_TESTS_REPORT_LOG_MAX_TIME` | Seconds per upload. Default 30. |
 
 Behavior. The reporter never changes stdout, stderr or the exit code. It makes one attempt
 with short timeouts and no retries. Only the writer rank sends. No URL means no work at all.
 Name resolution of the candidate hosts shares one deadline, the connect timeout. Zero
 timeouts fall back to the defaults. A run that produces more than 4096 result lines, such as
 `-N 0`, stops recording and sends nothing.
+
+## Log upload
+
+With `NCCL_TESTS_REPORT_LOGS=1` on an active reporter, every process sends the NCCL debug log
+the user already asked NCCL to write, `NCCL_DEBUG_FILE` with `%h`, `%p` and `%%` expanded as
+NCCL does. NCCL writes that file only when `NCCL_DEBUG` is `WARN` or more verbose. Nothing
+changes where NCCL or the test writes its output, and no other file is read. The `-J` output
+file is never sent, since it holds the whole environment of the process.
+
+Logs travel only to the artifact endpoint. The results endpoint never carries log content.
+
+- Each process PUTs its log to `/v1/runs/{run_id}/artifacts/nccl-debug-<host>-<pid>.log` under
+  the run id of the results. The endpoint is `NCCL_TESTS_REPORT_ARTIFACT_URL` or else the first
+  of the artifact hosts that resolves inside a cluster, on the reporter port. A log over
+  `NCCL_TESTS_REPORT_LOG_MAX_MIB` is not sent.
+- Each process hands rank 0 one line with the outcome, through the fork's end-of-run gather, and
+  rank 0 records one `log_status` config row per process with `source=logs`. The value is
+  `delivered`, `failed`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file`, `missing`,
+  `unreadable` or `over_limit`, and context has `log_node`, `pid`, `file` and `bytes`. The
+  results therefore say what happened to every node's log, also when none was sent.
+
+Rank 0 shares its run id with every process right after MPI init. A process without the shared
+run id, or with a results URL that has no `{run_id}` and no `NCCL_TESTS_REPORT_RUN_ID`, has no
+run id to file its log under and records `no_run_id`. A failed upload never changes the test.
 
 ## Recorded environment variables
 

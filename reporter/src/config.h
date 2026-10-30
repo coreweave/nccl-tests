@@ -29,6 +29,13 @@ struct Config {
   std::vector<std::pair<std::string, std::string>> tags;  // NCCL_TESTS_REPORT_TAG_<NAME> as name and value
   std::vector<std::pair<std::string, std::string>> recorded_env;  // set variables under the recorded prefixes, credentials removed
   std::string slurm_job_id;     // SLURM_JOB_ID
+  bool logs = false;            // NCCL_TESTS_REPORT_LOGS=1 uploads log files as run artifacts
+  std::string artifact_url;     // NCCL_TESTS_REPORT_ARTIFACT_URL, may contain {run_id} and {file}
+  std::vector<std::string> artifact_hosts;  // tried in order when no artifact url is set, from the build default or NCCL_TESTS_REPORT_ARTIFACT_HOSTS
+  bool artifact_pending = false;  // the artifact endpoint is decided at finalize by resolving artifact_hosts
+  std::string artifact_path = "/v1/runs/{run_id}/artifacts/{file}";
+  long log_max_time_s = 30;     // NCCL_TESTS_REPORT_LOG_MAX_TIME, per upload
+  size_t log_max_bytes = 64u << 20;  // NCCL_TESTS_REPORT_LOG_MAX_MIB, at most 256, larger files are not sent
 };
 
 // envp may be NULL. getenv is used for single lookups either way.
@@ -38,6 +45,10 @@ struct Config {
 // skip list turns it off. Inside a cluster with candidate hosts the decision stays pending
 // and resolve_default_endpoint picks the first host that resolves. Otherwise it is off.
 Config load_config(char **envp);
+
+// Find the artifact endpoint. Returns true and fills artifact_url when one is configured or
+// a candidate artifact host resolves.
+bool resolve_artifact_endpoint(Config &c);
 
 // Settle a pending configuration. Returns true and fills url when a candidate host
 // resolves, or when forced, in which case the first candidate is used unresolved.
