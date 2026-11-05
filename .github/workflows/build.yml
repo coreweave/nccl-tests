@@ -105,6 +105,7 @@ jobs:
             CUDA_VERSION=${{ inputs.cuda-version }}
             TARGET_NCCL_VERSION=${{ inputs.nccl-version }}
             HPCX_DISTRIBUTION=${{ inputs.hpcx-distribution }}
+            REPORTER_IMAGE=${{ env.REGISTRY }}:${{ steps.meta.outputs.version }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - Dockerfile
+      - reporter/**
       - .github/workflows/ubuntu-26.yml
       - .github/workflows/build.yml
 
