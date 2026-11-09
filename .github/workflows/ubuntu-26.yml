@@ -21,7 +21,7 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 13.3.1-devel-ubuntu26.04
       cuda-version: "13.3.1"
-      nccl-version: 2.32.3-1
+      nccl-version: 2.32.6-1
       hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu26.04-cuda13"
 
   cu134:
@@ -38,7 +38,7 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 13.4.3-devel-ubuntu26.04
       cuda-version: "13.4.3"
-      nccl-version: 2.32.3-1
+      nccl-version: 2.32.6-1
       hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu26.04-cuda13"
 
   cu135:
@@ -55,5 +55,5 @@ jobs:
       base-image: nvidia/cuda
       base-tag: 13.5.0-devel-ubuntu26.04
       cuda-version: "13.5.0"
-      nccl-version: 2.32.3-1
+      nccl-version: 2.32.6-1
       hpcx-distribution: "hpcx-v2.51-gcc-doca_ofed-ubuntu26.04-cuda13"
