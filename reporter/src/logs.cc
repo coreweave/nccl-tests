@@ -2,6 +2,7 @@
 
 #include <sys/stat.h>
 
+#include <algorithm>
 #include <fstream>
 
 namespace ext {
@@ -40,12 +41,24 @@ bool read_file_capped(const std::string &path, size_t max_bytes, std::string *bo
   if ((size_t)st.st_size > max_bytes) return false;
   std::ifstream f(path, std::ios::binary);
   if (!f) return false;
-  // Read one byte past the limit at most, so a file that grew after stat is caught without
-  // buffering what it grew by.
-  body->resize(max_bytes + 1);
-  f.read(&(*body)[0], (std::streamsize)body->size());
-  body->resize((size_t)f.gcount());
-  if (body->size() > max_bytes) { if (size) *size = body->size(); body->clear(); return false; }
+  // Read in bounded chunks so memory scales with the log's actual size, not the limit. Stop one
+  // byte past the limit at most, so a file that grew after stat is caught without buffering
+  // what it grew by.
+  body->clear();
+  char chunk[64 * 1024];
+  while (body->size() <= max_bytes) {
+    size_t want = std::min(sizeof(chunk), max_bytes + 1 - body->size());
+    f.read(chunk, (std::streamsize)want);
+    std::streamsize got = f.gcount();
+    if (got <= 0) break;
+    body->append(chunk, (size_t)got);
+  }
+  if (body->size() > max_bytes) {
+    if (size) *size = body->size();
+    body->clear();
+    body->shrink_to_fit();
+    return false;
+  }
   return true;
 }
 

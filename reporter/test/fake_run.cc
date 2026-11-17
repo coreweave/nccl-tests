@@ -11,10 +11,14 @@
 //   the end-of-run gather, as an older fork does. FAKE_PAYLOAD_OUT saves what this process hands
 //   to rank 0, and FAKE_PEER_PAYLOAD adds a saved one as a second process on the writer.
 //   FAKE_NPROCS is the process count the end-of-run hook is told, default 1.
+//   FAKE_MIN, FAKE_MAX, FAKE_STEP and FAKE_FACTOR are the size settings run_config reports,
+//   default 8, 1G, 0 and 2. FAKE_SIZES, a comma list, replaces the doubling sizes of each cycle,
+//   for example the rounded byte counts of a -b 8 -e 16 -i 1 float sweep.
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <string>
+#include <vector>
 
 #include "nccl_tests_ext.h"
 
@@ -35,8 +39,12 @@ int main(int argc, char **argv, char **envp) {
   printf("# nccl-tests version 2.18.3 nccl-headers=22104 nccl-library=23102\n");
   printf("# Collective test starting: all_reduce_perf\n");
   nccl_tests_ext_identify_writer(writer);
+  const char *fmax = getenv("FAKE_MAX");
   nccl_tests_ext_run_config("all_reduce_perf", "2.18.3", 22104, 23102, 12040,
-                            1, ndev, 8, 1ULL << 30, 0, 2, 5, 20, 1, 1, 0, 0, 0);
+                            1, ndev, (size_t)envi("FAKE_MIN", 8),
+                            fmax && *fmax ? (size_t)strtoull(fmax, nullptr, 10) : (size_t)(1ULL << 30),
+                            (size_t)envi("FAKE_STEP", 0), (size_t)envi("FAKE_FACTOR", 2),
+                            5, 20, 1, 1, 0, 0, 0);
   // Every process contributes its local info before the gather, as the fork does.
   char local[1024];
   nccl_tests_ext_local_info(local, sizeof(local));
@@ -52,11 +60,22 @@ int main(int argc, char **argv, char **envp) {
                           i < 2 ? "0-71" : "72-143", i < 2 ? "0" : "1", local);
   }
   int cycles = envi("FAKE_CYCLES", 1), ntypes = envi("FAKE_TYPES", 1);
+  std::vector<unsigned long long> sizes;
+  if (const char *list = getenv("FAKE_SIZES")) {
+    for (const char *p = list; *p;) {
+      char *end;
+      sizes.push_back(strtoull(p, &end, 10));
+      p = *end == ',' ? end + 1 : end;
+      if (end == p && *p) break;
+    }
+  } else {
+    for (unsigned long long size = 8, i = 0; i < (unsigned long long)nsizes; ++i, size *= 2) sizes.push_back(size);
+  }
   const char *types[] = {"float", "half", "double"};
   for (int t = 0; t < ntypes && t < 3; ++t) {
   for (int cyc = 0; cyc < cycles; ++cyc) {
-  unsigned long long size = 8;
-  for (int i = 0; i < nsizes; ++i, size *= 2) {
+  for (int i = 0; i < (int)sizes.size(); ++i) {
+    unsigned long long size = sizes[i];
     nccl_tests_ext_size_begin(size, size / 4, types[t], "sum", -1);
     int cpu = getenv("FAKE_CPUTIME") ? 1 : 0;
     nccl_tests_ext_size_result(1, 12.5 + i, size / 1e3, 100.0 + i, 1, 0, cpu);

@@ -10,6 +10,10 @@
 set -euo pipefail
 IMAGE=${1:-ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-478d8e5}
 FORK=${2:?usage: build-in-image.sh [image] <path to a nccl-tests-json checkout>}
+# docker -v needs an absolute host path. A relative path is rejected and a bare name would
+# mount a named volume instead of the checkout.
+[[ -d $FORK ]] || { echo "not a directory: $FORK" >&2; exit 2; }
+FORK=$(cd "$FORK" && pwd)
 EXT=$(cd "$(dirname "$0")/.." && pwd)
 OUT=$EXT/build/image-build
 mkdir -p "$OUT"

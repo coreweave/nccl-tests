@@ -46,7 +46,7 @@ struct SizeRec {
   unsigned long long nbytes = 0, nelem = 0;
   std::string type, op;
   int root = 0;
-  int cycle = 0;  // index of the -N cycle, counted from 0, inferred from where the sweep restarts
+  int cycle = 0;  // index of the -N cycle, counted from 0, see nccl_tests_ext_size_begin
   bool cpu_time = false;
   Half oop, inp;
 };
@@ -99,6 +99,23 @@ struct RunConfig {
   unsigned long long step_factor = 0;
   int warmup = 0, iters = 0, agg_iters = 0, datacheck = 0, graph = 0, blocking = 0, parallel_init = 0;
 };
+
+// How many result lines one -N cycle prints, by replaying the fork's size loop:
+// for (size = min; size <= max; size = factor > 1 ? size * factor : size + step). Counting the
+// loop, not the reported sizes, matters because the fork rounds each requested size to whole
+// elements, so neighbouring lines can report the same byte count. 0 means unknown.
+unsigned long long sizes_per_cycle(unsigned long long min, unsigned long long max,
+                                   unsigned long long step, unsigned long long factor) {
+  if (factor <= 1 && step == 0) return 0;
+  unsigned long long n = 0;
+  for (unsigned long long size = min; size <= max;) {
+    if (++n > kMaxSizeRecords) return 0;
+    unsigned long long next = factor > 1 ? size * factor : size + step;
+    if (next <= size) break;  // overflow, or a factor sweep from 0
+    size = next;
+  }
+  return n;
+}
 struct Footer {
   bool present = false;
   int out_of_bounds = 0;
@@ -117,6 +134,23 @@ struct LogOutcome {
   size_t bytes = 0;      // size of the file on disk
 };
 
+typedef std::vector<std::pair<std::string, std::string>> Pairs;
+
+// Adds the keys of `from` that `into` lacks.
+void merge_pairs(Pairs &into, const Pairs &from) {
+  for (const auto &kv : from) {
+    bool have = false;
+    for (const auto &e : into) if (e.first == kv.first) { have = true; break; }
+    if (!have) into.push_back(kv);
+  }
+}
+
+// The host name up to the first dot. The fork reports device host names that way.
+std::string short_host(const std::string &h) { return h.substr(0, h.find('.')); }
+
+// Marks the line a process adds to its process_end payload with its library versions.
+const char kLibsLine[] = "L ";
+
 struct State {
   Config cfg;
   bool initialized = false, writer = false, finalized = false;
@@ -128,6 +162,8 @@ struct State {
   std::vector<SizeRec> sizes;
   bool sizes_overflow = false;
   int cycles = 1;
+  unsigned long long cycle_lines = 0;  // result lines per -N cycle, 0 when unknown
+  unsigned long long cycle_pos = 0;    // lines seen so far in the current cycle
   Footer footer;
   std::vector<std::string> errors;
   std::string run_id;          // minted at init, replaced by the id rank 0 shares
@@ -137,6 +173,13 @@ struct State {
   timespec t_end{};
   std::string end_payload;             // what this process hands to rank 0
   std::vector<LogOutcome> logs;        // on the writer, one outcome per process
+  // Library versions this process has seen loaded, merged over every snapshot: at local_info,
+  // which the fork calls before NCCL initializes, at the writer's first result line, and at
+  // process_end. A library keeps the first version seen.
+  Pairs libs;
+  bool libs_after_init = false;
+  // On the writer, what each process reported at process_end, by node.
+  std::vector<std::pair<std::string, Pairs>> node_libs;
 };
 
 State &S() {
@@ -285,7 +328,7 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
   }
   for (size_t i = 0; i < s.errors.size() && i < 8; ++i)
     add_row(rows, kKindConfig, "error_message", Value::text(clip_utf8(s.errors[i], 4000)), cfg_base, src("errors"));
-  for (const auto &kv : collect_library_versions())
+  for (const auto &kv : s.libs)
     add_row(rows, kKindConfig, kv.first, Value::text(kv.second), cfg_base, src("library"));
   for (const LogOutcome &l : s.logs) {
     Context c = src("logs");
@@ -326,19 +369,27 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     for (const auto &kv : c) if (kv.first != "node") extra.push_back(kv);
     add_row(rows, kKindFacts, "gpu", Value::text(id), base, extra);
   }
-  // One row per library version per node, from the local info each process contributed. The
-  // first process seen on a node speaks for it.
+  // One row per library version per node. Each node merges what its processes reported at
+  // process_end, after NCCL ran, with the local info they contributed before NCCL initialized.
   std::vector<std::string> nodes_done;
   for (const Device &d : s.devices) {
     std::string host = d.hostname.empty() ? s.node : d.hostname;
     bool done = false;
     for (const auto &n : nodes_done) if (n == host) done = true;
-    if (done || d.local_info.empty()) continue;
+    if (done) continue;
+    Pairs libs;
+    for (const auto &nl : s.node_libs)
+      if (short_host(nl.first) == short_host(host)) merge_pairs(libs, nl.second);
+    for (const Device &e : s.devices) {
+      std::string eh = e.hostname.empty() ? s.node : e.hostname;
+      if (eh == host && !e.local_info.empty()) merge_pairs(libs, decode_local_info(e.local_info));
+    }
+    if (libs.empty()) continue;
     nodes_done.push_back(host);
     Context base = facts_base;
     for (auto &kv : base) if (kv.first == "node") kv.second = Value::text(host);
     Context lib; ctx_put(lib, "source", std::string("library"));
-    for (const auto &kv : decode_local_info(d.local_info))
+    for (const auto &kv : libs)
       add_row(rows, kKindFacts, kv.first, Value::text(kv.second), base, lib);
   }
   return rows;
@@ -347,6 +398,25 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
 // Decides what happens to this process's NCCL debug log. The artifact endpoint takes it when one
 // is reachable under the shared run id. Otherwise the log stays on the node and only its status
 // reaches the results. Only a file the user asked NCCL to write is read.
+void snapshot_libs(State &s) {
+  try {
+    merge_pairs(s.libs, collect_library_versions());
+  } catch (...) {
+    dbg("library snapshot failed (exception); ignored");
+  }
+}
+
+std::string encode_pairs(const Pairs &pairs, size_t max_len) {
+  std::string text;
+  for (const auto &kv : pairs) {
+    std::string pair = pct_encode(kv.first) + "=" + pct_encode(kv.second);
+    if (text.size() + pair.size() + 1 >= max_len) break;
+    if (!text.empty()) text.push_back('&');
+    text += pair;
+  }
+  return text;
+}
+
 LogOutcome handle_own_log(State &s) {
   LogOutcome o;
   o.host = artifact_name_part(s.node.substr(0, s.node.find('.')));
@@ -456,27 +526,53 @@ void nccl_tests_ext_process_end(int nprocs, const char **data, size_t *len) {
   // The run ends here, so log handling and the gather do not count toward its duration.
   s.t_end = now_realtime();
   s.ended = true;
-  if (!s.cfg.logs) return;
+  // Libraries NCCL loaded while it ran, such as the network plugin, are visible now on every
+  // process, not only the writer. A plugin NCCL already unloaded is not.
+  snapshot_libs(s);
   try {
-    // Only the outcome travels to rank 0, one short line per process.
-    s.end_payload = encode_outcome(handle_own_log(s));
+    // Line one is the log outcome, empty without log upload. Line two is this process's node
+    // and library versions.
+    std::string outcome;
+    if (s.cfg.logs) {
+      try {
+        outcome = encode_outcome(handle_own_log(s));
+      } catch (...) {
+        dbg("log handling failed (exception); ignored");
+      }
+    }
+    s.end_payload = outcome + "\n" + kLibsLine + "node=" + pct_encode(s.node);
+    std::string libs = encode_pairs(s.libs, 8192);
+    if (!libs.empty()) s.end_payload += "&" + libs;
     *data = s.end_payload.data();
     *len = s.end_payload.size();
   } catch (...) {
-    dbg("log handling failed (exception); ignored");
+    dbg("end-of-run payload failed (exception); ignored");
   }
 }
 
 void nccl_tests_ext_process_end_gathered(int nprocs, const char *const *data, const size_t *len) {
   State &s = S();
-  if (!s.cfg.active || !s.cfg.logs || nprocs <= 0 || !data || !len) return;
+  if (!s.cfg.active || nprocs <= 0 || !data || !len) return;
   try {
     for (int p = 0; p < nprocs; ++p) {
+      if (!data[p] || !len[p]) continue;
       LogOutcome o;
-      if (data[p] && len[p] && decode_outcome(data[p], len[p], &o)) s.logs.push_back(std::move(o));
+      if (s.cfg.logs && decode_outcome(data[p], len[p], &o)) s.logs.push_back(std::move(o));
+      std::string all(data[p], len[p]);
+      size_t at = all.find(std::string("\n") + kLibsLine);
+      if (at == std::string::npos) continue;
+      std::string line = all.substr(at + 1 + strlen(kLibsLine));
+      line = line.substr(0, line.find('\n'));
+      std::string node;
+      Pairs libs;
+      for (const auto &kv : decode_local_info(line)) {
+        if (kv.first == "node") node = kv.second;
+        else libs.push_back(kv);
+      }
+      if (!node.empty()) s.node_libs.emplace_back(node, std::move(libs));
     }
   } catch (...) {
-    dbg("gathered log outcomes unreadable (exception); ignored");
+    dbg("gathered end-of-run data unreadable (exception); ignored");
   }
 }
 
@@ -497,6 +593,7 @@ void nccl_tests_ext_run_config(const char *program_name, const char *nccl_tests_
   r.min_bytes = min_bytes; r.max_bytes = max_bytes; r.step_bytes = step_bytes; r.step_factor = step_factor;
   r.warmup = warmup_iters; r.iters = iters; r.agg_iters = agg_iters; r.datacheck = datacheck;
   r.graph = cuda_graph_launches; r.blocking = blocking_coll; r.parallel_init = parallel_init;
+  s.cycle_lines = sizes_per_cycle(min_bytes, max_bytes, step_bytes, step_factor);
 }
 
 void nccl_tests_ext_local_info(char *out, size_t len) {
@@ -506,12 +603,8 @@ void nccl_tests_ext_local_info(char *out, size_t len) {
   if (!s.cfg.active) return;
   std::string text;
   try {
-    for (const auto &kv : collect_library_versions()) {
-      std::string pair = pct_encode(kv.first) + "=" + pct_encode(kv.second);
-      if (text.size() + pair.size() + 1 >= len) break;
-      if (!text.empty()) text.push_back('&');
-      text += pair;
-    }
+    snapshot_libs(s);
+    text = encode_pairs(s.libs, len);
   } catch (...) {
     text.clear();
   }
@@ -537,7 +630,11 @@ void nccl_tests_ext_device(int rank, int group, int pid, const char *hostname, i
 
 void nccl_tests_ext_size_begin(size_t nbytes, size_t nelem, const char *type_name, const char *op_name, int root) {
   State &s = S();
-  if (!s.cfg.active || s.sizes_overflow) return;
+  if (!s.cfg.active) return;
+  // The first result line comes after NCCL initialized and while it runs, so every library
+  // it loads, the network plugin included, is mapped on the writer now.
+  if (!s.libs_after_init) { s.libs_after_init = true; snapshot_libs(s); }
+  if (s.sizes_overflow) return;
   if (s.sizes.size() >= kMaxSizeRecords) {
     s.sizes_overflow = true;
     s.sizes.clear();
@@ -546,13 +643,28 @@ void nccl_tests_ext_size_begin(size_t nbytes, size_t nelem, const char *type_nam
   }
   SizeRec z;
   z.nbytes = nbytes; z.nelem = nelem; z.type = str(type_name); z.op = str(op_name); z.root = root;
-  // Each type, op and root gets its own sweep, with the -N cycles inside it. Within one of
-  // those sweeps a size that does not grow means the next cycle has started.
+  // Each type, op and root gets its own sweep, with the -N cycles inside it. A cycle prints
+  // cycle_lines result lines, counted from run_config. The fork can lower max_bytes to fit GPU
+  // memory after run_config, so a size that shrinks also starts a cycle, and the shorter
+  // length is kept. Without run_config, a size that does not grow starts a cycle.
+  bool same_sweep = false;
   if (!s.sizes.empty()) {
     const SizeRec &prev = s.sizes.back();
-    if (prev.type == z.type && prev.op == z.op && prev.root == z.root)
-      z.cycle = nbytes <= prev.nbytes ? prev.cycle + 1 : prev.cycle;
+    if (prev.type == z.type && prev.op == z.op && prev.root == z.root) {
+      same_sweep = true;
+      bool restart;
+      if (s.cycle_lines > 0) {
+        bool shrank = nbytes < prev.nbytes;
+        if (shrank && s.cycle_pos < s.cycle_lines) s.cycle_lines = s.cycle_pos;
+        restart = shrank || s.cycle_pos >= s.cycle_lines;
+      } else {
+        restart = nbytes <= prev.nbytes;
+      }
+      z.cycle = restart ? prev.cycle + 1 : prev.cycle;
+      s.cycle_pos = restart ? 1 : s.cycle_pos + 1;
+    }
   }
+  if (!same_sweep) s.cycle_pos = 1;
   if (z.cycle + 1 > s.cycles) s.cycles = z.cycle + 1;
   s.sizes.push_back(std::move(z));
 }
@@ -600,6 +712,7 @@ void nccl_tests_ext_finalize(int result_code) {
     }
   }
   if (!s.writer) { dbg("not the writer rank; no results sent"); return; }
+  snapshot_libs(s);
   if (s.sizes_overflow) { dbg("more than %zu result lines; nothing sent", kMaxSizeRecords); return; }
   if (s.cfg.pending) {
     bool ok = resolve_default_endpoint(s.cfg);

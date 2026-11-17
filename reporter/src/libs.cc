@@ -20,7 +20,7 @@ namespace {
 // carries the version for most of them, for example libibverbs.so.1.14.56.0.
 const char *kLibraryPrefixes[] = {
     "libibverbs.so", "libmlx5.so", "librdmacm.so", "libnccl.so", "libnccl-net", "libnccl_net",
-    "libucp.so", "libucs.so", "libmpi.so", "libhcoll.so", "libsharp.so", "libcudart.so",
+    "libucp.so", "libucs.so", "libmpi.so", "libhcoll.so", "libsharp.so", "libsharp_coll.so", "libcudart.so",
     "libcuda.so", "libnvidia-ml.so",
 };
 

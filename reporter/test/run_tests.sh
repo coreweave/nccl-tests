@@ -229,6 +229,25 @@ reset_mock
 run e7 NCCL_TESTS_REPORT_URL="$URL" FAKE_TYPES=2 FAKE_CYCLES=2
 check "types: cycles counted within each type"   '[[ ( $(rows value nccl-test-metric cycles) == 2 || $(rows value nccl-test-metric cycles) == 2.0 ) && "$(rows ctx nccl-test-metric latency cycle message_size=4K dtype=half cycle=1)" == 1* ]]'
 reset_mock
+# -b 8 -e 16 -i 1 with float rounds each requested size down to whole elements.
+ROUNDED=(FAKE_SIZES=8,8,8,8,12,12,12,12,16 FAKE_MIN=8 FAKE_MAX=16 FAKE_STEP=1 FAKE_FACTOR=1)
+run e8 NCCL_TESTS_REPORT_URL="$URL" "${ROUNDED[@]}"
+check "cycles: repeated rounded sizes are one cycle" '[[ $(rows count nccl-test-metric cycles) -eq 0 && $(rows count nccl-test-metric latency) -eq 9 ]]'
+reset_mock
+run e9 NCCL_TESTS_REPORT_URL="$URL" "${ROUNDED[@]}" FAKE_CYCLES=2
+check "cycles: rounded sizes counted from run_config" '[[ ( $(rows value nccl-test-metric cycles) == 2 || $(rows value nccl-test-metric cycles) == 2.0 ) && "$(rows ctx nccl-test-metric latency cycle message_size=8 cycle=1)" == 1* ]]'
+reset_mock
+run e10 NCCL_TESTS_REPORT_URL="$URL" FAKE_SIZES=64 FAKE_MIN=64 FAKE_MAX=64 FAKE_STEP=1 FAKE_FACTOR=1 FAKE_CYCLES=3
+check "cycles: a single size repeated is one cycle per line" '[[ $(rows value nccl-test-metric cycles) == 3* ]]'
+reset_mock
+run e11 NCCL_TESTS_REPORT_URL="$URL" FAKE_WRITER=0 FAKE_SHARED_RUN_ID=x FAKE_PAYLOAD_OUT="$WORK/libs.payload"
+check "libraries: every process sends its versions at process_end, without log upload" 'grep -q "^L node=" "$WORK/libs.payload" && grep -q "kernel_release=" "$WORK/libs.payload"'
+printf '\nL node=fakehost-02.example&libsharp_coll=libsharp_coll.so.5.2.0' > "$WORK/peer-libs.payload"
+reset_mock
+run e12 NCCL_TESTS_REPORT_URL="$URL" FAKE_PEER_PAYLOAD="$WORK/peer-libs.payload"
+check "libraries: a peer's process_end versions reach its node facts" '[[ $(rows value nccl-test-node-facts libsharp_coll node=fakehost-02) == libsharp_coll.so.5.2.0 ]] && ! rows value nccl-test-node-facts libsharp_coll node=fakehost-01 >/dev/null 2>&1'
+check "libraries: node facts still carry the pre-init versions" '[[ -n "$(rows value nccl-test-node-facts kernel_release node=fakehost-02)" ]]'
+reset_mock
 run e4 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_MAX_TIME=0 NCCL_TESTS_REPORT_CONNECT_TIMEOUT=0
 check "timeouts: zero falls back to the defaults and still sends" '[[ $(npaths) -eq 1 ]]'
 

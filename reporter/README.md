@@ -68,7 +68,7 @@ The fork's `src/ext_hooks.h` defines the macros that wrap each call.
 | `nccl_tests_ext_local_info` | the device record loop, on every process | a line of text the extension writes about its node |
 | `nccl_tests_ext_device` | the device record loop, which now runs with or without `-J` | rank, host, device, PCI id, name, serial, device UUID, VBIOS, GPU NUMA node, process CPU affinity and NUMA nodes, local info |
 | `nccl_tests_ext_size_begin` and `_size_result` | `writeBenchmarkLinePreamble` and `writeBenchmarkLineBody` | size, count, type, op, root, then time, alg and bus bandwidth, wrong elements and whether the time is CPU time |
-| `nccl_tests_ext_process_end` and `_process_end_gathered` | `run()`, after the footer and before `MPI_Finalize`, on every process | each process's end-of-run text, gathered to rank 0 with `MPI_Gatherv` |
+| `nccl_tests_ext_process_end` and `_process_end_gathered` | `run()`, after the footer and before `MPI_Finalize`, on every process | each process's end-of-run text, gathered to rank 0 with `MPI_Gatherv`: its log outcome, then its node and library versions |
 | `nccl_tests_ext_footer` | `writeResultFooter` | out-of-bounds count, average bus bandwidth, minimum-bandwidth check, run uuid |
 | `nccl_tests_ext_error` | `writeErrors` | last NCCL error text |
 | `nccl_tests_ext_finalize` | `main()`, after `run()` returns, on every process | result code, then the writer builds and sends, and each process uploads its logs when asked |
@@ -192,7 +192,10 @@ file, and its own `NCCL_TESTS_REPORT_*` settings. Of those settings only the val
   count with both halves summed. Per run it has `bandwidth` as a mean in GB/s with a `verdict`,
   `returncode`, `duration` in seconds, `out_of_bounds` and, with `-a`, `min_bandwidth_check`.
   With `-N` above 1 every per-size row carries `cycle`, counted from 0 within its data type, op
-  and root, and a `cycles` row gives the number of cycles. Context carries `message_size`, `size_bytes`, `count`, `dtype`,
+  and root, and a `cycles` row gives the number of cycles. A cycle's length comes from the
+  `-b`, `-e`, `-i` and `-f` settings, so sizes that round to the same byte count stay in one
+  cycle. When the fork lowers `-e` to fit GPU memory, the first size that shrinks marks the
+  shorter cycle. Context carries `message_size`, `size_bytes`, `count`, `dtype`,
   `redop` and `root`, plus the common keys `node`, `namespace`, `test_name`, `topology=collective`,
   `nccl_version`, `nccl_library_version`, `nccl_headers_version`, `nccl_tests_version`,
   `cuda_version`, `image`, `job_id`, `uuid`, `started_at`, `ended_at` and `tag_*`.
@@ -207,9 +210,14 @@ file, and its own `NCCL_TESTS_REPORT_*` settings. Of those settings only the val
   UCX, MPI, SHARP, HCOLL, CUDA and NVML library, named after the library and valued with its
   resolved file name, for example `libibverbs` with `libibverbs.so.1.14.56.0`. The config rows describe the
   reporting rank's node, and the node-facts rows every node. Libraries that are not already loaded are never loaded for this.
+  Each process merges what it sees loaded at three points: at `local_info`, which the fork calls
+  before NCCL initializes, at the first result line on the writer, and at `process_end` on every
+  process. A library keeps the first version seen. A library NCCL loads during the run and
+  unloads before `process_end` is seen only on the writer.
 - `nccl-test-node-facts` has one `gpu` row per GPU. The value is the device UUID, else the
   serial, else the PCI bus id. Context carries `node`, `gpu`, `uuid`, `serial`, `pci_bus_id`,
   `device_name`, `rank`, `group`, `vbios`, `gpu_numa_node`, and the `cpu_affinity` and
   `cpu_numa_nodes` of the process that drives the GPU. Each node also gets the library rows
-  described above, with `source=library`, from the first process seen on that node. The UUID is the identity because some boards report one
+  described above, with `source=library`, merged over the processes on that node, from what
+  each sent at `process_end` and its `local_info`. The UUID is the identity because some boards report one
   NVML serial for the GPUs of a module.
