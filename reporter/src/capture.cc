@@ -6,9 +6,13 @@
 #include <spawn.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef __GLIBC__
+#include <stdio_ext.h>
+#endif
 
 extern char **environ;
 
@@ -21,7 +25,8 @@ void close_fd(int &fd) {
   fd = -1;
 }
 
-// Starts `tee -a path` reading read_end and writing to out_fd. Its own errors go to err_fd.
+// Starts `tee -a -i -- path` reading read_end and writing to out_fd. Its own errors go to
+// err_fd. `--` ends option parsing, so a path that starts with '-' is still a file name.
 bool spawn_tee(int read_end, int out_fd, int err_fd, const std::string &path, pid_t *pid, std::string *err) {
   posix_spawn_file_actions_t fa;
   if (posix_spawn_file_actions_init(&fa) != 0) { *err = "posix_spawn_file_actions_init failed"; return false; }
@@ -36,14 +41,35 @@ bool spawn_tee(int read_end, int out_fd, int err_fd, const std::string &path, pi
   sigemptyset(&none);
   posix_spawnattr_setsigmask(&at, &none);
   posix_spawnattr_setflags(&at, POSIX_SPAWN_SETSIGMASK);
-  char a0[] = "tee", a1[] = "-a", a2[] = "-i";
+  char a0[] = "tee", a1[] = "-a", a2[] = "-i", a3[] = "--";
   std::string p = path;
-  char *argv[] = {a0, a1, a2, &p[0], nullptr};
+  char *argv[] = {a0, a1, a2, a3, &p[0], nullptr};
   int rc = posix_spawnp(pid, "tee", &fa, &at, argv, environ);
   posix_spawn_file_actions_destroy(&fa);
   posix_spawnattr_destroy(&at);
   if (rc != 0) { *err = std::string("cannot start tee: ") + strerror(rc); return false; }
   return true;
+}
+
+// True when fd 1 and fd 2 lead to the same place: the same open file, pipe, socket or
+// terminal. Then one pipe and one tee keep their order exactly.
+bool same_destination() {
+  struct stat a, b;
+  if (fstat(1, &a) != 0 || fstat(2, &b) != 0) return false;
+  if (S_ISCHR(a.st_mode) && S_ISCHR(b.st_mode)) return a.st_rdev == b.st_rdev;
+  return a.st_dev == b.st_dev && a.st_ino == b.st_ino;
+}
+
+// stdio picks stdout's buffering on its first use: line buffering for a terminal, full
+// buffering otherwise. Once fd 1 is a pipe, a first use would pick full buffering. When stdout
+// is a terminal and has no buffer yet, fix line buffering now. A buffer that exists keeps its
+// mode, including one the program set itself.
+void keep_terminal_line_buffering() {
+  if (!isatty(1)) return;
+#ifdef __GLIBC__
+  if (__fbufsize(stdout) != 0) return;
+#endif
+  setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
 }
 
 }  // namespace
@@ -57,21 +83,29 @@ bool capture_start(OutputCapture *c, const std::string &dir, std::string *err) {
   close(f);
   fflush(stdout);
   fflush(stderr);
+  keep_terminal_line_buffering();
+  const bool shared = same_destination();
+  const int npipes = shared ? 1 : 2;
   int pipes[2][2] = {{-1, -1}, {-1, -1}};
   bool ok = true;
   for (int i = 0; i < 2 && ok; ++i) {
     c->saved[i] = fcntl(i + 1, F_DUPFD_CLOEXEC, 3);
-    if (c->saved[i] < 0) { *err = "cannot duplicate fd " + std::to_string(i + 1); ok = false; break; }
+    if (c->saved[i] < 0) { *err = "cannot duplicate fd " + std::to_string(i + 1); ok = false; }
+  }
+  for (int i = 0; i < npipes && ok; ++i) {
     if (pipe(pipes[i]) != 0) { *err = "cannot create a pipe"; ok = false; break; }
     fcntl(pipes[i][0], F_SETFD, FD_CLOEXEC);
     fcntl(pipes[i][1], F_SETFD, FD_CLOEXEC);
   }
-  // tee's own error messages go to the original stderr.
-  for (int i = 0; i < 2 && ok; ++i)
+  // tee's own error messages go to the original stderr. With a shared destination one tee
+  // writes to the original stdout, which is the same place as stderr.
+  for (int i = 0; i < npipes && ok; ++i)
     ok = spawn_tee(pipes[i][0], c->saved[i], c->saved[1], c->path, &c->tee_pid[i], err);
   if (ok) {
-    for (int i = 0; i < 2 && ok; ++i)
-      if (dup2(pipes[i][1], i + 1) < 0) { *err = "cannot redirect fd " + std::to_string(i + 1); ok = false; }
+    for (int fd = 1; fd <= 2 && ok; ++fd) {
+      int w = pipes[shared ? 0 : fd - 1][1];
+      if (dup2(w, fd) < 0) { *err = "cannot redirect fd " + std::to_string(fd); ok = false; }
+    }
   }
   for (int i = 0; i < 2; ++i) { close_fd(pipes[i][0]); close_fd(pipes[i][1]); }
   if (!ok) {
@@ -87,8 +121,8 @@ bool capture_start(OutputCapture *c, const std::string &dir, std::string *err) {
   return true;
 }
 
-void capture_stop(OutputCapture *c, int wait_ms) {
-  if (!c->active) return;
+bool capture_stop(OutputCapture *c, int wait_ms) {
+  if (!c->active) return true;
   c->active = false;
   fflush(stdout);
   fflush(stderr);
@@ -97,6 +131,7 @@ void capture_stop(OutputCapture *c, int wait_ms) {
   for (int i = 0; i < 2; ++i) {
     if (c->saved[i] >= 0) dup2(c->saved[i], i + 1);
   }
+  bool drained = true;
   for (int i = 0; i < 2; ++i) {
     if (c->tee_pid[i] <= 0) continue;
     int waited = 0;
@@ -104,7 +139,12 @@ void capture_stop(OutputCapture *c, int wait_ms) {
       int st;
       pid_t r = waitpid(c->tee_pid[i], &st, WNOHANG);
       if (r == c->tee_pid[i] || (r < 0 && errno != EINTR)) break;
-      if (waited >= wait_ms) { kill(c->tee_pid[i], SIGTERM); waitpid(c->tee_pid[i], &st, 0); break; }
+      if (waited >= wait_ms) {
+        // Still passing output to a slow consumer. Never kill it: that would drop output the
+        // user should see. It finishes on its own; the copy is reported as incomplete.
+        drained = false;
+        break;
+      }
       struct timespec ts = {0, 10 * 1000 * 1000};
       nanosleep(&ts, nullptr);
       waited += 10;
@@ -112,6 +152,7 @@ void capture_stop(OutputCapture *c, int wait_ms) {
     c->tee_pid[i] = -1;
   }
   for (int i = 0; i < 2; ++i) close_fd(c->saved[i]);
+  return drained;
 }
 
 }  // namespace ext

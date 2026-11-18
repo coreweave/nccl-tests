@@ -127,8 +127,9 @@ struct Footer {
 // What happened to the NCCL debug log of one process. status is delivered when the artifact
 // endpoint took it, failed when the upload did not succeed, no_artifact_endpoint when none was
 // configured or resolved, no_run_id when the process has no run id to file it under,
-// no_debug_file when NCCL_DEBUG_FILE is unset and no output copy was kept, missing when the
-// file is not there, unreadable
+// no_debug_file when NCCL_DEBUG_FILE is unset and no output copy was kept, copy_incomplete when
+// the output copy was still draining to a slow consumer, missing when the file is not there,
+// unreadable
 // when it cannot be opened, and over_limit when the file is larger than the artifact limit.
 struct LogOutcome {
   std::string host, file, status;
@@ -440,9 +441,17 @@ LogOutcome handle_own_log_inner(State &s) {
   if (path.empty() && !s.cap.path.empty()) {
     // No NCCL_DEBUG_FILE: send the copy of this process's stdout and stderr, which holds
     // NCCL's debug lines when NCCL_DEBUG is set. Stop it first so the file is complete.
-    capture_stop(&s.cap, 2000);
+    bool drained = capture_stop(&s.cap, 2000);
     path = s.cap.path;
     kind = "nccl-output-";
+    if (!drained) {
+      // tee is still passing output to a slow consumer and keeps running until it is done.
+      // A partial copy is not sent as if it were whole.
+      o.file = kind + o.host + "-" + std::to_string(o.pid) + ".log";
+      o.status = "copy_incomplete";
+      dbg("output copy still draining after 2 s, not sent");
+      return o;
+    }
   }
   if (path.empty()) { o.status = "no_debug_file"; dbg("no NCCL_DEBUG_FILE, no NCCL log to send"); return o; }
   o.file = kind + o.host + "-" + std::to_string(o.pid) + ".log";

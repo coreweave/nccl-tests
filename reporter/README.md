@@ -140,10 +140,16 @@ Without `NCCL_DEBUG_FILE`, NCCL writes its debug lines to stdout. So that they c
 sent, each process keeps a copy of its own stdout and stderr from `nccl_tests_ext_init` until
 the log is handled, and sends that copy as `nccl-output-<host>-<pid>.log` instead.
 
-- For each of fd 1 and fd 2, a pipe replaces the descriptor and a `tee -a -i` child passes
-  every byte through to the original descriptor and appends it to a file in `$TMPDIR` (else
-  `/tmp`), readable only by the user. What the terminal, `mpirun`, Slurm or the pod log shows is
-  unchanged in content, order and destination.
+- A pipe replaces fd 1 and fd 2, and a `tee -a -i --` child passes every byte through to the
+  original descriptor and appends it to a file in `$TMPDIR` (else `/tmp`), readable only by the
+  user. When stdout and stderr go to the same place, such as a terminal or `>log 2>&1`, they
+  share one pipe and one tee, so their order is exact. When they go to different places, each
+  has its own, and only the interleaving inside the copy can differ. What the terminal,
+  `mpirun`, Slurm or the pod log shows is unchanged in content, order and destination. A
+  terminal stdout that has not been written yet is set to line buffering first, the mode it
+  would have had.
+- A tee still passing output to a slow consumer is never stopped early; the copy is then not
+  sent and its status is `copy_incomplete`.
 - tee is a separate process started with `posix_spawnp`, so a crash of the test still delivers
   its last lines, and MPI libraries that warn on `fork()` stay quiet.
 - The copy stops when the process handles its log, at `process_end` or `finalize`, and its file
@@ -163,7 +169,8 @@ Logs travel only to the artifact endpoint. The results endpoint never carries lo
 - Each process hands rank 0 one line with the outcome, through the fork's end-of-run gather, and
   rank 0 records one `log_status` config row per process with `source=logs`. The value is
   `delivered`, `failed`, `no_results_endpoint`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file` (no
-  `NCCL_DEBUG_FILE` and no output copy), `missing`,
+  `NCCL_DEBUG_FILE` and no output copy), `copy_incomplete` (the output copy was still being
+  passed to a slow consumer after 2 s, so it was not sent), `missing`,
   `unreadable` or `over_limit`, and context has `log_node`, `pid`, `file` and `bytes`. The
   results therefore say what happened to every node's log, also when none was sent.
 

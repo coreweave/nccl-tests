@@ -333,6 +333,14 @@ run c6 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_A
 sleep 0.5  # tee drains the pipe after the crash
 check "output copy: a crash still shows its last lines" '[[ $RC -ne 0 ]] && grep -q "fake last words before a crash" "$WORK/c6.out"'
 rm -f "$WORK"/tmpc/*  # a crashed process cannot remove its copy
+mkdir -p "$WORK/-dash"
+reset_mock
+( cd "$WORK" && BIN="$OLDPWD/build/fake_run" && run c7 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="-dash" )
+check "output copy: a TMPDIR starting with - is a path, not an option" '[[ $(nartifacts) -eq 1 && $(statuses) == delivered && -z $(ls -A "$WORK/-dash") ]]'
+reset_mock
+env NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_TESTS_REPORT_DEBUG=1 TMPDIR="$WORK/tmpc" \
+    "$BIN" all_reduce_perf -b 8 -e 1G -g 4 >"$WORK/c8.both" 2>&1
+check "output copy: shared stdout and stderr keep their order" 'f=$(ls "$WORK"/m.artifact.nccl-output-*.log) && [[ -s $f ]] && python3 -c "import sys;c=open(sys.argv[1],\"rb\").read();b=open(sys.argv[2],\"rb\").read();sys.exit(0 if c in b and b\"nccl-tests-ext\" in c and b\"Collective test starting\" in c else 1)" "$f" "$WORK/c8.both"'
 reset_mock
 run l7 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_DEBUG_FILE="$WORK/nope.%h.log"
 check "status: a missing debug file"               '[[ $(statuses) == missing && $(nartifacts) -eq 0 ]]'
