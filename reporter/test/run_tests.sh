@@ -302,8 +302,37 @@ reset_mock
 run l5 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/dbg.%h.log" FAKE_PEER_PAYLOAD="$WORK/peer.payload"
 check "peer: rank 0 records every process's status"     '[[ $(statuses) == "delivered delivered" && $(rows count nccl-test-config log_status) -eq 2 ]]'
 reset_mock
-run l6 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" FAKE_PEER_PAYLOAD="$WORK/peer.payload"
-check "status: a process without NCCL_DEBUG_FILE"       '[[ $(statuses) == "delivered no_debug_file" ]]'
+run l6 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" FAKE_PEER_PAYLOAD="$WORK/peer.payload" NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0
+check "status: no NCCL_DEBUG_FILE and the output copy off" '[[ $(statuses) == "delivered no_debug_file" ]]'
+# Output copy: with log upload on and no NCCL_DEBUG_FILE, each process sends a copy of its own
+# stdout and stderr, and what the user sees does not change.
+mkdir -p "$WORK/tmpc"
+reset_mock
+run c1 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_TESTS_REPORT_DEBUG=1 TMPDIR="$WORK/tmpc"
+check "output copy: sent as nccl-output-<host>-<pid>.log" '[[ $RC -eq 0 && $(nartifacts) -eq 1 && $(statuses) == delivered ]] && grep -qE "/artifacts/nccl-output-${SHORT//[^A-Za-z0-9_-]/_}-[0-9]+\.log$" "$WORK/m.artifacts"'
+check "output copy: holds the test's stdout"       'f=$(ls "$WORK"/m.artifact.nccl-output-*.log) && grep -q "^# Collective test starting: all_reduce_perf" "$f"'
+check "output copy: holds stderr too"              'f=$(ls "$WORK"/m.artifact.nccl-output-*.log) && grep -q "nccl-tests-ext" "$f"'
+check "output copy: stdout unchanged"              'cmp -s "$WORK/l1.out" "$WORK/c1.out"'
+check "output copy: stderr still reaches stderr"   'grep -q "keeping a copy of stdout and stderr" "$WORK/c1.err"'
+check "output copy: no temporary file left"        '[[ -z $(ls -A "$WORK/tmpc") ]]'
+check "output copy: no log content in the results" '! grep -q "Collective test starting" "$WORK/m.body"'
+reset_mock
+run c2 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc" NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0
+check "output copy: off with NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0" '[[ $(nartifacts) -eq 0 && $(statuses) == no_debug_file && -z $(ls -A "$WORK/tmpc") ]]'
+reset_mock
+run c3 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc"
+check "output copy: never without NCCL_TESTS_REPORT_LOGS=1" '[[ $(nartifacts) -eq 0 && -z $(ls -A "$WORK/tmpc") ]]'
+reset_mock
+run c4 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc" FAKE_NO_END=1
+check "output copy: sent at finalize without process_end" '[[ $RC -eq 0 && $(nartifacts) -eq 1 && -z $(ls -A "$WORK/tmpc") ]]'
+reset_mock
+run c5 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc" PATH=/nonexistent
+check "output copy: without tee the test still runs" '[[ $RC -eq 0 && $(npaths) -eq 1 && $(statuses) == no_debug_file ]] && cmp -s "$WORK/l1.out" "$WORK/c5.out"'
+reset_mock
+run c6 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc" FAKE_CRASH=1
+sleep 0.5  # tee drains the pipe after the crash
+check "output copy: a crash still shows its last lines" '[[ $RC -ne 0 ]] && grep -q "fake last words before a crash" "$WORK/c6.out"'
+rm -f "$WORK"/tmpc/*  # a crashed process cannot remove its copy
 reset_mock
 run l7 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_DEBUG_FILE="$WORK/nope.%h.log"
 check "status: a missing debug file"               '[[ $(statuses) == missing && $(nartifacts) -eq 0 ]]'

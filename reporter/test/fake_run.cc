@@ -38,6 +38,12 @@ int main(int argc, char **argv, char **envp) {
   }
   printf("# nccl-tests version 2.18.3 nccl-headers=22104 nccl-library=23102\n");
   printf("# Collective test starting: all_reduce_perf\n");
+  if (getenv("FAKE_CRASH")) {
+    // A test that dies mid-run: its last line must still reach stdout.
+    printf("NCCL WARN fake last words before a crash\n");
+    fflush(stdout);
+    abort();
+  }
   nccl_tests_ext_identify_writer(writer);
   const char *fmax = getenv("FAKE_MAX");
   nccl_tests_ext_run_config("all_reduce_perf", "2.18.3", 22104, 23102, 12040,

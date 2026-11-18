@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "capture.h"
 #include "config.h"
 #include "http.h"
 #include "libs.h"
@@ -126,7 +127,8 @@ struct Footer {
 // What happened to the NCCL debug log of one process. status is delivered when the artifact
 // endpoint took it, failed when the upload did not succeed, no_artifact_endpoint when none was
 // configured or resolved, no_run_id when the process has no run id to file it under,
-// no_debug_file when NCCL_DEBUG_FILE is unset, missing when the file is not there, unreadable
+// no_debug_file when NCCL_DEBUG_FILE is unset and no output copy was kept, missing when the
+// file is not there, unreadable
 // when it cannot be opened, and over_limit when the file is larger than the artifact limit.
 struct LogOutcome {
   std::string host, file, status;
@@ -180,6 +182,9 @@ struct State {
   bool libs_after_init = false;
   // On the writer, what each process reported at process_end, by node.
   std::vector<std::pair<std::string, Pairs>> node_libs;
+  // The copy of this process's stdout and stderr, kept when log upload is on and
+  // NCCL_DEBUG_FILE is unset, so NCCL's debug lines on stdout can still be sent.
+  OutputCapture cap;
 };
 
 State &S() {
@@ -417,13 +422,30 @@ std::string encode_pairs(const Pairs &pairs, size_t max_len) {
   return text;
 }
 
-LogOutcome handle_own_log(State &s) {
+// Stops the output copy and removes its file. Safe to call when there is none.
+void drop_capture(State &s) {
+  capture_stop(&s.cap, 2000);
+  if (!s.cap.path.empty()) { unlink(s.cap.path.c_str()); s.cap.path.clear(); }
+}
+
+// Removes the output copy at exit when the run ended without the hooks that send it.
+void drop_capture_at_exit() { drop_capture(S()); }
+
+LogOutcome handle_own_log_inner(State &s) {
   LogOutcome o;
   o.host = artifact_name_part(s.node.substr(0, s.node.find('.')));
   o.pid = (int)getpid();
   std::string path = nccl_debug_file_path(getenv("NCCL_DEBUG_FILE"), s.node, o.pid);
+  std::string kind = "nccl-debug-";
+  if (path.empty() && !s.cap.path.empty()) {
+    // No NCCL_DEBUG_FILE: send the copy of this process's stdout and stderr, which holds
+    // NCCL's debug lines when NCCL_DEBUG is set. Stop it first so the file is complete.
+    capture_stop(&s.cap, 2000);
+    path = s.cap.path;
+    kind = "nccl-output-";
+  }
   if (path.empty()) { o.status = "no_debug_file"; dbg("no NCCL_DEBUG_FILE, no NCCL log to send"); return o; }
-  o.file = "nccl-debug-" + o.host + "-" + std::to_string(o.pid) + ".log";
+  o.file = kind + o.host + "-" + std::to_string(o.pid) + ".log";
   struct stat st;
   if (stat(path.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) { o.status = "missing"; dbg("no NCCL log at %s", path.c_str()); return o; }
   o.bytes = (size_t)st.st_size;
@@ -455,6 +477,18 @@ LogOutcome handle_own_log(State &s) {
   if (http_put(url, body, "text/plain", h, &err)) { dbg("artifact %s delivered", o.file.c_str()); o.status = "delivered"; return o; }
   dbg("artifact delivery failed (ignored): %s", err.c_str());
   o.status = "failed";
+  return o;
+}
+
+LogOutcome handle_own_log(State &s) {
+  LogOutcome o;
+  try {
+    o = handle_own_log_inner(s);
+  } catch (...) {
+    drop_capture(s);
+    throw;
+  }
+  drop_capture(s);
   return o;
 }
 
@@ -499,6 +533,20 @@ void nccl_tests_ext_init(int argc, char **argv, char **envp) {
   for (int i = 0; i < argc && argv && argv[i]; ++i) s.argv.push_back(argv[i]);
   if (s.cfg.pending) dbg("active, %s", s.cfg.reason.c_str());
   else dbg("active, %s, %s", s.cfg.reason.c_str(), s.cfg.url.c_str());
+  // With log upload on and no NCCL_DEBUG_FILE, NCCL's debug lines go to stdout. Keep a copy
+  // of stdout and stderr so they can be sent. NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0 turns it off.
+  const char *dbgfile = getenv("NCCL_DEBUG_FILE");
+  const char *cap = getenv("NCCL_TESTS_REPORT_CAPTURE_OUTPUT");
+  if (s.cfg.logs && (!dbgfile || !*dbgfile) && !(cap && strcmp(cap, "0") == 0)) {
+    const char *tmp = getenv("TMPDIR");
+    std::string err;
+    if (capture_start(&s.cap, tmp && *tmp ? tmp : "/tmp", &err)) {
+      atexit(drop_capture_at_exit);
+      dbg("keeping a copy of stdout and stderr for log upload");
+    } else {
+      dbg("no output copy, %s", err.c_str());
+    }
+  }
 }
 
 void nccl_tests_ext_identify_writer(int is_writer) {
@@ -719,6 +767,7 @@ void nccl_tests_ext_finalize(int result_code) {
       dbg("log handling failed (exception); ignored");
     }
   }
+  drop_capture(s);  // a copy that no hook sent is not kept
   if (!s.writer) { dbg("not the writer rank; no results sent"); return; }
   snapshot_libs(s);
   if (s.sizes_overflow) { dbg("more than %zu result lines; nothing sent", kMaxSizeRecords); return; }

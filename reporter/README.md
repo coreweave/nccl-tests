@@ -121,8 +121,9 @@ Environment variables override the build-time defaults.
 | `NCCL_TESTS_REPORT_ARTIFACT_HOSTS` | Candidate artifact hosts, comma separated, tried in order inside a cluster. |
 | `NCCL_TESTS_REPORT_LOG_MAX_MIB` | Largest log the artifact endpoint is sent, in MiB. Default 64, at most 256. A larger one is not sent. |
 | `NCCL_TESTS_REPORT_LOG_MAX_TIME` | Seconds per upload. Default 30. |
+| `NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0` | With log upload on and no `NCCL_DEBUG_FILE`, do not keep a copy of stdout and stderr. See below. |
 
-Behavior. The reporter never changes stdout, stderr or the exit code. It makes one attempt
+Behavior. The reporter never changes what stdout and stderr show, or the exit code. It makes one attempt
 with short timeouts and no retries. Only the writer rank sends. No URL means no work at all.
 Name resolution of the candidate hosts shares one deadline, the connect timeout. Zero
 timeouts fall back to the defaults. A run that produces more than 4096 result lines, such as
@@ -132,9 +133,26 @@ timeouts fall back to the defaults. A run that produces more than 4096 result li
 
 With `NCCL_TESTS_REPORT_LOGS=1` on an active reporter, every process sends the NCCL debug log
 the user already asked NCCL to write, `NCCL_DEBUG_FILE` with `%h`, `%p` and `%%` expanded as
-NCCL does. NCCL writes that file only when `NCCL_DEBUG` is `WARN` or more verbose. Nothing
-changes where NCCL or the test writes its output, and no other file is read. The `-J` output
-file is never sent, since it holds the whole environment of the process.
+NCCL does. NCCL writes that file only when `NCCL_DEBUG` is `WARN` or more verbose. The `-J`
+output file is never sent, since it holds the whole environment of the process.
+
+Without `NCCL_DEBUG_FILE`, NCCL writes its debug lines to stdout. So that they can still be
+sent, each process keeps a copy of its own stdout and stderr from `nccl_tests_ext_init` until
+the log is handled, and sends that copy as `nccl-output-<host>-<pid>.log` instead.
+
+- For each of fd 1 and fd 2, a pipe replaces the descriptor and a `tee -a -i` child passes
+  every byte through to the original descriptor and appends it to a file in `$TMPDIR` (else
+  `/tmp`), readable only by the user. What the terminal, `mpirun`, Slurm or the pod log shows is
+  unchanged in content, order and destination.
+- tee is a separate process started with `posix_spawnp`, so a crash of the test still delivers
+  its last lines, and MPI libraries that warn on `fork()` stay quiet.
+- The copy stops when the process handles its log, at `process_end` or `finalize`, and its file
+  is removed then, also when it is not sent. A process that crashes leaves its file behind.
+- Each process copies only its own output, so the copy is per process like `NCCL_DEBUG_FILE`,
+  with the same size limit, upload and `log_status` row. It holds whatever the process printed,
+  including the test's result table.
+- Without tee on `PATH` there is no copy and the status is `no_debug_file`, as before.
+  `NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0` turns the copy off.
 
 Logs travel only to the artifact endpoint. The results endpoint never carries log content.
 
@@ -144,7 +162,8 @@ Logs travel only to the artifact endpoint. The results endpoint never carries lo
   `NCCL_TESTS_REPORT_LOG_MAX_MIB` is not sent.
 - Each process hands rank 0 one line with the outcome, through the fork's end-of-run gather, and
   rank 0 records one `log_status` config row per process with `source=logs`. The value is
-  `delivered`, `failed`, `no_results_endpoint`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file`, `missing`,
+  `delivered`, `failed`, `no_results_endpoint`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file` (no
+  `NCCL_DEBUG_FILE` and no output copy), `missing`,
   `unreadable` or `over_limit`, and context has `log_node`, `pid`, `file` and `bytes`. The
   results therefore say what happened to every node's log, also when none was sent.
 
