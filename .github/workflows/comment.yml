@@ -36,7 +36,7 @@ jobs:
           )
           needed=$(jq 'length' <<< "$RESULTS")
           if (( builds != needed )); then
-            echo "::warning::${WORKFLOW} runs ${builds} image builds, but its PR comment job waits on ${needed} jobs. Edit the needs entry of the job calling comment.yml so that it lists every build job in this workflow and nothing else."
+            echo "::warning::The ${WORKFLOW} workflow runs ${builds} image builds, but its PR comment job waits on ${needed} jobs. Edit the needs entry of the job calling comment.yml so that it lists every build job in this workflow and nothing else."
           fi
       - uses: 8BitJonny/gh-get-current-pr@2501fb7d90d212808928edebbea7f1194b592fa0  # 2.1.3
         id: PR
