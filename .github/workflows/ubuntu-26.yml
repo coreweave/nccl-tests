@@ -1,3 +1,5 @@
+name: Ubuntu 26
+
 on:
   workflow_dispatch:
   push:
