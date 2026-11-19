@@ -1,0 +1,66 @@
+name: Comment
+
+on:
+  workflow_call:
+    inputs:
+      results:
+        required: true
+        description: "The calling job's needs context, as JSON"
+        type: string
+
+jobs:
+  comment:
+    name: Comment
+    runs-on: cw-static-pub-x64-4c
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check needs against build count
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESULTS: ${{ inputs.results }}
+          WORKFLOW: ${{ github.workflow }}
+        run: |
+          # Each call to build.yml contributes one job whose name ends in " / Prepare".
+          # It starts with the run, so it is listed even while that build is pending.
+          builds=$(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs?per_page=100" \
+              --jq '[.jobs[] | select(.name | endswith(" / Prepare"))] | length' \
+            | jq -s 'add // 0'
+          )
+          needed=$(jq 'length' <<< "$RESULTS")
+          if (( builds != needed )); then
+            echo "::warning::${WORKFLOW} runs ${builds} image builds, but its PR comment job waits on ${needed} jobs. Edit the needs entry of the job calling comment.yml so that it lists every build job in this workflow and nothing else."
+          fi
+      - uses: 8BitJonny/gh-get-current-pr@2501fb7d90d212808928edebbea7f1194b592fa0  # 2.1.3
+        id: PR
+        with:
+          filterOutClosed: true
+      - name: Compose comment
+        if: steps.PR.outputs.number
+        env:
+          RESULTS: ${{ inputs.results }}
+          ACTOR: ${{ github.triggering_actor }}
+          WORKFLOW: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          jq -r --arg actor "$ACTOR" --arg workflow "$WORKFLOW" --arg run "$RUN_URL" '
+            "@\($actor) Builds complete for `\($workflow)`: \($run)",
+            "",
+            "| Variant | Result | Image |",
+            "| --- | --- | --- |",
+            (to_entries[] |
+              "| \(.key) | \(.value.result) | \(.value.outputs.tags // "" | split("\n") | map(select(. != "") | "`\(.)`") | join("<br>")) |")
+          ' <<< "$RESULTS" > "$RUNNER_TEMP/comment.md"
+      - name: Comment
+        if: steps.PR.outputs.number
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9  # v5.0.0
+        with:
+          issue-number: ${{ steps.PR.outputs.number }}
+          body-path: ${{ runner.temp }}/comment.md
