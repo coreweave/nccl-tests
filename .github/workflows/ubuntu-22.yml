@@ -1,3 +1,5 @@
+name: Ubuntu 22
+
 on:
   workflow_dispatch:
   push:
@@ -5,6 +7,10 @@ on:
       - Dockerfile
       - .github/workflows/ubuntu-22.yml
       - .github/workflows/build.yml
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   cu126:

@@ -1,3 +1,5 @@
+name: Ubuntu 26
+
 on:
   workflow_dispatch:
   push:
@@ -5,6 +7,10 @@ on:
       - Dockerfile
       - .github/workflows/ubuntu-26.yml
       - .github/workflows/build.yml
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   cu133:
