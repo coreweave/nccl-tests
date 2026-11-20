@@ -64,8 +64,8 @@ the following components:
 CoreWeave
 also [publishes images](https://github.com/coreweave/nccl-tests/pkgs/container/nccl-tests)
 built from these Dockerfiles that can be used as base for your own images.  
-The images below include **NCCL v2.32.3-1**, **HPC-X v2.51**,
-and **cuDNN v9.27.0.42-1**.  
+The images below include **NCCL v2.32.6-1**, **HPC-X v2.51**,
+and **cuDNN v9.28.1.4-1**.  
 Each image is multi-arch, and can be used for both `linux/amd64` and `linux/arm64` containers.
 Compute capabilities up to Rubin and Blackwell (10.x & 12.0) are supported.
 
@@ -73,32 +73,35 @@ Compute capabilities up to Rubin and Blackwell (10.x & 12.0) are supported.
 
 | **Image Tag**                                                              | **CUDA** |
 |----------------------------------------------------------------------------|----------|
-| ghcr.io/coreweave/nccl-tests:13.4.3-devel-ubuntu26.04-nccl2.32.3-1-9b0129b | 13.4.3   |
-| ghcr.io/coreweave/nccl-tests:13.3.1-devel-ubuntu26.04-nccl2.32.3-1-9b0129b | 13.3.1   |
+| ghcr.io/coreweave/nccl-tests:13.5.0-devel-ubuntu26.04-nccl2.32.6-1-a1d9eca | 13.5.0   |
+| ghcr.io/coreweave/nccl-tests:13.4.3-devel-ubuntu26.04-nccl2.32.6-1-a1d9eca | 13.4.3   |
+| ghcr.io/coreweave/nccl-tests:13.3.1-devel-ubuntu26.04-nccl2.32.6-1-a1d9eca | 13.3.1   |
 
 ### Ubuntu 24.04
 
 | **Image Tag**                                                              | **CUDA** |
 |----------------------------------------------------------------------------|----------|
-| ghcr.io/coreweave/nccl-tests:13.4.3-devel-ubuntu24.04-nccl2.32.3-1-9b0129b | 13.4.3   |
-| ghcr.io/coreweave/nccl-tests:13.3.1-devel-ubuntu24.04-nccl2.32.3-1-9b0129b | 13.3.1   |
-| ghcr.io/coreweave/nccl-tests:13.2.2-devel-ubuntu24.04-nccl2.32.3-1-9b0129b | 13.2.2   |
-| ghcr.io/coreweave/nccl-tests:13.1.2-devel-ubuntu24.04-nccl2.32.3-1-9b0129b | 13.1.2   |
-| ghcr.io/coreweave/nccl-tests:13.0.3-devel-ubuntu24.04-nccl2.32.3-1-9b0129b | 13.0.3   |
-| ghcr.io/coreweave/nccl-tests:12.9.2-devel-ubuntu24.04-nccl2.32.3-1-9b0129b | 12.9.2   |
+| ghcr.io/coreweave/nccl-tests:13.5.0-devel-ubuntu24.04-nccl2.32.6-1-a1d9eca | 13.5.0   |
+| ghcr.io/coreweave/nccl-tests:13.4.3-devel-ubuntu24.04-nccl2.32.6-1-a1d9eca | 13.4.3   |
+| ghcr.io/coreweave/nccl-tests:13.3.1-devel-ubuntu24.04-nccl2.32.6-1-a1d9eca | 13.3.1   |
+| ghcr.io/coreweave/nccl-tests:13.2.2-devel-ubuntu24.04-nccl2.32.6-1-a1d9eca | 13.2.2   |
+| ghcr.io/coreweave/nccl-tests:13.1.2-devel-ubuntu24.04-nccl2.32.6-1-a1d9eca | 13.1.2   |
+| ghcr.io/coreweave/nccl-tests:13.0.3-devel-ubuntu24.04-nccl2.32.6-1-a1d9eca | 13.0.3   |
+| ghcr.io/coreweave/nccl-tests:12.9.2-devel-ubuntu24.04-nccl2.32.6-1-a1d9eca | 12.9.2   |
 
 ### Ubuntu 22.04
 
 | **Image Tag**                                                              | **CUDA** |
 |----------------------------------------------------------------------------|----------|
-| ghcr.io/coreweave/nccl-tests:13.4.3-devel-ubuntu22.04-nccl2.32.3-1-9b0129b | 13.4.3   |
-| ghcr.io/coreweave/nccl-tests:13.3.1-devel-ubuntu22.04-nccl2.32.3-1-9b0129b | 13.3.1   |
-| ghcr.io/coreweave/nccl-tests:13.2.2-devel-ubuntu22.04-nccl2.32.3-1-9b0129b | 13.2.2   |
-| ghcr.io/coreweave/nccl-tests:13.1.2-devel-ubuntu22.04-nccl2.32.3-1-9b0129b | 13.1.2   |
-| ghcr.io/coreweave/nccl-tests:13.0.3-devel-ubuntu22.04-nccl2.32.3-1-9b0129b | 13.0.3   |
-| ghcr.io/coreweave/nccl-tests:12.9.2-devel-ubuntu22.04-nccl2.32.3-1-9b0129b | 12.9.2   |
-| ghcr.io/coreweave/nccl-tests:12.8.2-devel-ubuntu22.04-nccl2.32.3-1-9b0129b | 12.8.2   |
-| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.32.3-1-9b0129b | 12.6.3   |
+| ghcr.io/coreweave/nccl-tests:13.5.0-devel-ubuntu22.04-nccl2.32.6-1-a1d9eca | 13.5.0   |
+| ghcr.io/coreweave/nccl-tests:13.4.3-devel-ubuntu22.04-nccl2.32.6-1-a1d9eca | 13.4.3   |
+| ghcr.io/coreweave/nccl-tests:13.3.1-devel-ubuntu22.04-nccl2.32.6-1-a1d9eca | 13.3.1   |
+| ghcr.io/coreweave/nccl-tests:13.2.2-devel-ubuntu22.04-nccl2.32.6-1-a1d9eca | 13.2.2   |
+| ghcr.io/coreweave/nccl-tests:13.1.2-devel-ubuntu22.04-nccl2.32.6-1-a1d9eca | 13.1.2   |
+| ghcr.io/coreweave/nccl-tests:13.0.3-devel-ubuntu22.04-nccl2.32.6-1-a1d9eca | 13.0.3   |
+| ghcr.io/coreweave/nccl-tests:12.9.2-devel-ubuntu22.04-nccl2.32.6-1-a1d9eca | 12.9.2   |
+| ghcr.io/coreweave/nccl-tests:12.8.2-devel-ubuntu22.04-nccl2.32.6-1-a1d9eca | 12.8.2   |
+| ghcr.io/coreweave/nccl-tests:12.6.3-devel-ubuntu22.04-nccl2.32.6-1-a1d9eca | 12.6.3   |
 
 ## Running NCCL Tests
 
