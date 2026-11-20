@@ -150,6 +150,16 @@ static std::vector<std::string> resolv_search_domains(const char *path) {
   return out;
 }
 
+// A Kubernetes search domain is cluster.local or ends in .cluster.local, with an optional
+// trailing dot. A substring match would also accept domains such as devcluster.local.
+static bool is_cluster_domain(std::string d) {
+  if (!d.empty() && d.back() == '.') d.pop_back();
+  static const std::string base = "cluster.local", suffix = ".cluster.local";
+  if (strcasecmp(d.c_str(), base.c_str()) == 0) return true;
+  return d.size() > suffix.size() &&
+         strcasecmp(d.c_str() + d.size() - suffix.size(), suffix.c_str()) == 0;
+}
+
 // The pod namespace. The service account file is authoritative when it is mounted. Otherwise
 // the first search domain is <namespace>.svc.cluster.local in every Kubernetes pod.
 static std::string discover_namespace(const std::vector<std::string> &search) {
@@ -221,7 +231,7 @@ Config load_config(char **envp) {
   {
     const char *rc = getenv("NCCL_TESTS_REPORT_RESOLV_CONF");
     std::vector<std::string> search = resolv_search_domains(rc && *rc ? rc : kResolvConfDefault);
-    for (const std::string &d : search) if (d.find("cluster.local") != std::string::npos) c.in_cluster = true;
+    for (const std::string &d : search) if (is_cluster_domain(d)) c.in_cluster = true;
     c.pod_namespace = discover_namespace(search);
   }
   if (!c.url.empty()) {
@@ -262,11 +272,7 @@ Config load_config(char **envp) {
     } else {
       c.artifact_hosts = split_csv((v = getenv("NCCL_TESTS_REPORT_ARTIFACT_HOSTS")) && *v ? v : NCCL_TESTS_EXT_ARTIFACT_HOSTS);
       c.default_port = (int)env_long("NCCL_TESTS_REPORT_PORT", 4318);
-      const char *rc = getenv("NCCL_TESTS_REPORT_RESOLV_CONF");
-      bool in_cluster = c.in_cluster;
-      for (const std::string &d : resolv_search_domains(rc && *rc ? rc : kResolvConfDefault))
-        if (d.find("cluster.local") != std::string::npos) in_cluster = true;
-      c.artifact_pending = !c.artifact_hosts.empty() && (in_cluster || c.forced);
+      c.artifact_pending = !c.artifact_hosts.empty() && (c.in_cluster || c.forced);
     }
   }
 

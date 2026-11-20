@@ -188,6 +188,19 @@ check "default-on: outside a cluster, no request"                '[[ $(npaths) -
 run d4 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS="no-such-host.invalid" NCCL_TESTS_REPORT_PORT="$PORT"
 check "default-on: no candidate resolves, no request, exit unchanged" '[[ $(npaths) -eq 0 && $RC -eq 0 ]]'
 check "default-on: unresolved lookup stays quick (<5 s)"         'python3 -c "import sys; sys.exit(0 if $ELAPSED < 5 else 1)"'
+printf 'nameserver 10.0.0.10
+search team-a.devcluster.local cluster.local.example.com
+' > "$WORK/resolv.lookalike"
+reset_mock
+run d3b NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.lookalike" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT"
+check "default-on: a look-alike search domain is not a cluster" '[[ $(npaths) -eq 0 && $RC -eq 0 ]]'
+printf 'nameserver 10.0.0.10
+search cluster.local.
+' > "$WORK/resolv.dot"
+reset_mock
+run d3c NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.dot" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT"
+check "default-on: cluster.local with a trailing dot is a cluster" '[[ $(npaths) -eq 1 ]]'
+reset_mock
 run d5 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s"
 check "default-on: no candidate hosts configured, no request"    '[[ $(npaths) -eq 0 ]]'
 echo "# skip list"
@@ -309,6 +322,12 @@ fi
 reset_mock
 run l10 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_ARTIFACT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
 check "logs: artifact host found in a cluster"      '[[ $(nartifacts) -eq 1 && $(statuses) == delivered ]]'
+reset_mock
+run l10b NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS="no-such-host.invalid" NCCL_TESTS_REPORT_ARTIFACT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
+check "logs: no results host resolves, no log is sent" '[[ $RC -eq 0 && $(nartifacts) -eq 0 && $(npaths) -eq 0 ]]'
+reset_mock
+run l10c NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_RESOLV_CONF="$WORK/resolv.k8s" NCCL_TESTS_REPORT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_ARTIFACT_HOSTS="127.0.0.1" NCCL_TESTS_REPORT_PORT="$PORT" NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
+check "logs: results host resolves, log and results sent" '[[ $(nartifacts) -eq 1 && $(npaths) -eq 1 && $(statuses) == delivered ]]'
 printf 'pct\n' > "$WORK/pct%.log"
 reset_mock
 run l11 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/pct%%.log"

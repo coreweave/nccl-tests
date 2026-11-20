@@ -82,10 +82,12 @@ JSON and the extension share one id.
 
 In order of precedence. `NCCL_TESTS_REPORT=0` turns the reporter off. `NCCL_TESTS_REPORT=1` forces it
 on. A configured URL turns it on. A pod namespace on the skip list turns it off. Inside a cluster,
-which means `resolv.conf` has a `cluster.local` search domain, the reporter tries the candidate
+which means `resolv.conf` has a search domain that is `cluster.local` or ends in `.cluster.local`, the reporter tries the candidate
 collector hosts in order and uses the first that resolves, on port 4318. Otherwise
 it is off. Resolution happens at finalize, on the writer rank only, so the measured run is untouched
-and a large MPI job does not query DNS from every rank. A build without candidate hosts never reports
+and a large MPI job does not query DNS from every rank. With log upload on, each process also
+resolves the candidate hosts before it sends its log, and sends nothing when none resolves, so no
+log leaves a run that does not report. A build without candidate hosts never reports
 unless the environment configures an endpoint.
 
 The candidate hosts and the skip list are build-time defaults, `make lib DEFAULT_HOSTS=a,b
@@ -142,7 +144,7 @@ Logs travel only to the artifact endpoint. The results endpoint never carries lo
   `NCCL_TESTS_REPORT_LOG_MAX_MIB` is not sent.
 - Each process hands rank 0 one line with the outcome, through the fork's end-of-run gather, and
   rank 0 records one `log_status` config row per process with `source=logs`. The value is
-  `delivered`, `failed`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file`, `missing`,
+  `delivered`, `failed`, `no_results_endpoint`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file`, `missing`,
   `unreadable` or `over_limit`, and context has `log_node`, `pid`, `file` and `bytes`. The
   results therefore say what happened to every node's log, also when none was sent.
 

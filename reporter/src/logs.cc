@@ -53,6 +53,13 @@ bool read_file_capped(const std::string &path, size_t max_bytes, std::string *bo
     if (got <= 0) break;
     body->append(chunk, (size_t)got);
   }
+  // A read error ends the loop like end of file does, so check for it: an incomplete log is
+  // unreadable, not delivered.
+  if (f.bad()) {
+    body->clear();
+    body->shrink_to_fit();
+    return false;
+  }
   if (body->size() > max_bytes) {
     if (size) *size = body->size();
     body->clear();

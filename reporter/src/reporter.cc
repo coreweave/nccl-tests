@@ -428,6 +428,14 @@ LogOutcome handle_own_log(State &s) {
   if (stat(path.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) { o.status = "missing"; dbg("no NCCL log at %s", path.c_str()); return o; }
   o.bytes = (size_t)st.st_size;
   if (o.bytes > s.cfg.log_max_bytes) { o.status = "over_limit"; dbg("NCCL log at %s is over the artifact limit, not sent", path.c_str()); return o; }
+  // With automatic activation the reporter is on only if a results host resolves, which the
+  // writer otherwise checks at finalize, after logs are sent. Check it here first, so no log
+  // leaves a run that will not report.
+  if (s.cfg.pending && !resolve_default_endpoint(s.cfg)) {
+    o.status = "no_results_endpoint";
+    dbg("no results endpoint resolved (%s), %s not sent", s.cfg.reason.c_str(), o.file.c_str());
+    return o;
+  }
   bool id_known = s.writer || s.run_id_shared || !s.cfg.run_id_override.empty();
   bool url_ok = s.cfg.url.empty() || s.cfg.url.find("{run_id}") != std::string::npos || !s.cfg.run_id_override.empty();
   if (!id_known || !url_ok) { o.status = "no_run_id"; dbg("no run id to file %s under, not sent", o.file.c_str()); return o; }
