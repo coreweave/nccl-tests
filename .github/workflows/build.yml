@@ -132,6 +132,7 @@ jobs:
             CUDA_VERSION=${{ inputs.cuda-version }}
             TARGET_NCCL_VERSION=${{ inputs.nccl-version }}
             HPCX_DISTRIBUTION=${{ inputs.hpcx-distribution }}
+            REPORTER_IMAGE=${{ needs.prepare.outputs.image }}:${{ needs.prepare.outputs.version }}
           labels: ${{ needs.prepare.outputs.labels }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,"name=${{ needs.prepare.outputs.image }}",push-by-digest=true,name-canonical=true,push=true
