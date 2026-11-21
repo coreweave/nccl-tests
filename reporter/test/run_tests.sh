@@ -282,7 +282,29 @@ check "logs: artifact shares the results run id"    'id=$(results_run_id) && [[ 
 check "logs: debug file named by host and pid"      'grep -qE "/artifacts/nccl-debug-${SHORT//[^A-Za-z0-9_-]/_}-[0-9]+\.log$" "$WORK/m.artifacts"'
 check "logs: debug file body is the file"           'f=$(ls "$WORK"/m.artifact.nccl-debug-*.log) && cmp -s "$f" "$WORK/dbg.$SHORT.log"'
 check "logs: results carry the status"              '[[ $(statuses) == delivered && $(rows ctx nccl-test-config log_status source) == logs ]]'
+check "scrub: a clean log has zero redactions"     'r=$(rows ctx nccl-test-config log_status redactions) && [[ ${r%.0} == 0 ]]'
 check "logs: stdout unchanged"                      'cmp -s "$WORK/l1.out" "$WORK/l2.out"'
+cat > "$WORK/sec.$SHORT.log" <<'SECRETS'
+NCCL INFO comm 0x5555 rank 0 nranks 8 cudaDev 0 nvmlDev 0 busId 18000 - Init COMPLETE
+NCCL INFO NCCL_IB_PKEY=0x8001 kept as a setting
+export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYsecretAAAA
+pushing with ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab now
+Authorization: Basic dXNlcjpodW50ZXIy
+fetching https://bob:hunter2pass@example.com/data
+key id AKIAIOSFODNN7SECRETX in use
+./run --db-password="s3cret value" --size 8
+-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAsecretkeymaterial
+-----END RSA PRIVATE KEY-----
+NCCL INFO task-runner sk-learn monkey 5 done
+SECRETS
+reset_mock
+run l2s NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/sec.%h.log"
+check "scrub: the log is still delivered"           '[[ $(nartifacts) -eq 1 && $(statuses) == delivered ]]'
+check "scrub: no credential reaches the endpoint"   'f=$(ls "$WORK"/m.artifact.nccl-debug-*.log) && ! grep -qE "wJalrXUtnFEMI|ghp_ABCDEF|dXNlcjpodW50ZXIy|hunter2pass|AKIAIOSFODNN7SECRETX|s3cret|secretkeymaterial" "$f"'
+check "scrub: credentials are marked as redacted"   'f=$(ls "$WORK"/m.artifact.nccl-debug-*.log) && grep -q "AWS_SECRET_ACCESS_KEY=<redacted>" "$f" && grep -q "https://bob:<redacted>@example.com/data" "$f" && grep -q "^<redacted private key>$" "$f"'
+check "scrub: ordinary lines are unchanged"         'f=$(ls "$WORK"/m.artifact.nccl-debug-*.log) && grep -qxF "NCCL INFO comm 0x5555 rank 0 nranks 8 cudaDev 0 nvmlDev 0 busId 18000 - Init COMPLETE" "$f" && grep -qxF "NCCL INFO NCCL_IB_PKEY=0x8001 kept as a setting" "$f" && grep -qxF "NCCL INFO task-runner sk-learn monkey 5 done" "$f"'
+check "scrub: the count is in the status row"       'r=$(rows ctx nccl-test-config log_status redactions) && [[ ${r%.0} == 7 ]]'
 reset_mock
 run l3 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
 check "no artifact endpoint: only the results are sent" '[[ $RC -eq 0 && $(nartifacts) -eq 0 && $(npaths) -eq 1 ]]'
@@ -302,8 +324,45 @@ reset_mock
 run l5 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/dbg.%h.log" FAKE_PEER_PAYLOAD="$WORK/peer.payload"
 check "peer: rank 0 records every process's status"     '[[ $(statuses) == "delivered delivered" && $(rows count nccl-test-config log_status) -eq 2 ]]'
 reset_mock
-run l6 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" FAKE_PEER_PAYLOAD="$WORK/peer.payload"
-check "status: a process without NCCL_DEBUG_FILE"       '[[ $(statuses) == "delivered no_debug_file" ]]'
+run l6 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" FAKE_PEER_PAYLOAD="$WORK/peer.payload" NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0
+check "status: no NCCL_DEBUG_FILE and the output copy off" '[[ $(statuses) == "delivered no_debug_file" ]]'
+# Output copy: with log upload on and no NCCL_DEBUG_FILE, each process sends a copy of its own
+# stdout and stderr, and what the user sees does not change.
+mkdir -p "$WORK/tmpc"
+reset_mock
+run c1 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_TESTS_REPORT_DEBUG=1 TMPDIR="$WORK/tmpc"
+check "output copy: sent as nccl-output-<host>-<pid>.log" '[[ $RC -eq 0 && $(nartifacts) -eq 1 && $(statuses) == delivered ]] && grep -qE "/artifacts/nccl-output-${SHORT//[^A-Za-z0-9_-]/_}-[0-9]+\.log$" "$WORK/m.artifacts"'
+check "output copy: holds the test's stdout"       'f=$(ls "$WORK"/m.artifact.nccl-output-*.log) && grep -q "^# Collective test starting: all_reduce_perf" "$f"'
+check "output copy: holds stderr too"              'f=$(ls "$WORK"/m.artifact.nccl-output-*.log) && grep -q "nccl-tests-ext" "$f"'
+check "output copy: stdout unchanged"              'cmp -s "$WORK/l1.out" "$WORK/c1.out"'
+check "output copy: stderr still reaches stderr"   'grep -q "keeping a copy of stdout and stderr" "$WORK/c1.err"'
+check "output copy: no temporary file left"        '[[ -z $(ls -A "$WORK/tmpc") ]]'
+check "output copy: no log content in the results" '! grep -q "Collective test starting" "$WORK/m.body"'
+reset_mock
+run c2 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc" NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0
+check "output copy: off with NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0" '[[ $(nartifacts) -eq 0 && $(statuses) == no_debug_file && -z $(ls -A "$WORK/tmpc") ]]'
+reset_mock
+run c3 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc"
+check "output copy: never without NCCL_TESTS_REPORT_LOGS=1" '[[ $(nartifacts) -eq 0 && -z $(ls -A "$WORK/tmpc") ]]'
+reset_mock
+run c4 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc" FAKE_NO_END=1
+check "output copy: sent at finalize without process_end" '[[ $RC -eq 0 && $(nartifacts) -eq 1 && -z $(ls -A "$WORK/tmpc") ]]'
+reset_mock
+run c5 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc" PATH=/nonexistent
+check "output copy: without tee the test still runs" '[[ $RC -eq 0 && $(npaths) -eq 1 && $(statuses) == no_debug_file ]] && cmp -s "$WORK/l1.out" "$WORK/c5.out"'
+reset_mock
+run c6 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="$WORK/tmpc" FAKE_CRASH=1
+sleep 0.5  # tee drains the pipe after the crash
+check "output copy: a crash still shows its last lines" '[[ $RC -ne 0 ]] && grep -q "fake last words before a crash" "$WORK/c6.out"'
+rm -f "$WORK"/tmpc/*  # a crashed process cannot remove its copy
+mkdir -p "$WORK/-dash"
+reset_mock
+( cd "$WORK" && BIN="$OLDPWD/build/fake_run" && run c7 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" TMPDIR="-dash" )
+check "output copy: a TMPDIR starting with - is a path, not an option" '[[ $(nartifacts) -eq 1 && $(statuses) == delivered && -z $(ls -A "$WORK/-dash") ]]'
+reset_mock
+env NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_TESTS_REPORT_DEBUG=1 TMPDIR="$WORK/tmpc" \
+    "$BIN" all_reduce_perf -b 8 -e 1G -g 4 >"$WORK/c8.both" 2>&1
+check "output copy: shared stdout and stderr keep their order" 'f=$(ls "$WORK"/m.artifact.nccl-output-*.log) && [[ -s $f ]] && python3 -c "import sys;c=open(sys.argv[1],\"rb\").read();b=open(sys.argv[2],\"rb\").read();sys.exit(0 if c in b and b\"nccl-tests-ext\" in c and b\"Collective test starting\" in c else 1)" "$f" "$WORK/c8.both"'
 reset_mock
 run l7 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_DEBUG_FILE="$WORK/nope.%h.log"
 check "status: a missing debug file"               '[[ $(statuses) == missing && $(nartifacts) -eq 0 ]]'

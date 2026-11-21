@@ -1,4 +1,5 @@
 #include "config.h"
+#include "secrets.h"
 
 #include <netdb.h>
 #include <stdlib.h>
@@ -39,23 +40,6 @@ static const char *const kRecordedPrefixes[] = {
     "CUDA_", "GDRCOPY_", "MLX5_", "RDMAV_", "IBV_",
 };
 
-// A name containing one of these parts holds a credential or an identity and is dropped,
-// unless it also contains an exempt part. InfiniBand partition keys are settings, not secrets.
-static const char *const kSensitiveNameParts[] = {
-    "KEY", "TOKEN", "SECRET", "PASS", "PWD", "CRED", "AUTH", "PRIVATE", "SIGNING", "SIGNATURE",
-    "HMAC", "SALT", "JWT", "BEARER", "COOKIE", "SESSION", "LICENSE", "LICENCE", "DSN", "URL",
-    "DATABASE", "REDIS", "MONGODB", "CONNECTION_STRING", "USERNAME", "USER", "EMAIL",
-};
-static const char *const kExemptNameParts[] = {"PKEY"};
-
-// A value that starts with one of these is a credential issued by a known service. The
-// variable is kept and the value replaced, so the setting is known to exist without its content.
-static const char *const kSecretValuePrefixes[] = {
-    "Bearer ", "Basic ", "ghp_", "gho_", "github_pat_", "glpat-", "xoxb-", "xoxp-", "xoxa-",
-    "AKIA", "ASIA", "sk-", "sk_live_", "sk_test_", "AIza", "ya29.", "eyJ",
-};
-static const char kRedactedValue[] = "<redacted>";
-
 // Name comparisons ignore case.
 template <size_t N>
 static bool name_starts_with(const std::string &name, const char *const (&prefixes)[N]) {
@@ -66,28 +50,16 @@ static bool name_starts_with(const std::string &name, const char *const (&prefix
   return false;
 }
 
-template <size_t N>
-static bool name_contains(const std::string &name, const char *const (&parts)[N]) {
-  std::string upper = name;
-  for (char &ch : upper) ch = (char)toupper((unsigned char)ch);
-  for (const char *p : parts) if (upper.find(p) != std::string::npos) return true;
-  return false;
-}
-
 // True when a set variable belongs in the config rows. The reporter's own settings never do.
 static bool is_recorded(const std::string &key) {
   if (strncasecmp(key.c_str(), "NCCL_TESTS_REPORT", 17) == 0) return false;
   if (!name_starts_with(key, kRecordedPrefixes)) return false;
-  if (name_contains(key, kSensitiveNameParts) && !name_contains(key, kExemptNameParts)) return false;
+  if (is_sensitive_name(key)) return false;
   return true;
 }
 
 static std::string recorded_value(const std::string &val) {
-  for (const char *p : kSecretValuePrefixes) {
-    size_t n = strlen(p);
-    if (val.size() >= n && val.compare(0, n, p) == 0) return kRedactedValue;
-  }
-  return val;
+  return has_secret_value_prefix(val) ? kRedacted : val;
 }
 
 static const char *kUrlFileDefault = "/etc/perf-telemetry/url";

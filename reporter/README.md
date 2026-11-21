@@ -121,8 +121,9 @@ Environment variables override the build-time defaults.
 | `NCCL_TESTS_REPORT_ARTIFACT_HOSTS` | Candidate artifact hosts, comma separated, tried in order inside a cluster. |
 | `NCCL_TESTS_REPORT_LOG_MAX_MIB` | Largest log the artifact endpoint is sent, in MiB. Default 64, at most 256. A larger one is not sent. |
 | `NCCL_TESTS_REPORT_LOG_MAX_TIME` | Seconds per upload. Default 30. |
+| `NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0` | With log upload on and no `NCCL_DEBUG_FILE`, do not keep a copy of stdout and stderr. See below. |
 
-Behavior. The reporter never changes stdout, stderr or the exit code. It makes one attempt
+Behavior. The reporter never changes what stdout and stderr show, or the exit code. It makes one attempt
 with short timeouts and no retries. Only the writer rank sends. No URL means no work at all.
 Name resolution of the candidate hosts shares one deadline, the connect timeout. Zero
 timeouts fall back to the defaults. A run that produces more than 4096 result lines, such as
@@ -132,11 +133,52 @@ timeouts fall back to the defaults. A run that produces more than 4096 result li
 
 With `NCCL_TESTS_REPORT_LOGS=1` on an active reporter, every process sends the NCCL debug log
 the user already asked NCCL to write, `NCCL_DEBUG_FILE` with `%h`, `%p` and `%%` expanded as
-NCCL does. NCCL writes that file only when `NCCL_DEBUG` is `WARN` or more verbose. Nothing
-changes where NCCL or the test writes its output, and no other file is read. The `-J` output
-file is never sent, since it holds the whole environment of the process.
+NCCL does. NCCL writes that file only when `NCCL_DEBUG` is `WARN` or more verbose. The `-J`
+output file is never sent, since it holds the whole environment of the process.
+
+Without `NCCL_DEBUG_FILE`, NCCL writes its debug lines to stdout. So that they can still be
+sent, each process keeps a copy of its own stdout and stderr from `nccl_tests_ext_init` until
+the log is handled, and sends that copy as `nccl-output-<host>-<pid>.log` instead.
+
+- A pipe replaces fd 1 and fd 2, and a `tee -a -i --` child passes every byte through to the
+  original descriptor and appends it to a file in `$TMPDIR` (else `/tmp`), readable only by the
+  user. When stdout and stderr go to the same place, such as a terminal or `>log 2>&1`, they
+  share one pipe and one tee, so their order is exact. When they go to different places, each
+  has its own, and only the interleaving inside the copy can differ. What the terminal,
+  `mpirun`, Slurm or the pod log shows is unchanged in content, order and destination. A
+  terminal stdout that has not been written yet is set to line buffering first, the mode it
+  would have had.
+- A tee still passing output to a slow consumer is never stopped early; the copy is then not
+  sent and its status is `copy_incomplete`.
+- tee is a separate process started with `posix_spawnp`, so a crash of the test still delivers
+  its last lines, and MPI libraries that warn on `fork()` stay quiet.
+- The copy stops when the process handles its log, at `process_end` or `finalize`, and its file
+  is removed then, also when it is not sent. A process that crashes leaves its file behind.
+- Each process copies only its own output, so the copy is per process like `NCCL_DEBUG_FILE`,
+  with the same size limit, upload and `log_status` row. It holds whatever the process printed,
+  including the test's result table.
+- Without tee on `PATH` there is no copy and the status is `no_debug_file`, as before.
+  `NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0` turns the copy off.
 
 Logs travel only to the artifact endpoint. The results endpoint never carries log content.
+
+A log holds whatever the process printed, so each process replaces credentials in its log
+before it sends it, in one pass over the text. What is replaced:
+
+- a private key block, from `-----BEGIN ... PRIVATE KEY-----` through its END line, which
+  becomes `<redacted private key>`
+- the rest of the line after `Authorization:`, and the token after `Bearer `
+- a token that starts like one from a known service, such as `ghp_`, `github_pat_`, `glpat-`,
+  `xoxb-`, `sk-`, `AIza`, `ya29.`, an AWS key id (`AKIA` or `ASIA` and 16 characters) or a
+  JWT (`eyJ...`), when enough token characters follow to rule out an ordinary word
+- the password in a URL, as in `https://user:<redacted>@host`
+- the value of `NAME=value` when the name is one the environment filter drops (see
+  [Recorded environment variables](#recorded-environment-variables)), as in an environment
+  dump or a `--password=...` flag
+
+Each one becomes `<redacted>`, and everything else is sent byte for byte. The number replaced is
+in the `redactions` context of the log's `log_status` row. It catches the usual shapes
+of credentials and is not a guarantee.
 
 - Each process PUTs its log to `/v1/runs/{run_id}/artifacts/nccl-debug-<host>-<pid>.log` under
   the run id of the results. The endpoint is `NCCL_TESTS_REPORT_ARTIFACT_URL` or else the first
@@ -144,8 +186,10 @@ Logs travel only to the artifact endpoint. The results endpoint never carries lo
   `NCCL_TESTS_REPORT_LOG_MAX_MIB` is not sent.
 - Each process hands rank 0 one line with the outcome, through the fork's end-of-run gather, and
   rank 0 records one `log_status` config row per process with `source=logs`. The value is
-  `delivered`, `failed`, `no_results_endpoint`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file`, `missing`,
-  `unreadable` or `over_limit`, and context has `log_node`, `pid`, `file` and `bytes`. The
+  `delivered`, `failed`, `no_results_endpoint`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file` (no
+  `NCCL_DEBUG_FILE` and no output copy), `copy_incomplete` (the output copy was still being
+  passed to a slow consumer after 2 s, so it was not sent), `missing`,
+  `unreadable` or `over_limit`, and context has `log_node`, `pid`, `file`, `bytes` and, for a log that was read, `redactions`. The
   results therefore say what happened to every node's log, also when none was sent.
 
 Rank 0 shares its run id with every process right after MPI init. A process without the shared
@@ -169,7 +213,7 @@ adds, is never read.
 | RDMA | `GDRCOPY_`, `MLX5_`, `RDMAV_`, `IBV_` |
 
 Three rules keep credentials out, and they follow the environment filter of the fork's JSON
-output. A name that contains KEY, TOKEN, SECRET, PASS, PWD, CRED, AUTH, PRIVATE, SIGNING,
+output. The log scrubber uses the same name and value rules. A name that contains KEY, TOKEN, SECRET, PASS, PWD, CRED, AUTH, PRIVATE, SIGNING,
 SIGNATURE, HMAC, SALT, JWT, BEARER, COOKIE, SESSION, LICENSE, LICENCE, DSN, URL, DATABASE,
 REDIS, MONGODB, CONNECTION_STRING, USERNAME, USER or EMAIL is dropped, except that a name
 containing PKEY stays, because InfiniBand partition keys are settings. A value that starts

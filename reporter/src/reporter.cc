@@ -21,11 +21,13 @@
 #include <string>
 #include <vector>
 
+#include "capture.h"
 #include "config.h"
 #include "http.h"
 #include "libs.h"
 #include "logs.h"
 #include "rows.h"
+#include "secrets.h"
 #include "util.h"
 
 namespace {
@@ -126,12 +128,16 @@ struct Footer {
 // What happened to the NCCL debug log of one process. status is delivered when the artifact
 // endpoint took it, failed when the upload did not succeed, no_artifact_endpoint when none was
 // configured or resolved, no_run_id when the process has no run id to file it under,
-// no_debug_file when NCCL_DEBUG_FILE is unset, missing when the file is not there, unreadable
+// no_debug_file when NCCL_DEBUG_FILE is unset and no output copy was kept, copy_incomplete when
+// the output copy was still draining to a slow consumer, missing when the file is not there,
+// unreadable
 // when it cannot be opened, and over_limit when the file is larger than the artifact limit.
 struct LogOutcome {
   std::string host, file, status;
   int pid = 0;
   size_t bytes = 0;      // size of the file on disk
+  bool scrubbed = false; // the log was read and scrubbed before upload
+  size_t redactions = 0; // credentials replaced in what was sent
 };
 
 typedef std::vector<std::pair<std::string, std::string>> Pairs;
@@ -180,6 +186,9 @@ struct State {
   bool libs_after_init = false;
   // On the writer, what each process reported at process_end, by node.
   std::vector<std::pair<std::string, Pairs>> node_libs;
+  // The copy of this process's stdout and stderr, kept when log upload is on and
+  // NCCL_DEBUG_FILE is unset, so NCCL's debug lines on stdout can still be sent.
+  OutputCapture cap;
 };
 
 State &S() {
@@ -336,6 +345,7 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     ctx_put(c, "pid", (double)l.pid);
     if (!l.file.empty()) ctx_put(c, "file", l.file);
     ctx_put(c, "bytes", (double)l.bytes);
+    if (l.scrubbed) ctx_put(c, "redactions", (double)l.redactions);
     add_row(rows, kKindConfig, "log_status", Value::text(l.status), cfg_base, c);
   }
 
@@ -417,13 +427,38 @@ std::string encode_pairs(const Pairs &pairs, size_t max_len) {
   return text;
 }
 
-LogOutcome handle_own_log(State &s) {
+// Stops the output copy and removes its file. Safe to call when there is none.
+void drop_capture(State &s) {
+  capture_stop(&s.cap, 2000);
+  if (!s.cap.path.empty()) { unlink(s.cap.path.c_str()); s.cap.path.clear(); }
+}
+
+// Removes the output copy at exit when the run ended without the hooks that send it.
+void drop_capture_at_exit() { drop_capture(S()); }
+
+LogOutcome handle_own_log_inner(State &s) {
   LogOutcome o;
   o.host = artifact_name_part(s.node.substr(0, s.node.find('.')));
   o.pid = (int)getpid();
   std::string path = nccl_debug_file_path(getenv("NCCL_DEBUG_FILE"), s.node, o.pid);
+  std::string kind = "nccl-debug-";
+  if (path.empty() && !s.cap.path.empty()) {
+    // No NCCL_DEBUG_FILE: send the copy of this process's stdout and stderr, which holds
+    // NCCL's debug lines when NCCL_DEBUG is set. Stop it first so the file is complete.
+    bool drained = capture_stop(&s.cap, 2000);
+    path = s.cap.path;
+    kind = "nccl-output-";
+    if (!drained) {
+      // tee is still passing output to a slow consumer and keeps running until it is done.
+      // A partial copy is not sent as if it were whole.
+      o.file = kind + o.host + "-" + std::to_string(o.pid) + ".log";
+      o.status = "copy_incomplete";
+      dbg("output copy still draining after 2 s, not sent");
+      return o;
+    }
+  }
   if (path.empty()) { o.status = "no_debug_file"; dbg("no NCCL_DEBUG_FILE, no NCCL log to send"); return o; }
-  o.file = "nccl-debug-" + o.host + "-" + std::to_string(o.pid) + ".log";
+  o.file = kind + o.host + "-" + std::to_string(o.pid) + ".log";
   struct stat st;
   if (stat(path.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) { o.status = "missing"; dbg("no NCCL log at %s", path.c_str()); return o; }
   o.bytes = (size_t)st.st_size;
@@ -446,6 +481,10 @@ LogOutcome handle_own_log(State &s) {
     dbg("NCCL log at %s is %s, not sent", path.c_str(), o.status.c_str());
     return o;
   }
+  // A log holds whatever the process printed, so credentials are replaced before it leaves.
+  body = scrub_log(body, &o.redactions);
+  o.scrubbed = true;
+  if (o.redactions) dbg("replaced %zu credentials in %s", o.redactions, o.file.c_str());
   std::string url = replace_all(replace_all(s.cfg.artifact_url, "{run_id}", s.run_id), "{file}", o.file);
   HttpOptions h;
   h.connect_timeout_s = s.cfg.connect_timeout_s; h.max_time_s = s.cfg.log_max_time_s;
@@ -458,10 +497,23 @@ LogOutcome handle_own_log(State &s) {
   return o;
 }
 
+LogOutcome handle_own_log(State &s) {
+  LogOutcome o;
+  try {
+    o = handle_own_log_inner(s);
+  } catch (...) {
+    drop_capture(s);
+    throw;
+  }
+  drop_capture(s);
+  return o;
+}
+
 // One line of percent-encoded name=value pairs, which is all a process hands to rank 0.
 std::string encode_outcome(const LogOutcome &o) {
   return "host=" + pct_encode(o.host) + "&pid=" + std::to_string(o.pid) + "&file=" + pct_encode(o.file) +
-         "&status=" + pct_encode(o.status) + "&bytes=" + std::to_string(o.bytes);
+         "&status=" + pct_encode(o.status) + "&bytes=" + std::to_string(o.bytes) +
+         (o.scrubbed ? "&redactions=" + std::to_string(o.redactions) : std::string());
 }
 
 bool decode_outcome(const char *data, size_t len, LogOutcome *o) {
@@ -474,6 +526,7 @@ bool decode_outcome(const char *data, size_t len, LogOutcome *o) {
     else if (kv.first == "file") o->file = kv.second;
     else if (kv.first == "status") o->status = kv.second;
     else if (kv.first == "bytes") o->bytes = (size_t)strtoull(kv.second.c_str(), nullptr, 10);
+    else if (kv.first == "redactions") { o->scrubbed = true; o->redactions = (size_t)strtoull(kv.second.c_str(), nullptr, 10); }
   }
   return !o->status.empty();
 }
@@ -499,6 +552,20 @@ void nccl_tests_ext_init(int argc, char **argv, char **envp) {
   for (int i = 0; i < argc && argv && argv[i]; ++i) s.argv.push_back(argv[i]);
   if (s.cfg.pending) dbg("active, %s", s.cfg.reason.c_str());
   else dbg("active, %s, %s", s.cfg.reason.c_str(), s.cfg.url.c_str());
+  // With log upload on and no NCCL_DEBUG_FILE, NCCL's debug lines go to stdout. Keep a copy
+  // of stdout and stderr so they can be sent. NCCL_TESTS_REPORT_CAPTURE_OUTPUT=0 turns it off.
+  const char *dbgfile = getenv("NCCL_DEBUG_FILE");
+  const char *cap = getenv("NCCL_TESTS_REPORT_CAPTURE_OUTPUT");
+  if (s.cfg.logs && (!dbgfile || !*dbgfile) && !(cap && strcmp(cap, "0") == 0)) {
+    const char *tmp = getenv("TMPDIR");
+    std::string err;
+    if (capture_start(&s.cap, tmp && *tmp ? tmp : "/tmp", &err)) {
+      atexit(drop_capture_at_exit);
+      dbg("keeping a copy of stdout and stderr for log upload");
+    } else {
+      dbg("no output copy, %s", err.c_str());
+    }
+  }
 }
 
 void nccl_tests_ext_identify_writer(int is_writer) {
@@ -719,6 +786,7 @@ void nccl_tests_ext_finalize(int result_code) {
       dbg("log handling failed (exception); ignored");
     }
   }
+  drop_capture(s);  // a copy that no hook sent is not kept
   if (!s.writer) { dbg("not the writer rank; no results sent"); return; }
   snapshot_libs(s);
   if (s.sizes_overflow) { dbg("more than %zu result lines; nothing sent", kMaxSizeRecords); return; }
