@@ -282,7 +282,29 @@ check "logs: artifact shares the results run id"    'id=$(results_run_id) && [[ 
 check "logs: debug file named by host and pid"      'grep -qE "/artifacts/nccl-debug-${SHORT//[^A-Za-z0-9_-]/_}-[0-9]+\.log$" "$WORK/m.artifacts"'
 check "logs: debug file body is the file"           'f=$(ls "$WORK"/m.artifact.nccl-debug-*.log) && cmp -s "$f" "$WORK/dbg.$SHORT.log"'
 check "logs: results carry the status"              '[[ $(statuses) == delivered && $(rows ctx nccl-test-config log_status source) == logs ]]'
+check "scrub: a clean log has zero redactions"     'r=$(rows ctx nccl-test-config log_status redactions) && [[ ${r%.0} == 0 ]]'
 check "logs: stdout unchanged"                      'cmp -s "$WORK/l1.out" "$WORK/l2.out"'
+cat > "$WORK/sec.$SHORT.log" <<'SECRETS'
+NCCL INFO comm 0x5555 rank 0 nranks 8 cudaDev 0 nvmlDev 0 busId 18000 - Init COMPLETE
+NCCL INFO NCCL_IB_PKEY=0x8001 kept as a setting
+export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYsecretAAAA
+pushing with ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab now
+Authorization: Basic dXNlcjpodW50ZXIy
+fetching https://bob:hunter2pass@example.com/data
+key id AKIAIOSFODNN7SECRETX in use
+./run --db-password="s3cret value" --size 8
+-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAsecretkeymaterial
+-----END RSA PRIVATE KEY-----
+NCCL INFO task-runner sk-learn monkey 5 done
+SECRETS
+reset_mock
+run l2s NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_TESTS_REPORT_ARTIFACT_URL="$AURL" NCCL_DEBUG_FILE="$WORK/sec.%h.log"
+check "scrub: the log is still delivered"           '[[ $(nartifacts) -eq 1 && $(statuses) == delivered ]]'
+check "scrub: no credential reaches the endpoint"   'f=$(ls "$WORK"/m.artifact.nccl-debug-*.log) && ! grep -qE "wJalrXUtnFEMI|ghp_ABCDEF|dXNlcjpodW50ZXIy|hunter2pass|AKIAIOSFODNN7SECRETX|s3cret|secretkeymaterial" "$f"'
+check "scrub: credentials are marked as redacted"   'f=$(ls "$WORK"/m.artifact.nccl-debug-*.log) && grep -q "AWS_SECRET_ACCESS_KEY=<redacted>" "$f" && grep -q "https://bob:<redacted>@example.com/data" "$f" && grep -q "^<redacted private key>$" "$f"'
+check "scrub: ordinary lines are unchanged"         'f=$(ls "$WORK"/m.artifact.nccl-debug-*.log) && grep -qxF "NCCL INFO comm 0x5555 rank 0 nranks 8 cudaDev 0 nvmlDev 0 busId 18000 - Init COMPLETE" "$f" && grep -qxF "NCCL INFO NCCL_IB_PKEY=0x8001 kept as a setting" "$f" && grep -qxF "NCCL INFO task-runner sk-learn monkey 5 done" "$f"'
+check "scrub: the count is in the status row"       'r=$(rows ctx nccl-test-config log_status redactions) && [[ ${r%.0} == 7 ]]'
 reset_mock
 run l3 NCCL_TESTS_REPORT_URL="$URL" NCCL_TESTS_REPORT_LOGS=1 NCCL_DEBUG_FILE="$WORK/dbg.%h.log"
 check "no artifact endpoint: only the results are sent" '[[ $RC -eq 0 && $(nartifacts) -eq 0 && $(npaths) -eq 1 ]]'

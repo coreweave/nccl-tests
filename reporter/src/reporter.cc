@@ -27,6 +27,7 @@
 #include "libs.h"
 #include "logs.h"
 #include "rows.h"
+#include "secrets.h"
 #include "util.h"
 
 namespace {
@@ -135,6 +136,8 @@ struct LogOutcome {
   std::string host, file, status;
   int pid = 0;
   size_t bytes = 0;      // size of the file on disk
+  bool scrubbed = false; // the log was read and scrubbed before upload
+  size_t redactions = 0; // credentials replaced in what was sent
 };
 
 typedef std::vector<std::pair<std::string, std::string>> Pairs;
@@ -342,6 +345,7 @@ std::vector<Row> build_rows(const State &s, int result_code, const timespec &t1)
     ctx_put(c, "pid", (double)l.pid);
     if (!l.file.empty()) ctx_put(c, "file", l.file);
     ctx_put(c, "bytes", (double)l.bytes);
+    if (l.scrubbed) ctx_put(c, "redactions", (double)l.redactions);
     add_row(rows, kKindConfig, "log_status", Value::text(l.status), cfg_base, c);
   }
 
@@ -477,6 +481,10 @@ LogOutcome handle_own_log_inner(State &s) {
     dbg("NCCL log at %s is %s, not sent", path.c_str(), o.status.c_str());
     return o;
   }
+  // A log holds whatever the process printed, so credentials are replaced before it leaves.
+  body = scrub_log(body, &o.redactions);
+  o.scrubbed = true;
+  if (o.redactions) dbg("replaced %zu credentials in %s", o.redactions, o.file.c_str());
   std::string url = replace_all(replace_all(s.cfg.artifact_url, "{run_id}", s.run_id), "{file}", o.file);
   HttpOptions h;
   h.connect_timeout_s = s.cfg.connect_timeout_s; h.max_time_s = s.cfg.log_max_time_s;
@@ -504,7 +512,8 @@ LogOutcome handle_own_log(State &s) {
 // One line of percent-encoded name=value pairs, which is all a process hands to rank 0.
 std::string encode_outcome(const LogOutcome &o) {
   return "host=" + pct_encode(o.host) + "&pid=" + std::to_string(o.pid) + "&file=" + pct_encode(o.file) +
-         "&status=" + pct_encode(o.status) + "&bytes=" + std::to_string(o.bytes);
+         "&status=" + pct_encode(o.status) + "&bytes=" + std::to_string(o.bytes) +
+         (o.scrubbed ? "&redactions=" + std::to_string(o.redactions) : std::string());
 }
 
 bool decode_outcome(const char *data, size_t len, LogOutcome *o) {
@@ -517,6 +526,7 @@ bool decode_outcome(const char *data, size_t len, LogOutcome *o) {
     else if (kv.first == "file") o->file = kv.second;
     else if (kv.first == "status") o->status = kv.second;
     else if (kv.first == "bytes") o->bytes = (size_t)strtoull(kv.second.c_str(), nullptr, 10);
+    else if (kv.first == "redactions") { o->scrubbed = true; o->redactions = (size_t)strtoull(kv.second.c_str(), nullptr, 10); }
   }
   return !o->status.empty();
 }

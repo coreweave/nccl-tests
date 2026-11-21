@@ -162,6 +162,24 @@ the log is handled, and sends that copy as `nccl-output-<host>-<pid>.log` instea
 
 Logs travel only to the artifact endpoint. The results endpoint never carries log content.
 
+A log holds whatever the process printed, so each process replaces credentials in its log
+before it sends it, in one pass over the text. What is replaced:
+
+- a private key block, from `-----BEGIN ... PRIVATE KEY-----` through its END line, which
+  becomes `<redacted private key>`
+- the rest of the line after `Authorization:`, and the token after `Bearer `
+- a token that starts like one from a known service, such as `ghp_`, `github_pat_`, `glpat-`,
+  `xoxb-`, `sk-`, `AIza`, `ya29.`, an AWS key id (`AKIA` or `ASIA` and 16 characters) or a
+  JWT (`eyJ...`), when enough token characters follow to rule out an ordinary word
+- the password in a URL, as in `https://user:<redacted>@host`
+- the value of `NAME=value` when the name is one the environment filter drops (see
+  [Recorded environment variables](#recorded-environment-variables)), as in an environment
+  dump or a `--password=...` flag
+
+Each one becomes `<redacted>`, and everything else is sent byte for byte. The number replaced is
+in the `redactions` context of the log's `log_status` row. It catches the usual shapes
+of credentials and is not a guarantee.
+
 - Each process PUTs its log to `/v1/runs/{run_id}/artifacts/nccl-debug-<host>-<pid>.log` under
   the run id of the results. The endpoint is `NCCL_TESTS_REPORT_ARTIFACT_URL` or else the first
   of the artifact hosts that resolves inside a cluster, on the reporter port. A log over
@@ -171,7 +189,7 @@ Logs travel only to the artifact endpoint. The results endpoint never carries lo
   `delivered`, `failed`, `no_results_endpoint`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file` (no
   `NCCL_DEBUG_FILE` and no output copy), `copy_incomplete` (the output copy was still being
   passed to a slow consumer after 2 s, so it was not sent), `missing`,
-  `unreadable` or `over_limit`, and context has `log_node`, `pid`, `file` and `bytes`. The
+  `unreadable` or `over_limit`, and context has `log_node`, `pid`, `file`, `bytes` and, for a log that was read, `redactions`. The
   results therefore say what happened to every node's log, also when none was sent.
 
 Rank 0 shares its run id with every process right after MPI init. A process without the shared
@@ -195,7 +213,7 @@ adds, is never read.
 | RDMA | `GDRCOPY_`, `MLX5_`, `RDMAV_`, `IBV_` |
 
 Three rules keep credentials out, and they follow the environment filter of the fork's JSON
-output. A name that contains KEY, TOKEN, SECRET, PASS, PWD, CRED, AUTH, PRIVATE, SIGNING,
+output. The log scrubber uses the same name and value rules. A name that contains KEY, TOKEN, SECRET, PASS, PWD, CRED, AUTH, PRIVATE, SIGNING,
 SIGNATURE, HMAC, SALT, JWT, BEARER, COOKIE, SESSION, LICENSE, LICENCE, DSN, URL, DATABASE,
 REDIS, MONGODB, CONNECTION_STRING, USERNAME, USER or EMAIL is dropped, except that a name
 containing PKEY stays, because InfiniBand partition keys are settings. A value that starts
