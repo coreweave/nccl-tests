@@ -52,7 +52,11 @@ the following components:
 - NVIDIA [NCCL SHARP Plugin](https://github.com/Mellanox/nccl-rdma-sharp-plugins)
    for SHARP support in NCCL
 - NVIDIA [NCCL Tests](https://github.com/NVIDIA/nccl-tests) for verification
-   and benchmarking purposes
+   and benchmarking purposes, built from CoreWeave's fork
+   [nccl-tests-json](https://github.com/coreweave/nccl-tests-json). The fork
+   adds JSON output and hook points for an optional result reporter, which is
+   off unless the environment configures an endpoint. See
+   [reporter/README.md](reporter/README.md).
 - NVIDIA [DCGM](https://developer.nvidia.com/dcgm) for GPU tests and health
    checks
 - NVIDIA [bandwidthTest](https://docs.nvidia.com/cuda/demo-suite/index.html#bandwidthTest)
