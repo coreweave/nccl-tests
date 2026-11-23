@@ -31,6 +31,14 @@
 
 namespace ext {
 
+// The fork already filters the environment it hands to nccl_tests_ext_init (reportableEnv in
+// src/util.cu), with the same rules it applies to its JSON output. The reporter filters again
+// on purpose: it records a narrower set of prefixes than the fork passes through (no SLURM_*,
+// NVIDIA_*, NV_* or LD_*), it must stay safe under a fork pin that passes envp unfiltered, and
+// the same credential rules protect anything else the reporter sends. The name parts and value
+// prefixes below mirror the fork's SENSITIVE_ENV_NAME_PARTS and SECRET_VALUE_PREFIXES; keep them
+// in sync with util.cu, adding to both. The reporter may be stricter (it also drops USER).
+
 // Environment variables are recorded by name prefix. These prefixes cover the libraries that
 // decide how NCCL moves data. Nothing outside them is read.
 static const char *const kRecordedPrefixes[] = {
@@ -48,11 +56,20 @@ static const char *const kSensitiveNameParts[] = {
 };
 static const char *const kExemptNameParts[] = {"PKEY"};
 
-// A value that starts with one of these is a credential issued by a known service. The
-// variable is kept and the value replaced, so the setting is known to exist without its content.
+// A value that starts with one of these, compared exactly, is a credential issued by a known
+// service. The variable is kept and the value replaced, so the setting is known to exist
+// without its content. Same list as the fork's SECRET_VALUE_PREFIXES, plus "Basic ".
 static const char *const kSecretValuePrefixes[] = {
-    "Bearer ", "Basic ", "ghp_", "gho_", "github_pat_", "glpat-", "xoxb-", "xoxp-", "xoxa-",
-    "AKIA", "ASIA", "sk-", "sk_live_", "sk_test_", "AIza", "ya29.", "eyJ",
+    "sk-", "sk_", "rk_",                                   // OpenAI, Anthropic, Stripe
+    "ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_",  // GitHub
+    "glpat-",                                              // GitLab
+    "xox", "xapp-",                                        // Slack
+    "AKIA", "ASIA",                                        // AWS access key ids
+    "AIza", "ya29.",                                       // Google API key, OAuth token
+    "hf_", "npm_", "pypi-", "dop_v1_", "SG.",
+    "eyJ",                                                 // base64 JSON, as in a JWT
+    "-----BEGIN",                                          // PEM block
+    "Bearer ", "Basic ",
 };
 static const char kRedactedValue[] = "<redacted>";
 

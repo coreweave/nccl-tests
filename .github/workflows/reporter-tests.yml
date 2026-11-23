@@ -1,0 +1,30 @@
+name: Reporter tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - reporter/**
+      - .github/workflows/reporter-tests.yml
+  pull_request:
+    paths:
+      - reporter/**
+      - .github/workflows/reporter-tests.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: cw-static-pub-x64-4c
+    # GPU-free: a fake nccl-tests binary drives the hooks against a mock endpoint.
+    container: ubuntu:24.04
+    steps:
+      - name: Install build and test dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git g++ make python3 libcurl4t64
+      - uses: actions/checkout@v4
+      - name: Build and run the reporter tests
+        run: make -C reporter test

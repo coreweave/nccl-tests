@@ -147,6 +147,11 @@ Logs travel only to the artifact endpoint. The results endpoint never carries lo
   `delivered`, `failed`, `no_results_endpoint`, `no_artifact_endpoint`, `no_run_id`, `no_debug_file`, `missing`,
   `unreadable` or `over_limit`, and context has `log_node`, `pid`, `file` and `bytes`. The
   results therefore say what happened to every node's log, also when none was sent.
+- Uploads happen at the end of the run, before `MPI_Finalize`, so they never count toward the
+  reported duration. Each one is bounded by `NCCL_TESTS_REPORT_LOG_MAX_TIME`, so a slow or
+  unreachable artifact endpoint can delay the exit of a process by at most that long, 30 s by
+  default. Every process sends its own log at the same moment, so leave log upload off for very
+  large jobs unless the artifact endpoint is sized for it.
 
 Rank 0 shares its run id with every process right after MPI init. A process without the shared
 run id, or with a results URL that has no `{run_id}` and no `NCCL_TESTS_REPORT_RUN_ID`, has no
@@ -168,16 +173,22 @@ adds, is never read.
 | CUDA | `CUDA_` |
 | RDMA | `GDRCOPY_`, `MLX5_`, `RDMAV_`, `IBV_` |
 
-Three rules keep credentials out, and they follow the environment filter of the fork's JSON
-output. A name that contains KEY, TOKEN, SECRET, PASS, PWD, CRED, AUTH, PRIVATE, SIGNING,
-SIGNATURE, HMAC, SALT, JWT, BEARER, COOKIE, SESSION, LICENSE, LICENCE, DSN, URL, DATABASE,
-REDIS, MONGODB, CONNECTION_STRING, USERNAME, USER or EMAIL is dropped, except that a name
-containing PKEY stays, because InfiniBand partition keys are settings. A value that starts
-like a credential from a known service, for example `Bearer ` or `ghp_`, is sent as
-`<redacted>`, so the variable is known to exist without its content. The reporter's own
-`NCCL_TESTS_REPORT_*` settings are never sent as config rows. Names are compared without
-regard to case. Other values, including file paths, addresses and interface names, are sent
-as they are.
+The fork already filters the environment before it reaches the reporter, with the rules of
+its JSON output (`reportableEnv` in `src/util.cu`). The reporter applies the same rules again
+and records fewer prefixes: the fork also passes `SLURM_*`, `NVIDIA_*`, `NV_*` and `LD_*`
+through, and the reporter leaves those out. The second pass also keeps the reporter safe under
+a fork pin that hands it the environment unfiltered. Its tables mirror the fork's, so a change
+to one belongs in both.
+
+Three rules keep credentials out. A name that contains KEY, TOKEN, SECRET, PASS, PWD, CRED,
+AUTH, PRIVATE, SIGNING, SIGNATURE, HMAC, SALT, JWT, BEARER, COOKIE, SESSION, LICENSE, LICENCE,
+DSN, URL, DATABASE, REDIS, MONGODB, CONNECTION_STRING, USERNAME, USER or EMAIL is dropped,
+except that a name containing PKEY stays, because InfiniBand partition keys are settings. A
+value that starts like a credential from a known service, the fork's list such as `Bearer `,
+`ghp_`, `xox`, `hf_` or `-----BEGIN`, plus `Basic `, is sent as `<redacted>`, so the variable is
+known to exist without its content. The reporter's own `NCCL_TESTS_REPORT_*` settings are never
+sent as config rows. Names are compared without regard to case. Other values, including file
+paths, addresses and interface names, are sent as they are.
 
 The `nccl_version` context is the version of the NCCL library loaded in the process, never the
 `NCCL_VERSION` variable, which a base image may set for an NCCL that the image no longer ships.

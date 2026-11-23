@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Compile the nccl-tests fork with and without the extension inside the official devel
-# image. No GPU is needed to compile, only to run. Builds one GPU architecture by default,
-# which NVCC_GENCODE overrides, so the check takes minutes, not an hour.
+# Developer tool, not used by CI or the Dockerfile. Compile the nccl-tests fork with and
+# without the extension inside the official devel image. No GPU is needed to compile, only
+# to run. Builds one GPU architecture by default, which NVCC_GENCODE overrides, so the check
+# takes minutes, not an hour.
 #
 #   tools/build-in-image.sh [image] [fork-dir]
 #
 # Outputs go under build/image-build/ as build-<stock|ext>-mpi<0|1>.log and the all_reduce_perf
 # binaries from each build.
 set -euo pipefail
-IMAGE=${1:-ghcr.io/coreweave/nccl-tests:13.2.1-devel-ubuntu24.04-nccl2.31.2-1-478d8e5}
+IMAGE=${1:-ghcr.io/coreweave/nccl-tests:13.4.2-devel-ubuntu22.04-nccl2.32.3-1-4811114}
 FORK=${2:?usage: build-in-image.sh [image] <path to a nccl-tests-json checkout>}
 # docker -v needs an absolute host path. A relative path is rejected and a bare name would
 # mount a named volume instead of the checkout.

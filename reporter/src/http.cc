@@ -26,6 +26,7 @@ enum : long {
   CURLOPT_POSTFIELDSIZE = 60,
   CURLOPT_CONNECTTIMEOUT = 78,
   CURLOPT_NOSIGNAL = 99,
+  CURLOPT_NOPROXY = 10177,
   CURLINFO_RESPONSE_CODE = 0x200002,
 };
 typedef CURLcode (*global_init_t)(long);
@@ -102,6 +103,8 @@ bool http_put(const std::string &url, const std::string &body, const std::string
   api.easy_setopt(h, CURLOPT_POSTFIELDSIZE, (long)body.size());
   api.easy_setopt(h, CURLOPT_HTTPHEADER, headers);
   api.easy_setopt(h, CURLOPT_NOSIGNAL, 1L);
+  // Endpoints are in-cluster collectors. Never route them through an http_proxy the job may set.
+  api.easy_setopt(h, CURLOPT_NOPROXY, "*");
   api.easy_setopt(h, CURLOPT_FAILONERROR, 1L);
   api.easy_setopt(h, CURLOPT_CONNECTTIMEOUT, opt.connect_timeout_s);
   api.easy_setopt(h, CURLOPT_TIMEOUT, opt.max_time_s);
